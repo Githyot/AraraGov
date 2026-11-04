@@ -123,6 +123,23 @@ class Despesa(Base):
     url_documento: Mapped[Optional[str]] = mapped_column(String(400))
 
 
+class Assessor(Base):
+    """Pessoa lotada no gabinete do parlamentar (secretário parlamentar na
+    Câmara, comissionado no gabinete no Senado). Lista substituída a cada coleta."""
+
+    __tablename__ = "assessor"
+    __table_args__ = (Index("ix_assessor_politico", "casa", "codigo_politico"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    casa: Mapped[str] = mapped_column(String(10))
+    codigo_politico: Mapped[Optional[int]] = mapped_column(Integer)
+    nome: Mapped[str] = mapped_column(String(200))
+    cargo: Mapped[Optional[str]] = mapped_column(String(200))
+    funcao: Mapped[Optional[str]] = mapped_column(String(200))
+    lotacao: Mapped[Optional[str]] = mapped_column(String(300))
+    desde: Mapped[Optional[date]] = mapped_column(Date)
+
+
 class Ipca(Base):
     """Variação mensal do IPCA (%), série 433 do Banco Central."""
 
