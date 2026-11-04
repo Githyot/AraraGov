@@ -142,6 +142,12 @@ def _analises(politicos, votos_por, votacoes) -> Dict[Any, Any]:
         if not simples:
             continue
         r = espectro.calcular(simples)
+        n_votacoes = len({v.votacao_id for v in simples})
+        logger.info(
+            "%s: %s votos em %s votações (%.1f por votação), %s com partido",
+            casa, len(simples), n_votacoes, len(simples) / n_votacoes,
+            sum(1 for v in simples if v.partido),
+        )
         for vid, lado in r.votacoes.items():
             saida["_lados"][vid] = lado.lado_sim
         alinh = espectro.alinhamento_partidos(simples)
