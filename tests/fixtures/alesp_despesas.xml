@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?><despesas>
+<despesa><Ano>2025</Ano><Matricula>300607</Matricula><Mes>3</Mes><Valor>200.0</Valor><CNPJ>71806251000106</CNPJ><Deputado>DANILO BALAS</Deputado><Tipo>A - COMBUSTÍVEIS E LUBRIFICANTES</Tipo><Fornecedor>AUTO POSTO</Fornecedor></despesa>
+<despesa><Ano>2025</Ano><Matricula>300607</Matricula><Mes>3</Mes><Valor>200.0</Valor><CNPJ>71806251000106</CNPJ><Deputado>DANILO BALAS</Deputado><Tipo>A - COMBUSTÍVEIS E LUBRIFICANTES</Tipo><Fornecedor>AUTO POSTO</Fornecedor></despesa>
+<despesa><Ano>2015</Ano><Matricula>300607</Matricula><Mes>3</Mes><Valor>99.0</Valor><CNPJ>1</CNPJ><Deputado>DANILO BALAS</Deputado><Tipo>X</Tipo><Fornecedor>Y</Fornecedor></despesa>
+<despesa><Ano>2025</Ano><Matricula>111111</Matricula><Mes>4</Mes><Valor>50,5</Valor><CNPJ>2</CNPJ><Deputado>EX-DEPUTADO</Deputado><Tipo>X</Tipo><Fornecedor>Y</Fornecedor></despesa>
+</despesas>

@@ -32,7 +32,29 @@ FONTES = {
     "camara": "https://dadosabertos.camara.leg.br",
     "senado": "https://legis.senado.leg.br/dadosabertos",
     "ipca": "https://www.bcb.gov.br (série SGS 433)",
+    "tse": "https://dadosabertos.tse.jus.br (candidatos eleitos)",
+    "al-mg": "https://dadosabertos.almg.gov.br",
+    "al-sp": "https://www.al.sp.gov.br/dados-abertos",
 }
+
+# Constituição, art. 27, § 2º: o subsídio do deputado estadual é de no máximo
+# 75% do deputado federal. Quase todas as assembleias pagam o teto, mas cada
+# uma fixa o valor por lei própria, então o app mostra isso como teto.
+FRACAO_ESTADUAL = Decimal("0.75")
+CARGOS_ESTADUAIS = {"Deputado estadual", "Deputado distrital"}
+OBS_ESTADUAL = (
+    "Teto constitucional: 75% do subsídio de deputado federal (CF, art. 27, § 2º). "
+    "O valor exato é fixado por lei de cada assembleia."
+)
+OBS_GOVERNO = "Fixado por lei estadual; ainda não coletado."
+
+# Casas que têm lista própria de quem está em exercício. As demais casas
+# estaduais vêm da lista de eleitos do TSE.
+LISTA_PROPRIA = {"camara", "senado", "al-mg", "al-sp"}
+AVISO_TSE = (
+    "Dados da eleição de 2022 (TSE). Suplentes que assumiram depois e trocas "
+    "de partido podem não aparecer."
+)
 
 
 def _json(valor: Any) -> Any:
@@ -48,10 +70,27 @@ def _gravar(caminho: Path, dados: Any) -> None:
     caminho.write_text(json.dumps(dados, default=_json, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 
 
+def orgao(casa: str) -> Dict[str, str]:
+    """Esfera e nome do órgão, para filtros e títulos no app."""
+    if casa == "camara":
+        return {"esfera": "federal", "orgao": "Câmara dos Deputados"}
+    if casa == "senado":
+        return {"esfera": "federal", "orgao": "Senado Federal"}
+    prefixo, _, uf = casa.partition("-")
+    uf = uf.upper()
+    if prefixo == "al":
+        nome = "Câmara Legislativa do DF" if uf == "DF" else f"Assembleia Legislativa ({uf})"
+        return {"esfera": "estadual", "orgao": nome}
+    if prefixo == "gov":
+        return {"esfera": "estadual", "orgao": f"Governo do estado ({uf})"}
+    return {"esfera": "outra", "orgao": casa}
+
+
 def _resumo(p: Politico) -> Dict[str, Any]:
     return {
         "id": f"{p.casa}-{p.codigo}",
         "casa": p.casa,
+        **orgao(p.casa),
         "cargo": p.cargo,
         "nome": p.nome,
         "partido": p.partido,
@@ -62,6 +101,26 @@ def _resumo(p: Politico) -> Dict[str, Any]:
 
 
 def _salario(cargo: str, subsidios: List[Subsidio]) -> Dict[str, Any]:
+    if cargo in CARGOS_ESTADUAIS:
+        federal = _salario("Deputado Federal", subsidios)
+
+        def fator(valor):
+            return (Decimal(valor) * FRACAO_ESTADUAL).quantize(Decimal("0.01"))
+
+        resultado = {
+            "atual": fator(federal["atual"]) if federal["atual"] is not None else None,
+            "historico": [{**h, "valor": fator(h["valor"])} for h in federal["historico"]],
+            "teto": True,
+            "observacao": OBS_ESTADUAL,
+        }
+        if "vs_inflacao" in federal:
+            vs = dict(federal["vs_inflacao"])
+            for k in ("valor_inicial", "valor_atual", "corrigido_pela_inflacao"):
+                vs[k] = fator(vs[k])
+            resultado["vs_inflacao"] = vs
+        return resultado
+    if cargo in ("Governador", "Vice-governador"):
+        return {"atual": None, "historico": [], "observacao": OBS_GOVERNO}
     historico = [
         {"desde": s.vigencia_inicio, "valor": s.valor, "ato": s.ato, "fonte": s.fonte}
         for s in sorted(subsidios, key=lambda s: s.vigencia_inicio)
@@ -234,6 +293,7 @@ def exportar(saida: Path) -> int:
         )
         perfil = {
             **_resumo(p),
+            "aviso_cadastro": None if p.casa in LISTA_PROPRIA else AVISO_TSE,
             "nome_civil": p.nome_civil,
             "email": p.email,
             "salario": salarios[p.cargo],

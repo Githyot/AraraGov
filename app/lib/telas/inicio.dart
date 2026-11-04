@@ -18,12 +18,12 @@ class Inicio extends StatefulWidget {
   State<Inicio> createState() => _InicioState();
 }
 
-enum Casa { todas, camara, senado }
+enum Esfera { todas, federal, estadual }
 
 class _InicioState extends State<Inicio> {
   late Future<List<PoliticoResumo>> _lista;
   final _busca = TextEditingController();
-  Casa _casa = Casa.todas;
+  Esfera _esfera = Esfera.todas;
   String? _uf;
   bool _soEmExercicio = true;
   String? _selecionado;
@@ -40,11 +40,11 @@ class _InicioState extends State<Inicio> {
   List<PoliticoResumo> _filtrar(List<PoliticoResumo> todos) {
     final termo = semAcento(_busca.text.trim().toLowerCase());
     return todos.where((p) {
-      if (_casa != Casa.todas && p.casa != _casa.name) return false;
+      if (_esfera != Esfera.todas && p.esfera != _esfera.name) return false;
       if (_uf != null && p.uf != _uf) return false;
       if (_soEmExercicio && !p.emExercicio) return false;
       if (termo.isEmpty) return true;
-      return semAcento('${p.nome} ${p.partido ?? ''} ${p.uf ?? ''}'.toLowerCase()).contains(termo);
+      return semAcento('${p.nome} ${p.partido ?? ''} ${p.uf ?? ''} ${p.cargo} ${p.orgao}'.toLowerCase()).contains(termo);
     }).toList();
   }
 
@@ -117,7 +117,7 @@ class _InicioState extends State<Inicio> {
                     TextField(
                       controller: _busca,
                       decoration: InputDecoration(
-                        hintText: 'Buscar por nome, partido ou estado',
+                        hintText: 'Buscar por nome, partido, cargo ou estado',
                         prefixIcon: const Icon(Icons.search, size: 20),
                         suffixIcon: _busca.text.isEmpty
                             ? null
@@ -125,15 +125,15 @@ class _InicioState extends State<Inicio> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    SegmentedButton<Casa>(
+                    SegmentedButton<Esfera>(
                       showSelectedIcon: false,
                       segments: const [
-                        ButtonSegment(value: Casa.todas, label: Text('Todos')),
-                        ButtonSegment(value: Casa.camara, label: Text('Câmara')),
-                        ButtonSegment(value: Casa.senado, label: Text('Senado')),
+                        ButtonSegment(value: Esfera.todas, label: Text('Todos')),
+                        ButtonSegment(value: Esfera.federal, label: Text('Federal')),
+                        ButtonSegment(value: Esfera.estadual, label: Text('Estadual')),
                       ],
-                      selected: {_casa},
-                      onSelectionChanged: (s) => setState(() => _casa = s.first),
+                      selected: {_esfera},
+                      onSelectionChanged: (s) => setState(() => _esfera = s.first),
                     ),
                     const SizedBox(height: 4),
                     Row(children: [

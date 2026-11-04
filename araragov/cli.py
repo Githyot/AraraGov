@@ -15,7 +15,7 @@ from datetime import date
 from sqlalchemy import func, select
 
 from . import db
-from .collectors import camara, gabinete, referencia, senado
+from .collectors import assembleias, camara, gabinete, referencia, senado, tse
 from .http import HttpClient
 
 ALVOS = {
@@ -27,12 +27,22 @@ ALVOS = {
     "senado-despesas": lambda c, a: senado.coletar_despesas(c, a.ano, a.limite),
     "camara-gabinetes": lambda c, a: gabinete.coletar_camara(c),
     "senado-gabinetes": lambda c, a: gabinete.coletar_senado(c),
+    # Estados: eleitos do TSE nos 27 estados; onde a assembleia tem lista
+    # própria (MG, SP), ela substitui a do TSE.
+    "estados-eleitos": lambda c, a: tse.coletar_eleitos(c, pular_casas=(assembleias.ALMG, assembleias.ALESP)),
+    "almg-deputados": lambda c, a: assembleias.coletar_deputados_almg(c),
+    "almg-despesas": lambda c, a: assembleias.coletar_despesas_almg(c, a.ano, a.limite),
+    "alesp-deputados": lambda c, a: assembleias.coletar_deputados_alesp(c),
+    "alesp-despesas": lambda c, a: assembleias.coletar_despesas_alesp(c, a.ano, a.limite),
     "ipca": lambda c, a: referencia.coletar_ipca(c),
     "subsidios": lambda c, a: referencia.carregar_subsidios(),
 }
 
 
-POR_ANO = {"camara-votacoes", "camara-despesas", "senado-votacoes", "senado-despesas"}
+POR_ANO = {
+    "camara-votacoes", "camara-despesas", "senado-votacoes", "senado-despesas",
+    "almg-despesas", "alesp-despesas",
+}
 
 
 def _anos(texto: str) -> list[int]:

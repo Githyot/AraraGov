@@ -4,6 +4,7 @@ double? _nn(dynamic v) => v == null ? null : (v as num).toDouble();
 
 class PoliticoResumo {
   final String id, casa, cargo, nome;
+  final String esfera, orgao;
   final String? partido, uf, foto;
   final bool emExercicio;
 
@@ -12,6 +13,8 @@ class PoliticoResumo {
         casa = j['casa'],
         cargo = j['cargo'],
         nome = j['nome'],
+        esfera = j['esfera'] ?? (j['casa'] == 'camara' || j['casa'] == 'senado' ? 'federal' : 'estadual'),
+        orgao = j['orgao'] ?? '',
         partido = j['partido'],
         uf = j['uf'],
         foto = j['foto'],
@@ -38,9 +41,14 @@ class Salario {
   final double? atual;
   final List<({String desde, double valor, String? ato, String? fonte})> historico;
   final ValorInflacao? vsInflacao;
+  /// Verdadeiro quando o valor é o teto legal, não o valor exato pago.
+  final bool teto;
+  final String? observacao;
 
   Salario.fromJson(Map<String, dynamic> j)
       : atual = _nn(j['atual']),
+        teto = j['teto'] ?? false,
+        observacao = j['observacao'],
         historico = [
           for (final h in (j['historico'] as List? ?? []))
             (desde: h['desde'] as String, valor: _n(h['valor']), ato: h['ato'] as String?, fonte: h['fonte'] as String?)
@@ -143,7 +151,7 @@ class Assessor {
 
 class Perfil {
   final PoliticoResumo resumo;
-  final String? nomeCivil, email;
+  final String? nomeCivil, email, avisoCadastro;
   final Salario salario;
   final Gastos gastos;
   final Map<String, int> presenca;
@@ -157,6 +165,7 @@ class Perfil {
       : resumo = PoliticoResumo.fromJson(j),
         nomeCivil = j['nome_civil'],
         email = j['email'],
+        avisoCadastro = j['aviso_cadastro'],
         salario = Salario.fromJson(j['salario'] ?? {}),
         gastos = Gastos.fromJson(j['gastos'] ?? {}),
         presenca = {for (final e in (j['presenca'] as Map? ?? {}).entries) e.key as String: e.value as int},
