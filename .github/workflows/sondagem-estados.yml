@@ -1,0 +1,31 @@
+name: Sondagem estados
+on:
+  push:
+    branches: [etapa-3-estados]
+    paths: [".github/workflows/sondagem-estados.yml"]
+jobs:
+  sondar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sondar fontes
+        run: |
+          set +e
+          ua="AraraGov/0.1 (+https://github.com/Githyot/AraraGov)"
+          get() { echo "=== $1"; curl -sSL -A "$ua" --max-time 120 -o /tmp/r -w "HTTP %{http_code} %{content_type} %{size_download}B\n" "$1"; head -c ${2:-1500} /tmp/r | tr -d '\r'; echo; }
+          get "https://dadosabertos.almg.gov.br/ws/deputados/em_exercicio?formato=json" 2000
+          get "https://dadosabertos.almg.gov.br/ws/deputados/em_exercicio" 1200
+          get "https://dadosabertos.almg.gov.br/ws/prestacao_contas/verbas_indenizatorias/ajuda" 4000
+          get "https://dadosabertos.almg.gov.br/ws/proposicoes/ajuda" 300
+          get "https://dadosabertos.almg.gov.br/ws/ajuda/sobre" 3000
+          get "https://www.al.sp.gov.br/repositorioDados/deputados/deputados.xml" 1500
+          get "https://www.al.sp.gov.br/repositorioDados/deputados/despesas_gabinetes.xml" 1500
+          get "https://www.al.sp.gov.br/dados-abertos/recurso/21" 1500
+          get "https://www.al.sp.gov.br/dados-abertos/grupo/1" 3000
+          get "https://dadosabertos.alepe.pe.gov.br/api/v1/parlamentares/" 1500
+          echo "=== TSE"
+          curl -sSL -A "$ua" -o /tmp/c.zip "https://cdn.tse.jus.br/estatistica/sead/odsele/consulta_cand/consulta_cand_2022.zip" -w "HTTP %{http_code} %{size_download}B\n"
+          unzip -l /tmp/c.zip | head -40
+          unzip -p /tmp/c.zip consulta_cand_2022_MG.csv | iconv -f latin1 -t utf8 | head -3
+          unzip -p /tmp/c.zip consulta_cand_2022_BRASIL.csv | iconv -f latin1 -t utf8 | awk -F';' 'NR==1{for(i=1;i<=NF;i++)h[i]=$i; next} {for(i=1;i<=NF;i++) if(h[i] ~ /DS_CARGO|DS_SIT_TOT_TURNO/) c[h[i]" "$i]++} END{for(k in c) print c[k], k}' | sort -k2 | head -40
+          echo "=== fotos"
+          curl -sSL -A "$ua" "https://divulgacandcontas.tse.jus.br/divulga/rest/v1/candidatura/buscar/2022/MG/2040602022/candidato/130001612398" -o /tmp/f -w "HTTP %{http_code}\n"; head -c 800 /tmp/f; echo
