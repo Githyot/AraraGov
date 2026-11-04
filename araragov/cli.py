@@ -41,6 +41,11 @@ ALVOS = {
 }
 
 
+# Fontes com reserva: se falharem, o TSE já cobre o estado e a coleta segue
+# sem marcar erro (o aviso aparece no log e no resumo).
+COM_RESERVA = {"almg-deputados", "almg-despesas", "alesp-deputados", "alesp-despesas"}
+
+
 POR_ANO = {
     "camara-votacoes", "camara-despesas", "senado-votacoes", "senado-despesas",
     "almg-despesas", "alesp-despesas",
@@ -99,6 +104,7 @@ def main(argv: list[str] | None = None) -> int:
     client = HttpClient()
     alvos = list(ALVOS) if args.alvo == "tudo" else [args.alvo]
     falhas = []
+    avisos = []
     anos = args.ano
     for alvo in alvos:
         for ano in anos if alvo in POR_ANO else anos[:1]:
@@ -107,8 +113,10 @@ def main(argv: list[str] | None = None) -> int:
                 ALVOS[alvo](client, args)
             except Exception:
                 logging.exception("Falha ao coletar %s (%s)", alvo, ano)
-                falhas.append(f"{alvo} {ano}")
+                (avisos if alvo in COM_RESERVA else falhas).append(f"{alvo} {ano}")
     resumo()
+    if avisos:
+        print("Indisponíveis (dados de reserva usados):", ", ".join(avisos), file=sys.stderr)
     if falhas:
         print("Falharam:", ", ".join(falhas), file=sys.stderr)
         return 1
