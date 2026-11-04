@@ -50,3 +50,19 @@ parlamentares. As regras são buscas simples na ementa e na descrição:
 
 Código: [`araragov/analise/atencao.py`](../araragov/analise/atencao.py).
 Sugestões de novas regras são bem-vindas.
+
+## Conferência com dados reais (2025)
+
+Rodando sobre todas as votações nominais de 2025, a média de cada partido ficou
+assim (% das votações ideológicas em que votou com o bloco de esquerda):
+
+- **Câmara** (385 votações ideológicas, 540 deputados posicionados): PT 98%,
+  PCdoB 98%, PSOL 93%, PSB 86%, PDT 84%, PSD 62%, MDB 59%, Republicanos 57%,
+  Podemos 57%, União 56%, PSDB 56%, PP 49%, PL 9%, NOVO 5%.
+- **Senado** (13 votações ideológicas, 54 senadores posicionados): PT 98%,
+  PSD 77%, MDB 74%, PSB 53%, PSDB 24%, PP 14%, Republicanos 14%, PL 8%.
+
+A ordem bate com o que se espera. Os partidos do centro ficam perto de 50–60%
+porque em 2025 muitos votaram com o governo; o número mostra **como votaram**,
+não o que declaram. No Senado há poucas votações nominais por ano, então a
+coleta completa (2023 em diante) posiciona mais senadores.
