@@ -1,0 +1,20 @@
+name: Sondagem
+on:
+  push:
+    branches: [etapa-5-emendas]
+    paths: [".github/workflows/sondagem.yml"]
+jobs:
+  sondar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sondar
+        run: |
+          set +e
+          ua="AraraGov/0.1 (+https://github.com/Githyot/AraraGov)"
+          curl -sSL -A "$ua" --max-time 600 -o /tmp/e.zip -w "HTTP %{http_code} %{content_type} %{size_download}B %{url_effective}\n" "https://portaldatransparencia.gov.br/download-de-dados/emendas-parlamentares/UNICO"
+          unzip -l /tmp/e.zip
+          f=$(unzip -Z1 /tmp/e.zip | grep -i '\.csv$' | head -1)
+          unzip -p /tmp/e.zip "$f" | iconv -f latin1 -t utf8 | head -4
+          unzip -p /tmp/e.zip "$f" | iconv -f latin1 -t utf8 | awk -F';' 'NR>1{print $2}' | sort | uniq -c | tail -12
+          unzip -p /tmp/e.zip "$f" | iconv -f latin1 -t utf8 | awk -F';' 'NR>1{print $3}' | sort | uniq -c
+          curl -sSL -A "$ua" "https://portaldatransparencia.gov.br/robots.txt" | head -20
