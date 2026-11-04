@@ -59,3 +59,14 @@ def test_despesas_ceap(client):
     lideranca = [d for d in despesas if d.codigo_politico is None]
     assert len(lideranca) == 1 and lideranca[0].valor == Decimal("1467")
     assert sum(d.valor for d in despesas if d.codigo_politico == 62881) == Decimal("3152.28")
+
+
+def test_legislatura_pela_data_quando_api_falha(client):
+    from datetime import date
+
+    assert camara.legislatura_pela_data(date(2023, 2, 1)) == 57
+    assert camara.legislatura_pela_data(date(2026, 12, 31)) == 57
+    assert camara.legislatura_pela_data(date(2027, 1, 15)) == 57
+    assert camara.legislatura_pela_data(date(2027, 2, 1)) == 58
+    # sem rota cadastrada, o cliente falso levanta erro, como num 504
+    assert camara.legislatura_atual(client) == camara.legislatura_pela_data()

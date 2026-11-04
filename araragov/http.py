@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class HttpClient:
-    def __init__(self, tentativas: int = 4, espera_inicial: float = 2.0) -> None:
+    def __init__(self, tentativas: int = 6, espera_inicial: float = 2.0) -> None:
         self.session = requests.Session()
         self.session.headers["User-Agent"] = USER_AGENT
         self.tentativas = tentativas

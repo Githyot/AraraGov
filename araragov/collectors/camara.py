@@ -15,6 +15,7 @@ import io
 import logging
 import zipfile
 from collections import defaultdict
+from datetime import date
 from typing import Any, Dict, Iterator, List, Optional
 
 from ..db import sessao
@@ -30,9 +31,21 @@ CEAP_URL = "https://www.camara.leg.br/cotas/Ano-{ano}.csv.zip"
 CASA = "camara"
 
 
+def legislatura_pela_data(hoje: Optional[date] = None) -> int:
+    """A 57ª legislatura começou em 1º/fev/2023; cada uma dura 4 anos."""
+    hoje = hoje or date.today()
+    ano = hoje.year - (1 if hoje.month == 1 else 0)
+    return 57 + (ano - 2023) // 4
+
+
 def legislatura_atual(client: HttpClient) -> int:
-    dados = client.get_json(f"{API}/legislaturas", {"ordem": "DESC", "ordenarPor": "id", "itens": 1})
-    return int(dados["dados"][0]["id"])
+    try:
+        dados = client.get_json(f"{API}/legislaturas", {"ordem": "DESC", "ordenarPor": "id", "itens": 1})
+        return int(dados["dados"][0]["id"])
+    except Exception:  # a API às vezes responde 504; a legislatura é previsível
+        legislatura = legislatura_pela_data()
+        logger.warning("API de legislaturas indisponível; usando a %sª pela data", legislatura)
+        return legislatura
 
 
 def coletar_deputados(client: HttpClient, legislatura: Optional[int] = None) -> int:
