@@ -1,0 +1,21 @@
+name: Sondagem
+on:
+  push:
+    branches: [etapa-4-beneficios]
+    paths: [".github/workflows/sondagem.yml"]
+jobs:
+  sondar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sondar
+        run: |
+          set +e
+          ua="AraraGov/0.1 (+https://github.com/Githyot/AraraGov)"
+          get() { echo "=== $1"; curl -sSL -A "$ua" --max-time 180 -o /tmp/r -w "HTTP %{http_code} %{content_type} %{size_download}B\n" "$1"; head -c ${2:-1500} /tmp/r | iconv -f latin1 -t utf8 | tr -d '\r'; echo; }
+          get "https://www2.camara.leg.br/robots.txt" 1500
+          get "https://www.senado.leg.br/robots.txt" 800
+          get "https://adm.senado.gov.br/adm-dadosabertos/api/v1/servidores/remuneracoes/2026/9" 1200
+          python3 -c "import json;d=json.load(open('/tmp/r'));print(type(d), len(d)); import collections; print(collections.Counter(x.get('tipo_folha') for x in d).most_common(8)); print(d[0])"
+          get "https://www.senado.leg.br/transparencia/lai/secrh/senador_auxilio_imoveis.csv" 1500
+          get "https://www2.camara.leg.br/transparencia/imoveis-funcionais-e-auxilio-moradia" 300
+          grep -oi 'href="[^"]*\.htm"' /tmp/r | head -12
