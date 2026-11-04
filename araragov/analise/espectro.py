@@ -1,21 +1,21 @@
-"""Posição política a partir das votações, sem classificação manual.
+"""Posição política a partir das votações, sem classificar leis à mão.
 
-Método (o mesmo usado em ciência política para o Congresso dos EUA e do
-Brasil, como o NOMINATE e o Basômetro do Estadão):
+Método:
 
-1. Monta a matriz parlamentar x votação (Sim = +1, Não = -1, demais = vazio),
-   só com votações disputadas (o lado perdedor teve pelo menos 10% dos votos).
-2. A primeira componente principal (PCA) dessa matriz é o eixo que mais
-   separa os parlamentares. Historicamente, no Brasil, esse eixo é o
-   governo x oposição e a esquerda x direita.
-3. O sentido do eixo é fixado pelos partidos de referência: quem fica do
-   lado do PT, PSOL e PCdoB é "esquerda". É a única informação externa usada.
-4. Cada votação disputada é classificada pelo lado de quem votou Sim:
-   se a média dos que votaram Sim está mais à esquerda que a dos que votaram
-   Não, então "Sim" é a posição mais à esquerda naquela votação. Votações em
-   que os dois lados se misturam ficam "sem lado claro".
-5. A posição do parlamentar é o percentual de votações classificadas em que
-   ele votou com o lado da esquerda.
+1. Partidos de referência: PT, PSOL e PCdoB (esquerda) e PL e NOVO (direita).
+   É a única informação externa usada, e é consenso entre pesquisadores.
+2. Uma votação é "ideológica" quando a maioria da esquerda de referência e a
+   maioria da direita de referência votaram em lados opostos. Nela, o Sim
+   recebe o lado de quem votou Sim (esquerda ou direita). Votações em que os
+   dois blocos concordam ficam de fora: são consenso, não dizem nada sobre o
+   lado de ninguém.
+3. A posição de cada parlamentar é o percentual dessas votações em que ele
+   votou com cada lado.
+
+Por que não usar só o eixo principal das votações (PCA/NOMINATE)? No
+Congresso brasileiro esse eixo costuma ser governo x oposição, e não
+esquerda x direita: partidos de centro que apoiam o governo apareceriam
+como "esquerda". Comparar com os dois blocos de referência evita isso.
 
 Nenhum rótulo extremista é usado: as faixas vão de esquerda a direita.
 """
@@ -26,12 +26,11 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Dict, Iterable, List, Optional, Tuple
 
-import numpy as np
-
 PARTIDOS_ESQUERDA_REFERENCIA = {"PT", "PSOL", "PCDOB"}
-MINORIA_MINIMA = 0.10  # votação disputada: perdedor com >= 10% dos votos
-VOTOS_MINIMOS = 20  # parlamentar precisa de ao menos N votos para entrar no PCA
-FORCA_MINIMA = 0.5  # separação mínima (em desvios-padrão) para dizer que há lado
+PARTIDOS_DIREITA_REFERENCIA = {"PL", "NOVO"}
+MEMBROS_MINIMOS = 3  # cada bloco precisa de N votos (Sim/Não) na votação
+COESAO_MINIMA = 0.6  # a maioria de cada bloco precisa ter ao menos 60%
+VOTOS_MINIMOS = 10  # parlamentar precisa de N votações ideológicas para ter posição
 
 
 @dataclass
@@ -44,16 +43,14 @@ class VotoSimples:
 
 @dataclass
 class LadoVotacao:
-    lado_sim: Optional[str]  # "esquerda" | "direita" | None (sem lado claro)
-    forca: float
+    lado_sim: str  # "esquerda" | "direita"
+    forca: float  # 0 a 1: quanto os dois blocos se separaram
 
 
 @dataclass
 class Resultado:
-    # posição no eixo: negativo = esquerda; só informativo
-    pontuacao: Dict[int, float] = field(default_factory=dict)
     votacoes: Dict[str, LadoVotacao] = field(default_factory=dict)
-    # % das votações classificadas em que votou com o lado da esquerda
+    # % das votações ideológicas em que votou com a esquerda, e quantas foram
     pct_esquerda: Dict[int, Tuple[float, int]] = field(default_factory=dict)
 
 
@@ -73,70 +70,47 @@ def _sigla(p: Optional[str]) -> str:
     return (p or "").upper().replace(" ", "")
 
 
+def _maioria(votos: List[bool]) -> Optional[Tuple[bool, float]]:
+    """(votou_sim, fração) da maioria do bloco, se o bloco for coeso."""
+    if len(votos) < MEMBROS_MINIMOS:
+        return None
+    frac_sim = sum(votos) / len(votos)
+    if frac_sim >= COESAO_MINIMA:
+        return True, frac_sim
+    if 1 - frac_sim >= COESAO_MINIMA:
+        return False, frac_sim
+    return None
+
+
 def calcular(votos: Iterable[VotoSimples]) -> Resultado:
     """Roda o método para uma casa legislativa."""
-    por_votacao: Dict[str, Dict[int, int]] = defaultdict(dict)
-    partido_de: Dict[int, str] = {}
+    por_votacao: Dict[str, Dict[int, bool]] = defaultdict(dict)
+    blocos: Dict[str, Dict[str, List[bool]]] = defaultdict(lambda: {"esquerda": [], "direita": []})
     for v in votos:
-        if v.voto in ("sim", "nao"):
-            por_votacao[v.votacao_id][v.codigo_politico] = 1 if v.voto == "sim" else -1
-            if v.partido:
-                partido_de[v.codigo_politico] = _sigla(v.partido)
-
-    disputadas = []
-    for vid, vs in por_votacao.items():
-        sims = sum(1 for x in vs.values() if x > 0)
-        total = len(vs)
-        if total and min(sims, total - sims) / total >= MINORIA_MINIMA:
-            disputadas.append(vid)
-
-    contagem: Dict[int, int] = defaultdict(int)
-    for vid in disputadas:
-        for cod in por_votacao[vid]:
-            contagem[cod] += 1
-    parlamentares = sorted(c for c, n in contagem.items() if n >= VOTOS_MINIMOS)
-    resultado = Resultado()
-    if len(parlamentares) < 3 or len(disputadas) < 3:
-        return resultado
-
-    linha = {c: i for i, c in enumerate(parlamentares)}
-    m = np.full((len(parlamentares), len(disputadas)), np.nan)
-    for j, vid in enumerate(disputadas):
-        for cod, x in por_votacao[vid].items():
-            if cod in linha:
-                m[linha[cod], j] = x
-    medias = np.nanmean(m, axis=0)
-    centrada = np.where(np.isnan(m), 0.0, m - medias)
-    u, s, _ = np.linalg.svd(centrada, full_matrices=False)
-    escore = u[:, 0] * s[0]
-    escore = escore / (escore.std() or 1.0)
-
-    ref = [escore[linha[c]] for c in parlamentares if partido_de.get(c) in PARTIDOS_ESQUERDA_REFERENCIA]
-    if ref and np.mean(ref) > 0:
-        escore = -escore
-    resultado.pontuacao = {c: float(escore[linha[c]]) for c in parlamentares}
-
-    for vid in disputadas:
-        sim = [resultado.pontuacao[c] for c, x in por_votacao[vid].items() if x > 0 and c in resultado.pontuacao]
-        nao = [resultado.pontuacao[c] for c, x in por_votacao[vid].items() if x < 0 and c in resultado.pontuacao]
-        if not sim or not nao:
+        if v.voto not in ("sim", "nao"):
             continue
-        diferenca = float(np.mean(sim) - np.mean(nao))
-        forca = abs(diferenca)
-        lado = None
-        if forca >= FORCA_MINIMA:
-            lado = "esquerda" if diferenca < 0 else "direita"
-        resultado.votacoes[vid] = LadoVotacao(lado, round(forca, 2))
+        sim = v.voto == "sim"
+        por_votacao[v.votacao_id][v.codigo_politico] = sim
+        sigla = _sigla(v.partido)
+        if sigla in PARTIDOS_ESQUERDA_REFERENCIA:
+            blocos[v.votacao_id]["esquerda"].append(sim)
+        elif sigla in PARTIDOS_DIREITA_REFERENCIA:
+            blocos[v.votacao_id]["direita"].append(sim)
+
+    resultado = Resultado()
+    for vid, b in blocos.items():
+        esq, dir_ = _maioria(b["esquerda"]), _maioria(b["direita"])
+        if esq is None or dir_ is None or esq[0] == dir_[0]:
+            continue
+        lado = "esquerda" if esq[0] else "direita"
+        resultado.votacoes[vid] = LadoVotacao(lado, round(abs(esq[1] - dir_[1]), 2))
 
     com_esquerda: Dict[int, List[bool]] = defaultdict(list)
     for vid, lado in resultado.votacoes.items():
-        if lado.lado_sim is None:
-            continue
-        for cod, x in por_votacao[vid].items():
-            votou_sim = x > 0
+        for cod, votou_sim in por_votacao[vid].items():
             com_esquerda[cod].append(votou_sim == (lado.lado_sim == "esquerda"))
     for cod, lista in com_esquerda.items():
-        if len(lista) >= VOTOS_MINIMOS // 2:
+        if len(lista) >= VOTOS_MINIMOS:
             resultado.pct_esquerda[cod] = (round(100 * sum(lista) / len(lista), 1), len(lista))
     return resultado
 

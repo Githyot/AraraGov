@@ -145,10 +145,9 @@ def _analises(politicos, votos_por, votacoes) -> Dict[Any, Any]:
         for vid, lado in r.votacoes.items():
             saida["_lados"][vid] = lado.lado_sim
         alinh = espectro.alinhamento_partidos(simples)
-        com_lado = sum(1 for l in r.votacoes.values() if l.lado_sim)
         logger.info(
-            "%s: %s votações divididas, %s com lado claro, %s parlamentares posicionados",
-            casa, len(r.votacoes), com_lado, len(r.pct_esquerda),
+            "%s: %s votações ideológicas (esquerda x direita), %s parlamentares posicionados",
+            casa, len(r.votacoes), len(r.pct_esquerda),
         )
 
         por_partido: Dict[str, List[float]] = defaultdict(list)

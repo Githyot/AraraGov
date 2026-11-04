@@ -87,12 +87,10 @@ class SecaoPosicao extends StatelessWidget {
           childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           children: [
             Text(
-              'Usamos ${pos.votacoes} votações divididas em que este parlamentar votou Sim ou Não. '
-              'Cada votação é classificada pelo grupo que votou Sim: se quem votou Sim costuma votar '
-              'junto com PT, PSOL e PCdoB, o Sim conta como a posição mais à esquerda; se costuma votar '
-              'do lado oposto, mais à direita. Votações sem lado claro ficam de fora. O percentual mostra '
-              'em quantas dessas votações a pessoa ficou de cada lado. É um retrato dos votos, não um '
-              'julgamento.',
+              'Usamos ${pos.votacoes} votações em que a esquerda (PT, PSOL e PCdoB) e a direita '
+              '(PL e NOVO) votaram em lados opostos. O percentual mostra em quantas delas esta pessoa '
+              'votou como cada lado. Votações em que os dois lados concordam ficam de fora. '
+              'É um retrato dos votos, não um julgamento.',
             ),
           ],
         ),

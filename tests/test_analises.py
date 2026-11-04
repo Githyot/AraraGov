@@ -33,7 +33,6 @@ def test_espectro_separa_blocos_e_orienta_pela_referencia():
     assert r.pct_esquerda[100][0] > 75  # PSOL
     assert r.pct_esquerda[300][0] < 25  # PL
     assert 30 < r.pct_esquerda[200][0] < 70  # PSD no meio
-    assert r.pontuacao[0] < 0 < r.pontuacao[300]
 
 
 def test_classifica_lado_das_votacoes():
@@ -57,6 +56,18 @@ def test_alinhamento_partidos():
     pt = {a["partido"]: a["pct"] for a in alinh[0]}
     assert pt["PT"] > pt["PL"]
     assert alinh[0][0]["partido"] in {"PT", "PSOL"}
+
+
+def test_centro_governista_nao_vira_esquerda():
+    """Votações governo x oposição em que o centro vota com a esquerda não
+    contam se a direita de referência também se divide igual ao centro."""
+    votos = []
+    for j in range(30):
+        # consenso governo + centro + direita: não é ideológica
+        for cod, partido in [(1, "PT"), (2, "PT"), (3, "PT"), (10, "PSD"), (11, "PSD"), (20, "PL"), (21, "PL"), (22, "PL")]:
+            votos.append(VotoSimples(f"c{j}", cod, partido, "sim"))
+    r = espectro.calcular(votos)
+    assert r.votacoes == {} and r.pct_esquerda == {}
 
 
 def test_poucos_dados_nao_quebra():

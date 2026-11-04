@@ -7,22 +7,22 @@ cada parlamentar votou. Não acusam ninguém nem dizem o que é certo.
 
 Não classificamos leis à mão. A posição sai dos próprios votos:
 
-1. Pegamos as votações nominais **divididas** (o lado perdedor teve pelo menos
-   10% dos votos) de cada casa.
-2. Montamos a tabela parlamentar x votação (Sim = +1, Não = −1) e calculamos o
-   eixo que mais separa os parlamentares (primeira componente principal, a
-   mesma ideia do NOMINATE e do Basômetro). No Congresso brasileiro esse eixo
-   corresponde, na prática, à divisão entre esquerda e direita.
-3. O sentido do eixo é fixado por três partidos de referência: o lado em que
-   ficam PT, PSOL e PCdoB é chamado de esquerda. Essa é a única informação
-   externa usada.
-4. Cada votação é classificada pelo grupo que votou Sim. Se quem votou Sim
-   está, em média, mais à esquerda que quem votou Não, o Sim foi a posição
-   mais à esquerda naquela votação. Se os dois grupos se misturam (diferença
-   menor que meio desvio-padrão), a votação fica **sem lado claro** e não entra
-   na conta.
-5. A posição do parlamentar é o percentual dessas votações em que ficou do
-   lado da esquerda ou da direita.
+1. Usamos dois blocos de referência: **PT, PSOL e PCdoB** (esquerda) e
+   **PL e NOVO** (direita). É a única informação externa, e é consenso entre
+   pesquisadores.
+2. Uma votação é **ideológica** quando a maioria de cada bloco (pelo menos 60%
+   dos seus membros que votaram Sim ou Não) ficou de um lado diferente. Nela,
+   o Sim recebe o lado do bloco que votou Sim.
+3. Votações em que os dois blocos concordam ficam de fora: são consenso e não
+   dizem nada sobre o lado de ninguém.
+4. A posição do parlamentar é o percentual das votações ideológicas em que ele
+   votou com cada lado. Mostramos só quem participou de pelo menos 10.
+
+**Por que não usar só o eixo principal das votações (PCA, NOMINATE)?** No
+Congresso brasileiro esse eixo costuma separar governo e oposição, e não
+esquerda e direita. Testamos com dados reais de 2025: partidos de centro que
+votam com o governo apareciam como "esquerda". Comparar com os dois blocos de
+referência evita esse erro.
 
 Faixas usadas: esquerda (65% ou mais à esquerda), centro-esquerda (55–65%),
 centro (45–55%), centro-direita (35–45%) e direita (menos de 35%). Não usamos
