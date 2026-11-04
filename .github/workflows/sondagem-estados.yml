@@ -2,7 +2,7 @@ name: Sondagem estados
 on:
   push:
     branches: [etapa-3-estados]
-    paths: [".github/workflows/sondagem-estados.yml"]
+    paths: [".github/workflows/sondagem-estados.yml", "tool/sondagem.py"]
 jobs:
   sondar:
     runs-on: ubuntu-latest
