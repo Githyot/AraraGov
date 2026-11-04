@@ -67,7 +67,9 @@ def perfil(i, nome):
                 for m in range(10, 0, -1)
             ],
         },
-        "gabinete": [{"nome": f"Assessor Exemplo {k}", "cargo": "Secretário Parlamentar", "nivel": f"SP{10 + k}", "desde": "2023-02-01"} for k in range(1, 13)],
+        "gabinete": [{"nome": f"Assessor Exemplo {k}", "cargo": "Secretário Parlamentar", "nivel": f"SP{10 + k}", "desde": "2023-02-01", "remuneracao": 3000 + 500 * k, "remuneracao_ref": "2026-09"} for k in range(1, 13)],
+        "custo_gabinete": {"mensal": sum(3000 + 500 * k for k in range(1, 13)), "pessoas_com_valor": 12, "pessoas": 12, "referencia": "2026-09"},
+        "beneficios": [{"tipo": "imovel_funcional", "descricao": "Ocupa imóvel funcional em Brasília", "valor_mensal": None, "referencia": "04/11/2026", "fonte": None}],
         "presenca": {v: votos.count(v) for v in set(votos)},
         "posicao": {"pct_esquerda": pe, "pct_direita": round(100 - pe, 1), "faixa": faixa(pe),
                     "votacoes_consideradas": 180, "media_do_partido": pe_partido, "faixa_do_partido": faixa(pe_partido)},

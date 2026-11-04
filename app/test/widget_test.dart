@@ -71,5 +71,7 @@ void main() {
     expect(find.text('Com quem vota junto'), findsOneWidget);
     expect(find.text('Votações que merecem atenção'), findsOneWidget);
     expect(find.textContaining('Votou com o lado da'), findsWidgets);
+    expect(find.text('Custo mensal com salários'), findsOneWidget);
+    expect(find.text('Ocupa imóvel funcional em Brasília'), findsOneWidget);
   });
 }

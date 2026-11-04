@@ -141,12 +141,39 @@ class Alinhamento {
 class Assessor {
   final String nome;
   final String? cargo, nivel, desde;
+  final double? remuneracao;
 
   Assessor.fromJson(Map<String, dynamic> j)
       : nome = j['nome'],
         cargo = j['cargo'],
         nivel = j['nivel'],
-        desde = j['desde'];
+        desde = j['desde'],
+        remuneracao = _nn(j['remuneracao']);
+}
+
+class CustoGabinete {
+  final double mensal;
+  final int pessoasComValor, pessoas;
+  final String? referencia;
+
+  CustoGabinete.fromJson(Map<String, dynamic> j)
+      : mensal = _n(j['mensal']),
+        pessoasComValor = j['pessoas_com_valor'] ?? 0,
+        pessoas = j['pessoas'] ?? 0,
+        referencia = j['referencia'];
+}
+
+class Beneficio {
+  final String tipo, descricao;
+  final double? valorMensal;
+  final String? referencia, fonte;
+
+  Beneficio.fromJson(Map<String, dynamic> j)
+      : tipo = j['tipo'],
+        descricao = j['descricao'],
+        valorMensal = _nn(j['valor_mensal']),
+        referencia = j['referencia'],
+        fonte = j['fonte'];
 }
 
 class Perfil {
@@ -157,6 +184,8 @@ class Perfil {
   final Map<String, int> presenca;
   final List<VotoEmVotacao> votacoes;
   final List<Assessor> gabinete;
+  final CustoGabinete? custoGabinete;
+  final List<Beneficio> beneficios;
   final Posicao? posicao;
   final Alinhamento? alinhamento;
   final ({int votacoes, int votouSim, int votouNao})? atencao;
@@ -171,6 +200,8 @@ class Perfil {
         presenca = {for (final e in (j['presenca'] as Map? ?? {}).entries) e.key as String: e.value as int},
         votacoes = [for (final v in (j['votacoes'] as List? ?? [])) VotoEmVotacao.fromJson(v)],
         gabinete = [for (final a in (j['gabinete'] as List? ?? [])) Assessor.fromJson(a)],
+        custoGabinete = j['custo_gabinete'] == null ? null : CustoGabinete.fromJson(j['custo_gabinete']),
+        beneficios = [for (final b in (j['beneficios'] as List? ?? [])) Beneficio.fromJson(b)],
         posicao = j['posicao'] == null ? null : Posicao.fromJson(j['posicao']),
         alinhamento = j['alinhamento'] == null ? null : Alinhamento.fromJson(j['alinhamento']),
         atencao = j['atencao'] == null

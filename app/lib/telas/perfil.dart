@@ -56,7 +56,7 @@ class _PerfilTelaState extends State<PerfilTela> {
                   const SizedBox(height: 24),
                   SecaoPosicao(p),
                   SecaoAlinhamento(p),
-                  _SecaoSalario(p.salario),
+                  _SecaoSalario(p.salario, beneficios: p.beneficios),
                   _SecaoGastos(p.gastos, estadual: p.resumo.esfera == 'estadual'),
                   _SecaoVotacoes(p),
                   SecaoAtencao(
@@ -136,12 +136,16 @@ class _LinhaInflacao extends StatelessWidget {
 
 class _SecaoSalario extends StatelessWidget {
   final Salario s;
-  const _SecaoSalario(this.s);
+  final List<Beneficio> beneficios;
+  const _SecaoSalario(this.s, {this.beneficios = const []});
 
   @override
   Widget build(BuildContext context) {
     if (s.atual == null) {
-      return Grupo(titulo: 'Salário', filhos: [Linha(titulo: s.observacao ?? 'Não informado')]);
+      return Grupo(titulo: 'Salário', filhos: [
+        Linha(titulo: s.observacao ?? 'Não informado'),
+        for (final b in beneficios) Linha(titulo: b.descricao, subtitulo: 'Benefício além do salário'),
+      ]);
     }
     return Grupo(
       titulo: 'Salário',
@@ -150,6 +154,13 @@ class _SecaoSalario extends StatelessWidget {
         Linha(titulo: s.teto ? 'Teto do salário' : 'Salário atual', valor: reais(s.atual)),
         if (s.vsInflacao != null)
           _LinhaInflacao(titulo: 'Desde ${mesAno(s.vsInflacao!.desde)}', v: s.vsInflacao!),
+        for (final b in beneficios)
+          Linha(
+            titulo: b.descricao,
+            subtitulo: b.referencia == null ? 'Benefício além do salário' : 'Benefício além do salário · ${b.referencia}',
+            valor: b.valorMensal == null ? null : reais(b.valorMensal),
+            aoTocar: b.fonte == null ? null : () => _abrir(b.fonte),
+          ),
         if (s.historico.isNotEmpty)
           ExpansionTile(
             title: const Text('Histórico'),
@@ -354,10 +365,18 @@ class _SecaoGabinete extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (p.gabinete.isEmpty) return const SizedBox();
+    final custo = p.custoGabinete;
     return Grupo(
       titulo: 'Gabinete',
       descricao: '${p.gabinete.length} pessoas trabalham no gabinete',
       filhos: [
+        if (custo != null)
+          Linha(
+            titulo: 'Custo mensal com salários',
+            subtitulo: 'Soma bruta de ${custo.pessoasComValor} de ${custo.pessoas} pessoas'
+                '${custo.referencia == null ? '' : ' · folha de ${mesAno(custo.referencia)}'}',
+            valor: reais(custo.mensal),
+          ),
         ExpansionTile(
           title: const Text('Ver equipe'),
           shape: const Border(),
@@ -366,6 +385,7 @@ class _SecaoGabinete extends StatelessWidget {
               Linha(
                 titulo: a.nome,
                 subtitulo: [a.nivel ?? a.cargo, if (a.desde != null) 'desde ${data(a.desde)}'].whereType<String>().join(' · '),
+                valor: a.remuneracao == null ? null : reais(a.remuneracao),
               ),
           ],
         ),

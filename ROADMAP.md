@@ -15,6 +15,7 @@ _Última atualização: 4 de novembro de 2026_
 | 2. Análises (posição política, alinhamento, votações de atenção) | 🔄 PR #4 |
 | 3. App multiplataforma (Flutter, visual GNOME) | ✅ primeira versão · ⏸️ builds só quando pedido |
 | 4. Estados | 🔄 PR #5 (início) |
+| Benefícios e custo dos gabinetes | 🔄 PR #6 |
 | 5. Municípios | ⬜ aguardando as necessidades que HP vai trazer |
 
 ## 1. Base federal ✅
@@ -27,8 +28,11 @@ _Última atualização: 4 de novembro de 2026_
 - ✅ Gabinete: quem trabalha em cada gabinete (Câmara e Senado)
 - ✅ API estática publicada no GitHub Pages, com coleta automática toda segunda-feira
 - ✅ Coleta resiste a quedas das APIs do governo
-- ⬜ Salário de cada assessor de gabinete (pela tabela de cargos)
-- ⬜ Penduricalhos: auxílio-moradia, verba de gabinete total e outros benefícios
+- 🔄 Senado: salário real de cada assessor (folha mensal) e custo mensal do gabinete
+- 🔄 Senado: auxílio-moradia e imóvel funcional de cada senador
+- ⬜ Câmara: salário dos assessores por nível (falta a tabela da Lei 15.349/2026)
+- ⬜ Câmara: auxílio-moradia e imóvel funcional (a página da Câmara está atrás de login)
+- ⬜ Outros penduricalhos: verba de gabinete total, passagens, plano de saúde
 - ⬜ Fotos e dados de legislaturas anteriores
 - ⬜ Emendas parlamentares (para onde vai o dinheiro de cada um)
 
