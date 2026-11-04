@@ -1,0 +1,18 @@
+name: Sondagem de fontes (temporário)
+on:
+  push:
+    branches: [sondagem-gabinete]
+jobs:
+  sondar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sondar
+        run: |
+          s() { echo "::group::$1"; curl -sSL -m 120 -A "AraraGov/0.1" -H "Accept: ${2:-*/*}" -w '\nHTTP %{http_code} %{content_type} %{size_download}B\n' "$1" -o /tmp/r || true; head -c 3000 /tmp/r | iconv -f utf-8 -t utf-8 -c; echo; echo "...FIM:"; tail -c 300 /tmp/r; echo "::endgroup::"; }
+          s https://adm.senado.gov.br/adm-dadosabertos/v3/api-docs application/json
+          s https://adm.senado.gov.br/adm-dadosabertos/api/v1/servidores/servidores/csv
+          s https://adm.senado.gov.br/adm-dadosabertos/api/v1/servidores/servidores application/json
+          s https://www.senado.leg.br/transparencia/lai/secrh/servidores_comissionados.csv
+          s https://www.camara.leg.br/robots.txt
+          s https://dadosabertos.camara.leg.br/arquivos/funcionarios/csv/funcionarios.csv
+          s https://www2.camara.leg.br/transparencia/recursos-humanos/servidores/lotacao/consulta-servidores
