@@ -15,7 +15,7 @@ from datetime import date
 from sqlalchemy import func, select
 
 from . import db
-from .collectors import camara, referencia, senado
+from .collectors import camara, gabinete, referencia, senado
 from .http import HttpClient
 
 ALVOS = {
@@ -25,14 +25,26 @@ ALVOS = {
     "senado-senadores": lambda c, a: senado.coletar_senadores(c),
     "senado-votacoes": lambda c, a: senado.coletar_votacoes(c, a.ano, a.limite),
     "senado-despesas": lambda c, a: senado.coletar_despesas(c, a.ano, a.limite),
+    "camara-gabinetes": lambda c, a: gabinete.coletar_camara(c),
+    "senado-gabinetes": lambda c, a: gabinete.coletar_senado(c),
     "ipca": lambda c, a: referencia.coletar_ipca(c),
     "subsidios": lambda c, a: referencia.carregar_subsidios(),
 }
 
 
+POR_ANO = {"camara-votacoes", "camara-despesas", "senado-votacoes", "senado-despesas"}
+
+
+def _anos(texto: str) -> list[int]:
+    if "-" in texto:
+        inicio, fim = (int(x) for x in texto.split("-", 1))
+        return list(range(inicio, fim + 1))
+    return [int(texto)]
+
+
 def resumo() -> None:
     with db.sessao() as s:
-        for modelo in (db.Politico, db.Votacao, db.Voto, db.Despesa, db.Ipca, db.Subsidio):
+        for modelo in (db.Politico, db.Votacao, db.Voto, db.Despesa, db.Assessor, db.Ipca, db.Subsidio):
             total = s.execute(select(func.count()).select_from(modelo)).scalar_one()
             print(f"{modelo.__tablename__:10} {total:>10}")
 
@@ -43,9 +55,16 @@ def main(argv: list[str] | None = None) -> int:
     sub = p.add_subparsers(dest="comando", required=True)
     col = sub.add_parser("coletar", help="baixa dados das fontes oficiais")
     col.add_argument("alvo", choices=[*ALVOS, "tudo"])
-    col.add_argument("--ano", type=int, default=date.today().year)
+    col.add_argument(
+        "--ano",
+        type=_anos,
+        default=[date.today().year],
+        help="ano ou intervalo, ex.: 2025 ou 2023-2026 (padrão: ano atual)",
+    )
     col.add_argument("--limite", type=int, help="processa só N itens (teste rápido)")
     sub.add_parser("resumo", help="mostra quantos registros há no banco")
+    exp = sub.add_parser("exportar", help="gera a API estática (JSON) que o app lê")
+    exp.add_argument("--saida", default="site", help="pasta de saída (padrão: site)")
     args = p.parse_args(argv)
 
     logging.basicConfig(
@@ -57,16 +76,26 @@ def main(argv: list[str] | None = None) -> int:
     if args.comando == "resumo":
         resumo()
         return 0
+    if args.comando == "exportar":
+        from pathlib import Path
+
+        from .exportar import exportar
+
+        exportar(Path(args.saida))
+        return 0
 
     client = HttpClient()
     alvos = list(ALVOS) if args.alvo == "tudo" else [args.alvo]
     falhas = []
+    anos = args.ano
     for alvo in alvos:
-        try:
-            ALVOS[alvo](client, args)
-        except Exception:
-            logging.exception("Falha ao coletar %s", alvo)
-            falhas.append(alvo)
+        for ano in anos if alvo in POR_ANO else anos[:1]:
+            args.ano = ano
+            try:
+                ALVOS[alvo](client, args)
+            except Exception:
+                logging.exception("Falha ao coletar %s (%s)", alvo, ano)
+                falhas.append(f"{alvo} {ano}")
     resumo()
     if falhas:
         print("Falharam:", ", ".join(falhas), file=sys.stderr)

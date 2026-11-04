@@ -13,11 +13,22 @@ on:
   workflow_dispatch:
     inputs:
       ano:
-        description: "Ano a coletar (vazio = ano atual)"
+        description: "Ano ou intervalo, ex.: 2025 ou 2023-2026 (vazio = 2023 até hoje)"
         required: false
       limite:
         description: "Limite de itens por fonte (vazio = tudo)"
         required: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# A coleta completa nunca roda em paralelo consigo mesma (publica no Pages);
+# cada PR tem sua própria fila, para um não cancelar a coleta de outro.
+concurrency:
+  group: coleta-${{ github.event_name == 'pull_request' && github.ref || 'completa' }}
+  cancel-in-progress: false
 
 jobs:
   coleta:
@@ -36,16 +47,36 @@ jobs:
             echo "ano=2025" >> "$GITHUB_OUTPUT"
             echo "limite=--limite 30" >> "$GITHUB_OUTPUT"
           else
-            echo "ano=${{ inputs.ano || '' }}" >> "$GITHUB_OUTPUT"
+            # Padrão: a legislatura atual inteira (2023 em diante).
+            ANO_IN="${{ inputs.ano }}"
+            echo "ano=${ANO_IN:-2023-$(date +%Y)}" >> "$GITHUB_OUTPUT"
             echo "limite=${{ inputs.limite && format('--limite {0}', inputs.limite) || '' }}" >> "$GITHUB_OUTPUT"
           fi
       - name: Coletar
         run: |
           ANO="${{ steps.p.outputs.ano }}"
           python -m araragov coletar tudo ${ANO:+--ano $ANO} ${{ steps.p.outputs.limite }}
+      - name: Exportar API estática
+        run: python -m araragov exportar --saida site
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: araragov-db
           path: dados/araragov.db
           retention-days: 30
+      - uses: actions/upload-pages-artifact@v3
+        if: github.event_name != 'pull_request'
+        with:
+          path: site
+
+  publicar:
+    # Publica a API estática no GitHub Pages: https://githyot.github.io/AraraGov/v1/
+    if: github.event_name != 'pull_request'
+    needs: coleta
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
