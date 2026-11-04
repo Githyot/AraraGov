@@ -37,3 +37,16 @@ def test_despesas_ceaps(client):
     with db.sessao() as s:
         d = s.execute(select(db.Despesa).where(db.Despesa.chave_fonte == "2263760")).scalar_one()
     assert d.codigo_politico == 475 and float(d.valor) == 6186
+
+
+def test_votacao_junta_os_votos_de_cada_senador(client):
+    # A API real, filtrada por senador, traz só o voto dele em cada sessão.
+    client.json(f"{senado.API}/senador/lista/atual", "senado_lista_atual.json")
+    senado.coletar_senadores(client)
+    for cod in (475, 5000):
+        client.json(f"{senado.API}/votacao", f"senado_votacao_{cod}.json", {"codigoParlamentar": cod})
+
+    assert senado.coletar_votacoes(client, 2025) == 1
+    with db.sessao() as s:
+        votos = {x.codigo_politico: x.voto for x in s.execute(select(db.Voto)).scalars()}
+    assert votos == {475: "sim", 5000: "ausente"}
