@@ -12,9 +12,6 @@ jobs:
           set +e
           ua="AraraGov/0.1 (+https://github.com/Githyot/AraraGov)"
           curl -sSL -A "$ua" --max-time 600 -o /tmp/e.zip -w "HTTP %{http_code} %{content_type} %{size_download}B %{url_effective}\n" "https://portaldatransparencia.gov.br/download-de-dados/emendas-parlamentares/UNICO"
-          unzip -l /tmp/e.zip
-          f=$(unzip -Z1 /tmp/e.zip | grep -i '\.csv$' | head -1)
-          unzip -p /tmp/e.zip "$f" | iconv -f latin1 -t utf8 | head -4
-          unzip -p /tmp/e.zip "$f" | iconv -f latin1 -t utf8 | awk -F';' 'NR>1{print $2}' | sort | uniq -c | tail -12
-          unzip -p /tmp/e.zip "$f" | iconv -f latin1 -t utf8 | awk -F';' 'NR>1{print $3}' | sort | uniq -c
-          curl -sSL -A "$ua" "https://portaldatransparencia.gov.br/robots.txt" | head -20
+          unzip -p /tmp/e.zip EmendasParlamentares.csv | iconv -f latin1 -t utf8 | awk -F'";"' '$2=="2025"{print $3" | "$4" | "$5" | "$7}' | sort | uniq -c | sort -rn | head -25
+          unzip -p /tmp/e.zip EmendasParlamentares.csv | iconv -f latin1 -t utf8 | awk -F'";"' '$2=="2025"{print $4" | "$5}' | sort -u | wc -l
+          unzip -p /tmp/e.zip EmendasParlamentares_PorFavorecido.csv | iconv -f latin1 -t utf8 | head -3
