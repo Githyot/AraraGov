@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "araragov"
+version = "0.1.0"
+description = "Coleta e organiza dados públicos de políticos brasileiros para o app AraraGov."
+readme = "README.md"
+license = { text = "AGPL-3.0-or-later" }
+requires-python = ">=3.11"
+dependencies = [
+  "requests>=2.31",
+  "sqlalchemy>=2.0",
+]
+
+[project.optional-dependencies]
+postgres = ["psycopg[binary]>=3.1"]
+dev = ["pytest>=8"]
+
+[project.scripts]
+araragov = "araragov.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["araragov*"]
+
+[tool.setuptools.package-data]
+araragov = ["referencia/*.csv"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
