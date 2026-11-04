@@ -17,14 +17,14 @@ from collections import Counter, defaultdict
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from sqlalchemy import select
 
 from . import __version__
 from .analise import espectro, inflacao
 from .analise.atencao import motivo_atencao
-from .db import Assessor, Despesa, Politico, Subsidio, Votacao, Voto, sessao
+from .db import Assessor, Beneficio, Despesa, Politico, Subsidio, Votacao, Voto, sessao
 
 logger = logging.getLogger(__name__)
 
@@ -136,6 +136,19 @@ def _salario(cargo: str, subsidios: List[Subsidio]) -> Dict[str, Any]:
                 "acima_da_inflacao_pct": round(comp.acima_da_inflacao_pct, 2),
             }
     return resultado
+
+
+def _custo_gabinete(pessoas: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Soma da remuneração bruta do gabinete no mês, quando a casa publica."""
+    com_valor = [p for p in pessoas if p.get("remuneracao") is not None]
+    if not com_valor:
+        return None
+    return {
+        "mensal": sum((p["remuneracao"] for p in com_valor), Decimal(0)),
+        "pessoas_com_valor": len(com_valor),
+        "pessoas": len(pessoas),
+        "referencia": com_valor[0].get("remuneracao_ref"),
+    }
 
 
 def _gastos(despesas: List[Despesa], politico: Politico) -> Dict[str, Any]:
@@ -277,7 +290,16 @@ def exportar(saida: Path) -> int:
         gabinetes = defaultdict(list)
         for a in s.execute(select(Assessor).where(Assessor.codigo_politico.is_not(None)).order_by(Assessor.nome)).scalars():
             gabinetes[(a.casa, a.codigo_politico)].append(
-                {"nome": a.nome, "cargo": a.cargo, "nivel": a.funcao, "desde": a.desde}
+                {
+                    "nome": a.nome, "cargo": a.cargo, "nivel": a.funcao, "desde": a.desde,
+                    "remuneracao": a.remuneracao, "remuneracao_ref": a.remuneracao_ref,
+                }
+            )
+        beneficios = defaultdict(list)
+        for b in s.execute(select(Beneficio).order_by(Beneficio.tipo)).scalars():
+            beneficios[(b.casa, b.codigo_politico)].append(
+                {"tipo": b.tipo, "descricao": b.descricao, "valor_mensal": b.valor_mensal,
+                 "referencia": b.referencia, "fonte": b.fonte}
             )
 
     analises = _analises(politicos, votos_por, votacoes)
@@ -297,6 +319,8 @@ def exportar(saida: Path) -> int:
             "salario": salarios[p.cargo],
             "gastos": _gastos(despesas_por[(p.casa, p.codigo)], p),
             "gabinete": gabinetes[(p.casa, p.codigo)],
+            "custo_gabinete": _custo_gabinete(gabinetes[(p.casa, p.codigo)]),
+            "beneficios": beneficios[(p.casa, p.codigo)],
             "presenca": dict(Counter(v.voto for v in votos)),
             **analises.get((p.casa, p.codigo), {}),
             "votacoes": [

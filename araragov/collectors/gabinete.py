@@ -7,6 +7,8 @@ Câmara: arquivo dadosabertos.camara.leg.br/arquivos/funcionarios/csv/funcionari
   (robots.txt), por isso não são coletadas.
 Senado: API administrativa /api/v1/servidores/servidores, lotação
   "Gabinete do Senador Fulano". O nome é casado com o nome parlamentar.
+  A remuneração de cada pessoa vem da folha mensal publicada pela mesma API
+  (/servidores/remuneracoes/{ano}/{mes}), ligada pelo número sequencial.
 """
 
 from __future__ import annotations
@@ -14,7 +16,9 @@ from __future__ import annotations
 import logging
 import re
 import unicodedata
-from typing import Any, Dict, List, Optional
+from datetime import date
+from decimal import Decimal
+from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy import delete, insert, select
 
@@ -27,6 +31,13 @@ logger = logging.getLogger(__name__)
 
 CAMARA_URL = "https://dadosabertos.camara.leg.br/arquivos/funcionarios/csv/funcionarios.csv"
 SENADO_URL = "https://adm.senado.gov.br/adm-dadosabertos/api/v1/servidores/servidores"
+SENADO_FOLHA_URL = "https://adm.senado.gov.br/adm-dadosabertos/api/v1/servidores/remuneracoes/{ano}/{mes}"
+# Parcelas mensais da remuneração bruta. Ficam de fora o 13º (gratificação
+# natalina), diárias e auxílios, que não são salário do mês.
+_PARCELAS = (
+    "remuneracao_basica", "vantagens_pessoais", "funcao_comissionada",
+    "horas_extras", "outras_eventuais", "abono_permanencia",
+)
 _ID_DEPUTADO = re.compile(r"/deputados/(\d+)")
 _GABINETE_SENADO = re.compile(r"^gabinete d[ao] senador[a]?\s+(.+)$", re.I)
 
@@ -80,6 +91,40 @@ def coletar_camara(client: HttpClient) -> int:
     return total
 
 
+def _meses_recentes(hoje: date, quantos: int = 6) -> List[Tuple[int, int]]:
+    ano, mes = hoje.year, hoje.month
+    saida = []
+    for _ in range(quantos):
+        saida.append((ano, mes))
+        ano, mes = (ano - 1, 12) if mes == 1 else (ano, mes - 1)
+    return saida
+
+
+def folha_senado(
+    client: HttpClient, hoje: Optional[date] = None, minimo: int = 100
+) -> Tuple[Dict[int, Decimal], Optional[str]]:
+    """Remuneração bruta mensal por número sequencial, da folha mais recente
+    já publicada. Soma só a folha "Normal" e desconta o abate-teto."""
+    for ano, mes in _meses_recentes(hoje or date.today()):
+        try:
+            folha = client.get_json(SENADO_FOLHA_URL.format(ano=ano, mes=mes))
+        except Exception:
+            continue
+        normais = [r for r in folha or [] if (r.get("tipo_folha") or "").lower() == "normal"]
+        if len(normais) < minimo:  # mês ainda não fechado
+            continue
+        bruto: Dict[int, Decimal] = {}
+        for r in normais:
+            seq = n.inteiro(r.get("sequencial"))
+            if seq is None:
+                continue
+            valor = sum((n.decimal(r.get(k)) or Decimal(0)) for k in _PARCELAS)
+            valor -= n.decimal(r.get("reversao_teto_constitucional")) or Decimal(0)
+            bruto[seq] = bruto.get(seq, Decimal(0)) + valor
+        return bruto, f"{ano}-{mes:02d}"
+    return {}, None
+
+
 def coletar_senado(client: HttpClient) -> int:
     with sessao() as s:
         senadores = {
@@ -89,6 +134,7 @@ def coletar_senado(client: HttpClient) -> int:
             ).all()
         }
     linhas, sem_par = [], set()
+    folha, referencia = folha_senado(client)
     for r in client.get_json(SENADO_URL):
         if (r.get("situacao") or "").upper() != "ATIVO":
             continue
@@ -108,10 +154,15 @@ def coletar_senado(client: HttpClient) -> int:
                 "funcao": n.texto(r.get("funcao")),
                 "lotacao": lotacao,
                 "desde": None,
+                "remuneracao": folha.get(n.inteiro(r.get("sequencial"))),
+                "remuneracao_ref": referencia,
             }
         )
     if sem_par:
         logger.warning("Senado: %s gabinetes sem senador correspondente: %s", len(sem_par), sorted(sem_par)[:10])
     total = _substituir("senado", linhas)
-    logger.info("Senado: %s pessoas em gabinetes", total)
+    logger.info(
+        "Senado: %s pessoas em gabinetes, %s com remuneração (folha de %s)",
+        total, sum(1 for x in linhas if x["remuneracao"] is not None), referencia,
+    )
     return total

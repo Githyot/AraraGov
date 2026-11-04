@@ -140,6 +140,26 @@ class Assessor(Base):
     funcao: Mapped[Optional[str]] = mapped_column(String(200))
     lotacao: Mapped[Optional[str]] = mapped_column(String(300))
     desde: Mapped[Optional[date]] = mapped_column(Date)
+    # Remuneração bruta do mês de referência, quando a casa publica (Senado).
+    remuneracao: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 2))
+    remuneracao_ref: Mapped[Optional[str]] = mapped_column(String(7))  # "2026-09"
+
+
+class Beneficio(Base):
+    """Benefício além do salário (auxílio-moradia, imóvel funcional...).
+    Lista substituída a cada coleta, como um retrato do mês."""
+
+    __tablename__ = "beneficio"
+    __table_args__ = (Index("ix_beneficio_politico", "casa", "codigo_politico"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    casa: Mapped[str] = mapped_column(String(10))
+    codigo_politico: Mapped[int] = mapped_column(Integer)
+    tipo: Mapped[str] = mapped_column(String(40))
+    descricao: Mapped[str] = mapped_column(String(300))
+    valor_mensal: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 2))
+    referencia: Mapped[Optional[str]] = mapped_column(String(40))
+    fonte: Mapped[Optional[str]] = mapped_column(String(400))
 
 
 class Ipca(Base):
