@@ -48,9 +48,7 @@ OBS_ESTADUAL = (
 )
 OBS_GOVERNO = "Fixado por lei estadual; ainda não coletado."
 
-# Casas que têm lista própria de quem está em exercício. As demais casas
-# estaduais vêm da lista de eleitos do TSE.
-LISTA_PROPRIA = {"camara", "senado", "al-mg", "al-sp"}
+# Cadastros que vêm da lista de eleitos do TSE (fonte="tse") recebem um aviso.
 AVISO_TSE = (
     "Dados da eleição de 2022 (TSE). Suplentes que assumiram depois e trocas "
     "de partido podem não aparecer."
@@ -293,7 +291,7 @@ def exportar(saida: Path) -> int:
         )
         perfil = {
             **_resumo(p),
-            "aviso_cadastro": None if p.casa in LISTA_PROPRIA else AVISO_TSE,
+            "aviso_cadastro": AVISO_TSE if p.fonte == "tse" else None,
             "nome_civil": p.nome_civil,
             "email": p.email,
             "salario": salarios[p.cargo],

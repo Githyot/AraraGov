@@ -53,6 +53,8 @@ class Politico(Base):
     email: Mapped[Optional[str]] = mapped_column(String(200))
     em_exercicio: Mapped[Optional[bool]]
     legislatura: Mapped[Optional[int]] = mapped_column(Integer)
+    # De onde veio o cadastro quando não é a própria casa (ex.: "tse").
+    fonte: Mapped[Optional[str]] = mapped_column(String(20))
     atualizado_em: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()
     )

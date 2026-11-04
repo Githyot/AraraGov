@@ -72,6 +72,7 @@ def coletar_deputados_almg(client: HttpClient) -> int:
                     "email": None,
                     "em_exercicio": True,
                     "legislatura": 20,
+                    "fonte": None,
                 },
             )
         # Quem saiu do exercício (ou veio da lista do TSE) deixa a lista.
@@ -157,6 +158,7 @@ def coletar_deputados_alesp(client: HttpClient) -> int:
                     "email": n.texto(d.findtext("Email")),
                     "em_exercicio": (d.findtext("Situacao") or "").strip() == "EXE",
                     "legislatura": 20,
+                    "fonte": None,
                 },
             )
         s.execute(delete(Politico).where(Politico.casa == ALESP, Politico.codigo.not_in(ids)))

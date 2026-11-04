@@ -54,3 +54,14 @@ def test_alesp(client):
     assert (p.nome, p.partido, p.em_exercicio) == ("Agente Federal Danilo Balas", "PL", True)
     assert [d.codigo_politico for d in ds] == [None, 1139, 1139]  # ex-deputado sem cadastro atual
     assert float(ds[0].valor) == 50.5
+
+
+def test_lista_da_assembleia_substitui_a_do_tse(client):
+    with db.sessao() as s:
+        s.add(db.Politico(casa="al-mg", cargo="Deputado estadual", codigo=13123, nome="Do TSE", fonte="tse"))
+    _almg(client)
+    al.coletar_deputados_almg(client)
+    with db.sessao() as s:
+        ps = s.execute(select(db.Politico).where(db.Politico.casa == "al-mg")).scalars().all()
+    assert {p.codigo for p in ps} == {12193, 28859}
+    assert all(p.fonte is None for p in ps)

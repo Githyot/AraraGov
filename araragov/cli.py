@@ -27,9 +27,10 @@ ALVOS = {
     "senado-despesas": lambda c, a: senado.coletar_despesas(c, a.ano, a.limite),
     "camara-gabinetes": lambda c, a: gabinete.coletar_camara(c),
     "senado-gabinetes": lambda c, a: gabinete.coletar_senado(c),
-    # Estados: eleitos do TSE nos 27 estados; onde a assembleia tem lista
-    # própria (MG, SP), ela substitui a do TSE.
-    "estados-eleitos": lambda c, a: tse.coletar_eleitos(c, pular_casas=(assembleias.ALMG, assembleias.ALESP)),
+    # Estados: eleitos do TSE nos 27 estados. Onde a assembleia tem lista
+    # própria (MG, SP), a coleta dela vem depois e substitui a do TSE; se a
+    # assembleia estiver fora do ar, fica a lista do TSE.
+    "estados-eleitos": lambda c, a: tse.coletar_eleitos(c),
     "almg-deputados": lambda c, a: assembleias.coletar_deputados_almg(c),
     "almg-despesas": lambda c, a: assembleias.coletar_despesas_almg(c, a.ano, a.limite),
     "alesp-deputados": lambda c, a: assembleias.coletar_deputados_alesp(c),

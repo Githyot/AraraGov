@@ -91,6 +91,7 @@ def _converter(linha: Dict[str, str], ano: int) -> Optional[Dict[str, Any]]:
         # informação uniforme. O app avisa disso (ver exportar.AVISO_TSE).
         "em_exercicio": True,
         "legislatura": ano + 1,
+        "fonte": "tse",
     }
 
 

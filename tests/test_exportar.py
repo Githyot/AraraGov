@@ -44,7 +44,7 @@ def test_exporta_estaduais(client, tmp_path):
     referencia.coletar_ipca(client, ate=date(2024, 3, 31))
     with db.sessao() as s:
         s.add(db.Politico(casa="al-mg", cargo="Deputado estadual", codigo=12193, nome="A", uf="MG"))
-        s.add(db.Politico(casa="gov-sp", cargo="Governador", codigo=100, nome="B", uf="SP"))
+        s.add(db.Politico(casa="gov-sp", cargo="Governador", codigo=100, nome="B", uf="SP", fonte="tse"))
     assert exportar(tmp_path) == 2
     lista = {p["id"]: p for p in json.loads((tmp_path / "v1/politicos.json").read_text())}
     assert lista["al-mg-12193"]["esfera"] == "estadual"
@@ -55,3 +55,4 @@ def test_exporta_estaduais(client, tmp_path):
     assert dep["salario"]["teto"] is True and "75%" in dep["salario"]["observacao"]
     gov = json.loads((tmp_path / "v1/politicos/gov-sp-100.json").read_text())
     assert gov["salario"]["atual"] is None and gov["salario"]["observacao"]
+    assert gov["aviso_cadastro"] and dep["aviso_cadastro"] is None
