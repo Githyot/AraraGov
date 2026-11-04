@@ -65,13 +65,14 @@ jobs:
           path: dados/araragov.db
           retention-days: 30
       - uses: actions/upload-pages-artifact@v3
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         with:
           path: site
 
   publicar:
     # Publica a API estática no GitHub Pages: https://githyot.github.io/AraraGov/v1/
-    if: github.event_name != 'pull_request'
+    # Só a partir do main; execuções manuais em outros ramos servem para testar.
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: coleta
     runs-on: ubuntu-latest
     environment:
