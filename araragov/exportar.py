@@ -22,7 +22,8 @@ from typing import Any, Dict, List
 from sqlalchemy import select
 
 from . import __version__
-from .analise import inflacao
+from .analise import espectro, inflacao
+from .analise.atencao import motivo_atencao
 from .db import Assessor, Despesa, Politico, Subsidio, Votacao, Voto, sessao
 
 logger = logging.getLogger(__name__)
@@ -122,6 +123,82 @@ def _gastos(despesas: List[Despesa], politico: Politico) -> Dict[str, Any]:
     }
 
 
+def _analises(politicos, votos_por, votacoes) -> Dict[Any, Any]:
+    """Posição no espectro, alinhamento com partidos e votações de atenção."""
+    saida: Dict[Any, Any] = {"_lados": {}, "_atencao": {}}
+    for vid, v in votacoes.items():
+        motivo = motivo_atencao(v.ementa, v.descricao)
+        if motivo:
+            saida["_atencao"][vid] = motivo
+
+    partido_atual = {(p.casa, p.codigo): p.partido for p in politicos}
+    for casa in ("camara", "senado"):
+        simples = [
+            espectro.VotoSimples(v.votacao_id, v.codigo_politico, v.partido, v.voto)
+            for (c, _), lista in votos_por.items()
+            if c == casa
+            for v in lista
+        ]
+        if not simples:
+            continue
+        r = espectro.calcular(simples)
+        for vid, lado in r.votacoes.items():
+            saida["_lados"][vid] = lado.lado_sim
+        alinh = espectro.alinhamento_partidos(simples)
+        com_lado = sum(1 for l in r.votacoes.values() if l.lado_sim)
+        logger.info(
+            "%s: %s votações divididas, %s com lado claro, %s parlamentares posicionados",
+            casa, len(r.votacoes), com_lado, len(r.pct_esquerda),
+        )
+
+        por_partido: Dict[str, List[float]] = defaultdict(list)
+        for cod, (pct, _) in r.pct_esquerda.items():
+            partido = partido_atual.get((casa, cod))
+            if partido:
+                por_partido[partido].append(pct)
+
+        medias = sorted(
+            ((sum(v) / len(v), k, len(v)) for k, v in por_partido.items() if len(v) >= 3), reverse=True
+        )
+        logger.info(
+            "%s: %% médio à esquerda por partido: %s",
+            casa, ", ".join(f"{k} {m:.0f}% (n={n})" for m, k, n in medias),
+        )
+        for (c, cod), lista in votos_por.items():
+            if c != casa:
+                continue
+            item: Dict[str, Any] = {}
+            if cod in r.pct_esquerda:
+                pct, n = r.pct_esquerda[cod]
+                partido = partido_atual.get((casa, cod))
+                media = por_partido.get(partido or "")
+                item["posicao"] = {
+                    "pct_esquerda": pct,
+                    "pct_direita": round(100 - pct, 1),
+                    "faixa": espectro.faixa(pct),
+                    "votacoes_consideradas": n,
+                    "media_do_partido": round(sum(media) / len(media), 1) if media else None,
+                    "faixa_do_partido": espectro.faixa(sum(media) / len(media)) if media else None,
+                }
+            if cod in alinh:
+                partido = (partido_atual.get((casa, cod)) or "").upper().replace(" ", "")
+                todos = alinh[cod]
+                item["alinhamento"] = {
+                    "mais_alinhados": todos[:5],
+                    "menos_alinhados": todos[-3:][::-1] if len(todos) > 5 else [],
+                    "proprio_partido": next((a for a in todos if a["partido"] == partido), None),
+                }
+            de_atencao = [v for v in lista if v.votacao_id in saida["_atencao"]]
+            if de_atencao:
+                item["atencao"] = {
+                    "votacoes": len(de_atencao),
+                    "votou_sim": sum(1 for v in de_atencao if v.voto == "sim"),
+                    "votou_nao": sum(1 for v in de_atencao if v.voto == "nao"),
+                }
+            saida[(casa, cod)] = item
+    return saida
+
+
 def exportar(saida: Path) -> int:
     base = saida / "v1"
     with sessao() as s:
@@ -141,6 +218,7 @@ def exportar(saida: Path) -> int:
                 {"nome": a.nome, "cargo": a.cargo, "nivel": a.funcao, "desde": a.desde}
             )
 
+    analises = _analises(politicos, votos_por, votacoes)
     salarios = {cargo: _salario(cargo, subsidios) for cargo in {p.cargo for p in politicos}}
 
     for p in politicos:
@@ -157,6 +235,7 @@ def exportar(saida: Path) -> int:
             "gastos": _gastos(despesas_por[(p.casa, p.codigo)], p),
             "gabinete": gabinetes[(p.casa, p.codigo)],
             "presenca": dict(Counter(v.voto for v in votos)),
+            **analises.get((p.casa, p.codigo), {}),
             "votacoes": [
                 {
                     "id": v.votacao_id,
@@ -168,6 +247,8 @@ def exportar(saida: Path) -> int:
                     "link": votacoes[v.votacao_id].link,
                     "voto": v.voto,
                     "partido_na_epoca": v.partido,
+                    "lado_sim": analises["_lados"].get(v.votacao_id),
+                    "atencao": analises["_atencao"].get(v.votacao_id),
                 }
                 for v in votos
             ],

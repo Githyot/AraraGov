@@ -8,6 +8,7 @@ import '../formatar.dart';
 import '../tema.dart';
 import '../widgets/adw.dart';
 import '../widgets/voto.dart';
+import 'analises.dart';
 
 class PerfilTela extends StatefulWidget {
   final Api api;
@@ -53,9 +54,17 @@ class _PerfilTelaState extends State<PerfilTela> {
                 child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                   _Cabecalho(p),
                   const SizedBox(height: 24),
+                  SecaoPosicao(p),
+                  SecaoAlinhamento(p),
                   _SecaoSalario(p.salario),
                   _SecaoGastos(p.gastos),
                   _SecaoVotacoes(p),
+                  SecaoAtencao(
+                    p,
+                    aoVer: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => TodasVotacoes(p, soAtencao: true)),
+                    ),
+                  ),
                   _SecaoGabinete(p),
                   _Rodape(p),
                 ]),
@@ -284,28 +293,46 @@ class LinhaVotacao extends StatelessWidget {
   const LinhaVotacao(this.v, {super.key});
 
   @override
-  Widget build(BuildContext context) => Linha(
-        titulo: v.proposicao ?? v.descricao ?? 'Votação',
-        subtitulo: [data(v.data), if (v.resultado != null) v.resultado!, if (v.ementa != null) v.ementa!].join(' · '),
-        sufixo: EtiquetaVoto(v.voto),
-        aoTocar: v.link == null ? null : () => _abrir(v.link),
-      );
+  Widget build(BuildContext context) {
+    final tema = Theme.of(context);
+    final lado = v.ladoDoVoto;
+    return ListTile(
+      title: Text(v.proposicao ?? v.descricao ?? 'Votação'),
+      subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text([data(v.data), if (v.resultado != null) v.resultado!, if (v.ementa != null) v.ementa!].join(' · ')),
+        if (lado != null || v.atencao != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Wrap(spacing: 6, runSpacing: 4, children: [
+              if (lado != null) Etiqueta('Votou com o lado da $lado', tema.hintColor),
+              if (v.atencao != null) Etiqueta(v.atencao!, Adw.amarelo),
+            ]),
+          ),
+      ]),
+      trailing: EtiquetaVoto(v.voto),
+      onTap: v.link == null ? null : () => _abrir(v.link),
+    );
+  }
 }
 
 class TodasVotacoes extends StatelessWidget {
   final Perfil p;
-  const TodasVotacoes(this.p, {super.key});
+  final bool soAtencao;
+  const TodasVotacoes(this.p, {super.key, this.soAtencao = false});
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: Text('Votações de ${p.resumo.nome}')),
-        body: ListView.separated(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          itemCount: p.votacoes.length,
-          separatorBuilder: (_, _) => const Clamp(child: Divider()),
-          itemBuilder: (_, i) => Clamp(child: LinhaVotacao(p.votacoes[i])),
-        ),
-      );
+  Widget build(BuildContext context) {
+    final lista = soAtencao ? p.votacoes.where((v) => v.atencao != null).toList() : p.votacoes;
+    return Scaffold(
+      appBar: AppBar(title: Text(soAtencao ? 'Votações que merecem atenção' : 'Votações de ${p.resumo.nome}')),
+      body: ListView.separated(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        itemCount: lista.length,
+        separatorBuilder: (_, _) => const Clamp(child: Divider()),
+        itemBuilder: (_, i) => Clamp(child: LinhaVotacao(lista[i])),
+      ),
+    );
+  }
 }
 
 class _SecaoGabinete extends StatelessWidget {

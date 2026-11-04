@@ -72,6 +72,19 @@ class VotoEmVotacao {
   final String id, voto;
   final String? data, proposicao, descricao, ementa, resultado, link, partidoNaEpoca;
 
+  /// "esquerda" | "direita" | null: qual lado o "Sim" representou nessa votação.
+  final String? ladoSim;
+
+  /// Motivo de atenção (ex.: tema que afeta os próprios parlamentares), ou null.
+  final String? atencao;
+
+  /// Lado em que este parlamentar votou, quando a votação tem lado claro.
+  String? get ladoDoVoto {
+    if (ladoSim == null || (voto != 'sim' && voto != 'nao')) return null;
+    if (voto == 'sim') return ladoSim;
+    return ladoSim == 'esquerda' ? 'direita' : 'esquerda';
+  }
+
   VotoEmVotacao.fromJson(Map<String, dynamic> j)
       : id = j['id'],
         voto = j['voto'],
@@ -81,7 +94,40 @@ class VotoEmVotacao {
         ementa = j['ementa'],
         resultado = j['resultado'],
         link = j['link'],
-        partidoNaEpoca = j['partido_na_epoca'];
+        partidoNaEpoca = j['partido_na_epoca'],
+        ladoSim = j['lado_sim'],
+        atencao = j['atencao'];
+}
+
+class Posicao {
+  final double pctEsquerda, pctDireita;
+  final String faixa;
+  final int votacoes;
+  final double? mediaPartido;
+  final String? faixaPartido;
+
+  Posicao.fromJson(Map<String, dynamic> j)
+      : pctEsquerda = _n(j['pct_esquerda']),
+        pctDireita = _n(j['pct_direita']),
+        faixa = j['faixa'],
+        votacoes = j['votacoes_consideradas'] ?? 0,
+        mediaPartido = _nn(j['media_do_partido']),
+        faixaPartido = j['faixa_do_partido'];
+}
+
+typedef AlinhamentoPartido = ({String partido, double pct, int votacoes});
+
+AlinhamentoPartido _alinh(Map j) =>
+    (partido: j['partido'] as String, pct: _n(j['pct']), votacoes: j['votacoes'] as int);
+
+class Alinhamento {
+  final List<AlinhamentoPartido> maisAlinhados, menosAlinhados;
+  final AlinhamentoPartido? proprioPartido;
+
+  Alinhamento.fromJson(Map<String, dynamic> j)
+      : maisAlinhados = [for (final a in (j['mais_alinhados'] as List? ?? [])) _alinh(a)],
+        menosAlinhados = [for (final a in (j['menos_alinhados'] as List? ?? [])) _alinh(a)],
+        proprioPartido = j['proprio_partido'] == null ? null : _alinh(j['proprio_partido']);
 }
 
 class Assessor {
@@ -103,6 +149,9 @@ class Perfil {
   final Map<String, int> presenca;
   final List<VotoEmVotacao> votacoes;
   final List<Assessor> gabinete;
+  final Posicao? posicao;
+  final Alinhamento? alinhamento;
+  final ({int votacoes, int votouSim, int votouNao})? atencao;
 
   Perfil.fromJson(Map<String, dynamic> j)
       : resumo = PoliticoResumo.fromJson(j),
@@ -112,7 +161,16 @@ class Perfil {
         gastos = Gastos.fromJson(j['gastos'] ?? {}),
         presenca = {for (final e in (j['presenca'] as Map? ?? {}).entries) e.key as String: e.value as int},
         votacoes = [for (final v in (j['votacoes'] as List? ?? [])) VotoEmVotacao.fromJson(v)],
-        gabinete = [for (final a in (j['gabinete'] as List? ?? [])) Assessor.fromJson(a)];
+        gabinete = [for (final a in (j['gabinete'] as List? ?? [])) Assessor.fromJson(a)],
+        posicao = j['posicao'] == null ? null : Posicao.fromJson(j['posicao']),
+        alinhamento = j['alinhamento'] == null ? null : Alinhamento.fromJson(j['alinhamento']),
+        atencao = j['atencao'] == null
+            ? null
+            : (
+                votacoes: j['atencao']['votacoes'] as int,
+                votouSim: j['atencao']['votou_sim'] as int,
+                votouNao: j['atencao']['votou_nao'] as int,
+              );
 
   int get totalVotacoes => presenca.values.fold(0, (a, b) => a + b);
   int get participou => ['sim', 'nao', 'abstencao', 'obstrucao', 'presidente', 'presente_sem_voto']
