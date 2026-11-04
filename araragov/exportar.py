@@ -93,6 +93,8 @@ def _gastos(despesas: List[Despesa], politico: Politico) -> Dict[str, Any]:
     vs_inflacao = [
         {
             "ano": c.data.year,
+            "desde": c.referencia,
+            "valor_inicial": c.valor_referencia,
             "valor": c.valor_real,
             "corrigido_pela_inflacao": c.valor_corrigido,
             "acima_da_inflacao_pct": round(c.acima_da_inflacao_pct, 2),
