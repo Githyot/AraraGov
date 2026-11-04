@@ -14,7 +14,9 @@ import 'package:http/testing.dart';
 const _lista = '[{"id":"camara-1","casa":"camara","cargo":"Deputado Federal","nome":"Ana Exemplo",'
     '"partido":"PEX","uf":"SP","foto":null,"em_exercicio":true},'
     '{"id":"senado-2","casa":"senado","cargo":"Senador","nome":"Bruno Fictício",'
-    '"partido":"PFI","uf":"BA","foto":null,"em_exercicio":true}]';
+    '"partido":"PFI","uf":"BA","foto":null,"em_exercicio":true},'
+    '{"id":"al-mg-3","casa":"al-mg","esfera":"estadual","orgao":"Assembleia Legislativa (MG)",'
+    '"cargo":"Deputado estadual","nome":"Carla Inventada","partido":"PIN","uf":"MG","foto":null,"em_exercicio":true}]';
 
 void main() {
   test('formata reais e porcentagem', () {
@@ -32,9 +34,14 @@ void main() {
     expect(find.text('Ana Exemplo'), findsOneWidget);
     expect(find.text('Bruno Fictício'), findsOneWidget);
 
-    await tester.tap(find.text('Senado'));
+    await tester.tap(find.text('Estadual'));
     await tester.pumpAndSettle();
     expect(find.text('Ana Exemplo'), findsNothing);
+    expect(find.text('Carla Inventada'), findsOneWidget);
+
+    await tester.tap(find.text('Federal'));
+    await tester.pumpAndSettle();
+    expect(find.text('Carla Inventada'), findsNothing);
     expect(find.text('Bruno Fictício'), findsOneWidget);
 
     await tester.tap(find.text('Todos'));

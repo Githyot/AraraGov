@@ -15,7 +15,7 @@ from datetime import date
 from sqlalchemy import func, select
 
 from . import db
-from .collectors import camara, gabinete, referencia, senado
+from .collectors import assembleias, camara, gabinete, referencia, senado, tse
 from .http import HttpClient
 
 ALVOS = {
@@ -27,12 +27,28 @@ ALVOS = {
     "senado-despesas": lambda c, a: senado.coletar_despesas(c, a.ano, a.limite),
     "camara-gabinetes": lambda c, a: gabinete.coletar_camara(c),
     "senado-gabinetes": lambda c, a: gabinete.coletar_senado(c),
+    # Estados: eleitos do TSE nos 27 estados. Onde a assembleia tem lista
+    # própria (MG, SP), a coleta dela vem depois e substitui a do TSE; se a
+    # assembleia estiver fora do ar, fica a lista do TSE.
+    "estados-eleitos": lambda c, a: tse.coletar_eleitos(c),
+    "almg-deputados": lambda c, a: assembleias.coletar_deputados_almg(c),
+    "almg-despesas": lambda c, a: assembleias.coletar_despesas_almg(c, a.ano, a.limite),
+    "alesp-deputados": lambda c, a: assembleias.coletar_deputados_alesp(c),
+    "alesp-despesas": lambda c, a: assembleias.coletar_despesas_alesp(c, a.ano, a.limite),
     "ipca": lambda c, a: referencia.coletar_ipca(c),
     "subsidios": lambda c, a: referencia.carregar_subsidios(),
 }
 
 
-POR_ANO = {"camara-votacoes", "camara-despesas", "senado-votacoes", "senado-despesas"}
+# Fontes com reserva: se falharem, o TSE já cobre o estado e a coleta segue
+# sem marcar erro (o aviso aparece no log e no resumo).
+COM_RESERVA = {"almg-deputados", "almg-despesas", "alesp-deputados", "alesp-despesas"}
+
+
+POR_ANO = {
+    "camara-votacoes", "camara-despesas", "senado-votacoes", "senado-despesas",
+    "almg-despesas", "alesp-despesas",
+}
 
 
 def _anos(texto: str) -> list[int]:
@@ -87,6 +103,7 @@ def main(argv: list[str] | None = None) -> int:
     client = HttpClient()
     alvos = list(ALVOS) if args.alvo == "tudo" else [args.alvo]
     falhas = []
+    avisos = []
     anos = args.ano
     for alvo in alvos:
         for ano in anos if alvo in POR_ANO else anos[:1]:
@@ -95,8 +112,10 @@ def main(argv: list[str] | None = None) -> int:
                 ALVOS[alvo](client, args)
             except Exception:
                 logging.exception("Falha ao coletar %s (%s)", alvo, ano)
-                falhas.append(f"{alvo} {ano}")
+                (avisos if alvo in COM_RESERVA else falhas).append(f"{alvo} {ano}")
     resumo()
+    if avisos:
+        print("Indisponíveis (dados de reserva usados):", ", ".join(avisos), file=sys.stderr)
     if falhas:
         print("Falharam:", ", ".join(falhas), file=sys.stderr)
         return 1

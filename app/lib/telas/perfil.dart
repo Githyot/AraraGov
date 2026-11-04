@@ -57,7 +57,7 @@ class _PerfilTelaState extends State<PerfilTela> {
                   SecaoPosicao(p),
                   SecaoAlinhamento(p),
                   _SecaoSalario(p.salario),
-                  _SecaoGastos(p.gastos),
+                  _SecaoGastos(p.gastos, estadual: p.resumo.esfera == 'estadual'),
                   _SecaoVotacoes(p),
                   SecaoAtencao(
                     p,
@@ -97,6 +97,11 @@ class _Cabecalho extends StatelessWidget {
         Text(p.nomeCivil!, style: tema.textTheme.bodyMedium?.copyWith(color: tema.hintColor)),
       const SizedBox(height: 4),
       Text('${r.cargo} · ${r.partidoUf}', style: tema.textTheme.bodyLarge),
+      if (r.orgao.isNotEmpty) Text(r.orgao, style: tema.textTheme.bodyMedium?.copyWith(color: tema.hintColor)),
+      if (p.avisoCadastro != null) ...[
+        const SizedBox(height: 8),
+        Text(p.avisoCadastro!, textAlign: TextAlign.center, style: tema.textTheme.bodySmall?.copyWith(color: tema.hintColor)),
+      ],
       if (!r.emExercicio) ...[
         const SizedBox(height: 8),
         const Etiqueta('Fora de exercício', Colors.grey),
@@ -135,11 +140,14 @@ class _SecaoSalario extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (s.atual == null) {
+      return Grupo(titulo: 'Salário', filhos: [Linha(titulo: s.observacao ?? 'Não informado')]);
+    }
     return Grupo(
       titulo: 'Salário',
-      descricao: 'Subsídio bruto mensal, fixado por decreto legislativo',
+      descricao: s.observacao ?? 'Subsídio bruto mensal, fixado por decreto legislativo',
       filhos: [
-        Linha(titulo: 'Salário atual', valor: reais(s.atual)),
+        Linha(titulo: s.teto ? 'Teto do salário' : 'Salário atual', valor: reais(s.atual)),
         if (s.vsInflacao != null)
           _LinhaInflacao(titulo: 'Desde ${mesAno(s.vsInflacao!.desde)}', v: s.vsInflacao!),
         if (s.historico.isNotEmpty)
@@ -158,16 +166,20 @@ class _SecaoSalario extends StatelessWidget {
 
 class _SecaoGastos extends StatelessWidget {
   final Gastos g;
-  const _SecaoGastos(this.g);
+  final bool estadual;
+  const _SecaoGastos(this.g, {this.estadual = false});
 
   @override
   Widget build(BuildContext context) {
+    final titulo = estadual ? 'Gastos de gabinete' : 'Gastos da cota parlamentar';
     if (g.total == 0) {
-      return const Grupo(titulo: 'Gastos da cota parlamentar', filhos: [Linha(titulo: 'Nenhum gasto registrado no período')]);
+      return Grupo(titulo: titulo, filhos: const [Linha(titulo: 'Nenhum gasto publicado pela fonte')]);
     }
     return Grupo(
-      titulo: 'Gastos da cota parlamentar',
-      descricao: 'Verba para despesas do mandato, como passagens, escritório e divulgação',
+      titulo: titulo,
+      descricao: estadual
+          ? 'Verba indenizatória do mandato, como combustível, escritório e divulgação'
+          : 'Verba para despesas do mandato, como passagens, escritório e divulgação',
       filhos: [
         Linha(titulo: 'Total no período', valor: reais(g.total)),
         if (g.porAno.length > 1) Padding(padding: const EdgeInsets.fromLTRB(12, 16, 16, 8), child: _GraficoAnos(g.porAno)),

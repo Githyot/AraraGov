@@ -1,0 +1,4 @@
+{"list":[{"idDeputado":12193,"dataReferencia":{"@class":"sql-timestamp","$":"2025-03-01"},"codTipoDespesa":32,"valor":514.26,"descTipoDespesa":"Combustível e lubrificante",
+"listaDetalheVerba":[
+ {"id":5,"idDeputado":12193,"valorReembolsado":273.42,"dataEmissao":{"@class":"sql-timestamp","$":"2025-03-11"},"cpfCnpj":"42927464000198","nomeEmitente":"Auto Posto do Alemão Ltda.","descDocumento":"320957","codTipoDespesa":32,"descTipoDespesa":"Combustível e lubrificante"},
+ {"id":6,"idDeputado":12193,"valorReembolsado":240.84,"dataEmissao":{"@class":"sql-timestamp","$":"2025-03-25"},"cpfCnpj":"42927464000198","nomeEmitente":"Auto Posto do Alemão Ltda.","descDocumento":"325486","codTipoDespesa":32,"descTipoDespesa":"Combustível e lubrificante"}]}]}

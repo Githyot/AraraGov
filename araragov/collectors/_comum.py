@@ -29,7 +29,7 @@ def gravar_politico(s: Session, dados: Dict[str, Any]) -> Politico:
         s.add(atual)
     else:
         for campo, valor in dados.items():
-            if valor is not None:
+            if valor is not None or campo == "fonte":
                 setattr(atual, campo, valor)
     return atual
 
