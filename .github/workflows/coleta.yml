@@ -24,8 +24,10 @@ permissions:
   pages: write
   id-token: write
 
+# A coleta completa nunca roda em paralelo consigo mesma (publica no Pages);
+# cada PR tem sua própria fila, para um não cancelar a coleta de outro.
 concurrency:
-  group: coleta
+  group: coleta-${{ github.event_name == 'pull_request' && github.ref || 'completa' }}
   cancel-in-progress: false
 
 jobs:
