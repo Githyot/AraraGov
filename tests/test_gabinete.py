@@ -22,3 +22,10 @@ def test_senado_casa_nome_do_gabinete(client):
     with db.sessao() as s:
         por_nome = {a.nome: a.codigo_politico for a in s.execute(select(db.Assessor)).scalars()}
     assert por_nome == {"ABI CUSTÓDIO DIVINO FILHO": 475, "FULANO": None}
+
+
+def test_casar_nome_parcial():
+    senadores = {"weverton": 1, "rogerio carvalho": 2, "rogerio marinho": 3}
+    assert gabinete._casar("weverton rocha", senadores) == 1
+    assert gabinete._casar("rogerio carvalho", senadores) == 2
+    assert gabinete._casar("rogerio", senadores) is None  # ambíguo

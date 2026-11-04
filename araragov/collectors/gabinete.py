@@ -36,6 +36,20 @@ def _chave_nome(nome: str) -> str:
     return " ".join(sem_acento.lower().split())
 
 
+def _casar(nome: str, senadores: Dict[str, int]) -> Optional[int]:
+    """Casa o nome do gabinete com o nome parlamentar. Primeiro exato; depois,
+    se um nome contém todas as palavras do outro e só há um candidato
+    (ex.: gabinete "Weverton Rocha" e nome parlamentar "Weverton")."""
+    if nome in senadores:
+        return senadores[nome]
+    palavras = set(nome.split())
+    candidatos = [
+        cod for chave, cod in senadores.items()
+        if set(chave.split()) <= palavras or palavras <= set(chave.split())
+    ]
+    return candidatos[0] if len(candidatos) == 1 else None
+
+
 def _substituir(casa: str, linhas: List[Dict[str, Any]]) -> int:
     with sessao() as s:
         s.execute(delete(Assessor).where(Assessor.casa == casa))
@@ -82,7 +96,7 @@ def coletar_senado(client: HttpClient) -> int:
         m = _GABINETE_SENADO.match(lotacao)
         if not m:
             continue
-        codigo: Optional[int] = senadores.get(_chave_nome(m.group(1)))
+        codigo: Optional[int] = _casar(_chave_nome(m.group(1)), senadores)
         if codigo is None:
             sem_par.add(lotacao)
         linhas.append(
