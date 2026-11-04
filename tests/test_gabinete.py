@@ -40,4 +40,4 @@ def test_folha_senado_usa_o_mes_mais_recente_publicado(client):
     folha, ref = gabinete.folha_senado(client, hoje=date(2026, 10, 15), minimo=1)
     assert ref == "2026-09"
     # 10.000 + 2.500,50 - 500 de abate-teto; sem 13º e sem a folha suplementar
-    assert folha == {3608123: Decimal("12000.50")}
+    assert folha == {"abi custodio divino filho": Decimal("12000.50")}

@@ -8,7 +8,9 @@ Câmara: arquivo dadosabertos.camara.leg.br/arquivos/funcionarios/csv/funcionari
 Senado: API administrativa /api/v1/servidores/servidores, lotação
   "Gabinete do Senador Fulano". O nome é casado com o nome parlamentar.
   A remuneração de cada pessoa vem da folha mensal publicada pela mesma API
-  (/servidores/remuneracoes/{ano}/{mes}), ligada pelo número sequencial.
+  (/servidores/remuneracoes/{ano}/{mes}), ligada pelo nome: os números
+  sequenciais das duas listas vêm de sistemas diferentes e não coincidem.
+  Nomes repetidos na folha ficam sem valor, para não atribuir o salário errado.
 """
 
 from __future__ import annotations
@@ -102,8 +104,8 @@ def _meses_recentes(hoje: date, quantos: int = 6) -> List[Tuple[int, int]]:
 
 def folha_senado(
     client: HttpClient, hoje: Optional[date] = None, minimo: int = 100
-) -> Tuple[Dict[int, Decimal], Optional[str]]:
-    """Remuneração bruta mensal por número sequencial, da folha mais recente
+) -> Tuple[Dict[str, Decimal], Optional[str]]:
+    """Remuneração bruta mensal por nome (normalizado), da folha mais recente
     já publicada. Soma só a folha "Normal" e desconta o abate-teto."""
     for ano, mes in _meses_recentes(hoje or date.today()):
         try:
@@ -113,15 +115,18 @@ def folha_senado(
         normais = [r for r in folha or [] if (r.get("tipo_folha") or "").lower() == "normal"]
         if len(normais) < minimo:  # mês ainda não fechado
             continue
-        bruto: Dict[int, Decimal] = {}
+        bruto: Dict[str, Decimal] = {}
+        donos: Dict[str, set] = {}
         for r in normais:
-            seq = n.inteiro(r.get("sequencial"))
-            if seq is None:
+            nome = _chave_nome(r.get("nome") or "")
+            if not nome:
                 continue
             valor = sum((n.decimal(r.get(k)) or Decimal(0)) for k in _PARCELAS)
             valor -= n.decimal(r.get("reversao_teto_constitucional")) or Decimal(0)
-            bruto[seq] = bruto.get(seq, Decimal(0)) + valor
-        return bruto, f"{ano}-{mes:02d}"
+            bruto[nome] = bruto.get(nome, Decimal(0)) + valor
+            donos.setdefault(nome, set()).add(r.get("sequencial"))
+        # Mesmo nome com sequenciais diferentes = pessoas diferentes (homônimos).
+        return {k: v for k, v in bruto.items() if len(donos[k]) == 1}, f"{ano}-{mes:02d}"
     return {}, None
 
 
@@ -154,7 +159,7 @@ def coletar_senado(client: HttpClient) -> int:
                 "funcao": n.texto(r.get("funcao")),
                 "lotacao": lotacao,
                 "desde": None,
-                "remuneracao": folha.get(n.inteiro(r.get("sequencial"))),
+                "remuneracao": folha.get(_chave_nome(r.get("nome") or "")),
                 "remuneracao_ref": referencia,
             }
         )
