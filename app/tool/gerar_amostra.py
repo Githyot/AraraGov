@@ -26,7 +26,13 @@ SALARIO = [
 VOTACOES = [(f"PL {100 + i}/2025", f"Projeto de lei fictício número {i + 1} (exemplo).") for i in range(14)]
 
 
+def faixa(p):
+    return "esquerda" if p >= 65 else "centro-esquerda" if p >= 55 else "centro" if p > 45 else "centro-direita" if p > 35 else "direita"
+
+
 def perfil(i, nome):
+    pe = round(15 + (i * 37) % 70, 1)
+    pe_partido = round(min(max(pe + random.uniform(-8, 8), 0), 100), 1)
     casa = "senado" if i % 4 == 0 else "camara"
     resumo = {
         "id": f"{casa}-{9000 + i}", "casa": casa,
@@ -63,10 +69,20 @@ def perfil(i, nome):
         },
         "gabinete": [{"nome": f"Assessor Exemplo {k}", "cargo": "Secretário Parlamentar", "nivel": f"SP{10 + k}", "desde": "2023-02-01"} for k in range(1, 13)],
         "presenca": {v: votos.count(v) for v in set(votos)},
+        "posicao": {"pct_esquerda": pe, "pct_direita": round(100 - pe, 1), "faixa": faixa(pe),
+                    "votacoes_consideradas": 180, "media_do_partido": pe_partido, "faixa_do_partido": faixa(pe_partido)},
+        "alinhamento": {
+            "mais_alinhados": [{"partido": PARTIDOS[(i + k) % 5], "pct": round(92 - 9 * k, 1), "votacoes": 180 - k} for k in range(5)],
+            "menos_alinhados": [],
+            "proprio_partido": {"partido": PARTIDOS[i % 5], "pct": 92.0, "votacoes": 180},
+        },
+        "atencao": {"votacoes": 2, "votou_sim": 1, "votou_nao": 1},
         "votacoes": [
             {"id": f"exemplo:{k}", "data": f"2025-{12 - k % 12:02d}-10T18:00:00", "proposicao": pr, "descricao": None,
              "ementa": em, "resultado": "Aprovada" if k % 3 else "Rejeitada", "link": None, "voto": votos[k],
-             "partido_na_epoca": resumo["partido"]}
+             "partido_na_epoca": resumo["partido"],
+             "lado_sim": None if k % 4 == 3 else ("esquerda" if k % 2 else "direita"),
+             "atencao": "Trata de fundo eleitoral ou partidário (exemplo)" if k in (1, 6) else None}
             for k, (pr, em) in enumerate(VOTACOES)
         ],
     }

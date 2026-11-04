@@ -4,6 +4,9 @@ import 'package:araragov/dados/api.dart';
 import 'package:araragov/formatar.dart';
 import 'package:araragov/main.dart';
 import 'package:flutter/material.dart';
+import 'dart:io';
+
+import 'package:araragov/telas/perfil.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -47,5 +50,19 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Não foi possível carregar'), findsOneWidget);
     expect(find.widgetWithText(FilledButton, 'Tentar de novo'), findsOneWidget);
+  });
+
+  testWidgets('perfil mostra posição, alinhamento e atenção', (tester) async {
+    final json = File('assets/amostra/v1/politicos/camara-9001.json').readAsBytesSync();
+    final client = MockClient((req) async => http.Response.bytes(json, 200));
+    tester.view.physicalSize = const Size(800, 6000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(MaterialApp(home: PerfilTela(api: Api(client: client), id: 'camara-9001')));
+    await tester.pumpAndSettle();
+    expect(find.text('Posição nas votações'), findsOneWidget);
+    expect(find.text('Com quem vota junto'), findsOneWidget);
+    expect(find.text('Votações que merecem atenção'), findsOneWidget);
+    expect(find.textContaining('Votou com o lado da'), findsWidgets);
   });
 }

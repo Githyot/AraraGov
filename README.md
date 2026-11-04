@@ -17,7 +17,7 @@ nenhum lado. Toda informação tem link para a fonte oficial.
    senadores, votações nominais, cota parlamentar, salários e IPCA.
 2. **Análises**: alinhamento com partidos em %, posição geral no espectro
    político a partir das votações, votações que merecem atenção (ex.: aumento
-   do próprio salário).
+   do próprio salário). Veja [docs/metodologia.md](docs/metodologia.md).
 3. **App** multiplataforma (iOS, Android, Windows, Linux) em Flutter, seguindo
    as diretrizes de interface do GNOME.
 4. **Estados e municípios**, começando pelos portais de transparência

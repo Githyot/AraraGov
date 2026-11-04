@@ -139,27 +139,37 @@ def coletar_votacoes(client: HttpClient, ano: int, limite: Optional[int] = None)
     if not codigos:
         raise RuntimeError("Nenhum senador no banco. Rode antes: araragov coletar senado-senadores")
 
-    vistas: set = set()
+    # Filtrada por senador, a API devolve só o voto daquele senador em cada
+    # sessão. Juntamos as respostas de todos para montar cada votação.
+    votacoes: Dict[str, Dict[str, Any]] = {}
+    votos_por: Dict[str, Dict[int, Dict[str, Any]]] = {}
+    for cod in codigos:
+        dados = client.get_json(
+            f"{API}/votacao",
+            {"codigoParlamentar": cod, "dataInicio": f"{ano}-01-01", "dataFim": f"{ano}-12-31", "v": 1},
+        )
+        for entrada in _votacoes(dados):
+            convertido = _converter(entrada)
+            if convertido is None:
+                continue
+            votacao, votos = convertido
+            vid = votacao["id"]
+            if vid not in votacoes:
+                if limite and len(votacoes) >= limite:
+                    continue
+                votacoes[vid] = votacao
+                votos_por[vid] = {}
+            for v in votos:
+                votos_por[vid].setdefault(v["codigo_politico"], v)
+
+    gravadas = 0
     with sessao() as s:
-        for cod in codigos:
-            dados = client.get_json(
-                f"{API}/votacao",
-                {"codigoParlamentar": cod, "dataInicio": f"{ano}-01-01", "dataFim": f"{ano}-12-31", "v": 1},
-            )
-            for entrada in _votacoes(dados):
-                convertido = _converter(entrada)
-                if convertido is None:
-                    continue
-                votacao, votos = convertido
-                if votacao["id"] in vistas or not votos:
-                    continue
-                vistas.add(votacao["id"])
-                gravar_votacao(s, votacao, votos)
-                if limite and len(vistas) >= limite:
-                    logger.info("Senado: limite de %s votações atingido", limite)
-                    return len(vistas)
-    logger.info("Senado: %s votações nominais gravadas em %s", len(vistas), ano)
-    return len(vistas)
+        for vid, votacao in votacoes.items():
+            if votos_por[vid]:
+                gravar_votacao(s, votacao, list(votos_por[vid].values()))
+                gravadas += 1
+    logger.info("Senado: %s votações nominais gravadas em %s", gravadas, ano)
+    return gravadas
 
 
 def _linhas_ceaps(itens: List[Dict[str, Any]], ano: int, limite: Optional[int]) -> Iterator[Dict[str, Any]]:
