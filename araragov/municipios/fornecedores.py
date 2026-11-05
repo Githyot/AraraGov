@@ -244,12 +244,28 @@ def eleitos_do_municipio(pasta: Path) -> Dict[str, str]:
             for r in doc.tabelas.get("mandatos", []) if r.get("sq_candidato")}
 
 
+def emendas_do_municipio(pasta: Path) -> Dict[str, List[str]]:
+    """CNPJ (só dígitos) -> ["AUTOR 2025", ...], pelo emendas.md da fase 6
+    (só favorecidos que não são a prefeitura)."""
+    caminho = pasta / "emendas.md"
+    doc = _ler(caminho) if caminho.exists() else None
+    saida: Dict[str, List[str]] = defaultdict(list)
+    for r in (doc.tabelas.get("recebido", []) if doc else []):
+        c = so_digitos(r.get("cnpj"))
+        rotulo = f"{r.get('autor') or 'autor não informado'} {r.get('ano')}"
+        if len(c) == 14 and "MUNICIPIO" not in (r.get("natureza") or "").upper() and rotulo not in saida[c]:
+            saida[c].append(rotulo)
+    return dict(saida)
+
+
 # --- documento -----------------------------------------------------------------------------
 
 
 def documento(ibge: int, mun: str, uf: str, fornecedores: Dict[str, Fornecedor],
               sancoes: Dict[str, List[Dict[str, Any]]], campanhas: Dict[Tuple[str, str], Campanha],
-              eleitos: Dict[str, str], eleicoes: Iterable[int], hoje: date, data_sancoes: Optional[str]) -> str:
+              eleitos: Dict[str, str], eleicoes: Iterable[int], hoje: date, data_sancoes: Optional[str],
+              emendas: Optional[Dict[str, List[str]]] = None) -> str:
+    emendas = emendas or {}
     campanha_por_cnpj: Dict[str, List[Campanha]] = defaultdict(list)
     for c in campanhas.values():
         campanha_por_cnpj[c.cnpj].append(c)
@@ -262,6 +278,8 @@ def documento(ibge: int, mun: str, uf: str, fornecedores: Dict[str, Fornecedor],
         anos = sorted({c.eleicao for c in campanha_por_cnpj.get(cnpj, [])})
         if anos:
             partes.append("Fornecedora de campanha (" + ", ".join(map(str, anos)) + ")")
+        if cnpj in emendas:
+            partes.append("Recebeu emenda federal direto (" + ", ".join(emendas[cnpj][:3]) + ")")
         return "; ".join(partes) or None
 
     ordem = sorted(fornecedores.items(), key=lambda kv: (kv[1].pago + kv[1].valor_contratos), reverse=True)
@@ -392,7 +410,8 @@ def gerar(client, saida: Path, ufs: Iterable[str] = ("SP",), eleicoes: Iterable[
     n = 0
     for (uf, ibge), forn in fornecedores.items():
         texto = documento(ibge, nomes.get(ibge, str(ibge)), uf, forn, sancoes, campanhas.get(ibge, {}),
-                          eleitos_do_municipio(pastas[(uf, ibge)]), lidas, hoje, data_sancoes)
+                          eleitos_do_municipio(pastas[(uf, ibge)]), lidas, hoje, data_sancoes,
+                          emendas_do_municipio(pastas[(uf, ibge)]))
         (pastas[(uf, ibge)] / "fornecedores.md").write_text(texto, encoding="utf-8")
         n += 1
     logger.info("Fornecedores: %s municípios, %s empresas com sanção, %s com serviço de campanha",

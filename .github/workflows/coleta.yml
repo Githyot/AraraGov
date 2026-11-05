@@ -98,6 +98,17 @@ jobs:
             # Ano passado e o atual (o atual ainda muda a cada mês).
             python -m araragov tce-sp --saida site --anos $(( $(date +%Y) - 1 ))-$(date +%Y)
           fi
+      - name: Emendas recebidas pelos municípios (Portal da Transparência)
+        if: ${{ !cancelled() }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            python -m araragov emendas-municipios --saida site --ufs AC,SP --anos 2024-2025
+            ls site/v1/municipios/*/*/emendas.md | wc -l
+            f=site/v1/municipios/sp/3500105/emendas.md; [ -f "$f" ] || f=$(ls site/v1/municipios/ac/*/emendas.md | head -1)
+            head -45 "$f"; grep -A12 "tabela: recebido" "$f"
+          else
+            python -m araragov emendas-municipios --saida site
+          fi
       - name: Fornecedores dos municípios (CEIS/CNEP e campanhas no TSE)
         if: ${{ !cancelled() }}
         run: |

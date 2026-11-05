@@ -64,11 +64,13 @@ def test_documento_junta_fases(tmp_path):
     camp = fo.ler_campanhas([_despesa("55666777000188", "250001", "1000,00")], 2024,
                             lambda *a: 3500105, {3500105: set(forn)})[3500105]
     texto = fo.documento(3500105, "Adamantina", "SP", forn, sancoes, camp, fo.eleitos_do_municipio(p),
-                         [2024], date(2026, 11, 5), "2026-11-04")
+                         [2024], date(2026, 11, 5), "2026-11-04", {"00111222000133": ["FULANO 2024"]})
     doc = md.ler(texto)
     linhas = doc.tabelas["fornecedores"]
-    assert [l["indicios"] for l in linhas[:2]] == ["Sanção no CEIS (Prefeitura de Outra Cidade, 2023-2028)", "Fornecedora de campanha (2024)"]
-    assert linhas[2]["indicios"] is None and linhas[2]["empresa"] == "ENERGIA SA"
+    ind = {l["empresa"]: l["indicios"] for l in linhas}
+    assert ind == {"OBRAS BOAS LTDA": "Sanção no CEIS (Prefeitura de Outra Cidade, 2023-2028)",
+                   "GRAFICA RAPIDA LTDA": "Fornecedora de campanha (2024)",
+                   "ENERGIA SA": "Recebeu emenda federal direto (FULANO 2024)"}
     assert doc.tabelas["campanha"][0]["eleito"] == "Sim (Prefeito 2025-2028)"
     assert doc.tabelas["sancoes"][0]["cadastro"] == "CEIS"
     assert doc.tabelas["sem-dados"][0]["responsavel"] == "Receita Federal"

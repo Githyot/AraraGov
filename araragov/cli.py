@@ -115,6 +115,10 @@ def main(argv: list[str] | None = None) -> int:
     frn.add_argument("--saida", default="site")
     frn.add_argument("--ufs", default="SP", help="estados já coletados pelo TCE (padrão: SP)")
     frn.add_argument("--eleicoes", type=_anos, default=[2016, 2020, 2024], help="eleições municipais, ex.: 2020,2024")
+    eme = sub.add_parser("emendas-municipios", help="emendas federais recebidas em cada município (.md)")
+    eme.add_argument("--saida", default="site")
+    eme.add_argument("--anos", type=_anos, default=_anos(f"2019-{date.today().year}"), help="anos do pagamento")
+    eme.add_argument("--ufs", default="", help="ex.: AC,SP (padrão: todos)")
     son = sub.add_parser("sinapi-sondar", help="mostra o formato do pacote mensal do SINAPI")
     son.add_argument("--mes", default="", help="AAAA-MM (padrão: dois meses atrás)")
     exp = sub.add_parser("exportar", help="gera a API estática (JSON) que o app lê")
@@ -165,6 +169,14 @@ def main(argv: list[str] | None = None) -> int:
 
         ufs = [u.strip().upper() for u in args.ufs.split(",") if u.strip()]
         return 0 if fornecedores.gerar(HttpClient(), Path(args.saida), ufs, args.eleicoes) else 1
+
+    if args.comando == "emendas-municipios":
+        from pathlib import Path
+
+        from .municipios import emendas as emendas_mun
+
+        ufs = [u.strip().upper() for u in args.ufs.split(",") if u.strip()] or None
+        return 0 if emendas_mun.gerar(HttpClient(), Path(args.saida), args.anos, ufs) else 1
 
     if args.comando == "sinapi-sondar":
         from .municipios import sinapi

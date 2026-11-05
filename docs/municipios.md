@@ -140,7 +140,7 @@ disso, os arquivos de municípios vão para um repositório de dados separado.
 | 3 | Banco de custos de referência (SINAPI, SICRO, índices, ANP, ANTT, artigos) | 🔄 |
 | 4 | Estado piloto (SP): pagamentos, contratos e obras pelo TCE-SP, com comparação de custo | 🔄 |
 | 5 | Fornecedores: CNPJs, sócios (Receita), CEIS/CNEP e indícios de vínculo | 🔄 |
-| 6 | Emendas e transferências até o CNPJ que recebeu | ⬜ |
+| 6 | Emendas e transferências até o CNPJ que recebeu | 🔄 |
 | 7 | Telas do app (município, área, obra, fornecedor) | ⬜ |
 | 8 | Outros estados (um TCE por vez) e portais Fiorilli, Betha, IPM | ⬜ |
 
@@ -246,6 +246,25 @@ fonte pública:
 - `sem-dados`: os sócios e endereços (base de CNPJ da Receita Federal) ainda
   não entram, porque o servidor não responde à coleta automática. Sem eles,
   não há cruzamento de sócio com político, nem de sobrenome.
+
+## Fase 6: emendas
+
+`araragov emendas-municipios` grava `emendas.md` de cada município do Brasil
+com as emendas federais pagas a quem está ali, pelo arquivo único de emendas
+do Portal da Transparência:
+
+- `resumo`: por ano, número de emendas e de autores, total, quanto foi para a
+  prefeitura e quanto para entidades e empresas.
+- `autores`: quem mandou, por tipo de emenda.
+- `recebido`: as 300 maiores linhas de ano, emenda, autor, função (saúde,
+  cultura…), ação e favorecido com CNPJ. Pessoas físicas aparecem somadas, sem
+  nome.
+- `sem-dados`: quando o dinheiro vai para a prefeitura, os dados abertos não
+  dizem quais empresas ela pagou com ele (responsável: a prefeitura;
+  rastreabilidade exigida pelo STF na ADPF 854).
+
+Em `fornecedores.md`, a empresa que recebeu emenda direto e também vendeu à
+prefeitura ganha o indício "Recebeu emenda federal direto (autor, ano)".
 
 ## Limitações conhecidas
 
