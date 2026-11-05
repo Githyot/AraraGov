@@ -43,7 +43,7 @@ class ValorInflacao {
 
 class Salario {
   final double? atual;
-  final List<({String desde, double valor, String? ato, String? fonte})> historico;
+  final List<({String desde, double valor, String? ato, String? fonte, bool referencia})> historico;
   final ValorInflacao? vsInflacao;
   /// Verdadeiro quando o valor é o teto legal, não o valor exato pago.
   final bool teto;
@@ -55,7 +55,7 @@ class Salario {
         observacao = j['observacao'],
         historico = [
           for (final h in (j['historico'] as List? ?? []))
-            (desde: h['desde'] as String, valor: _n(h['valor']), ato: h['ato'] as String?, fonte: h['fonte'] as String?)
+            (desde: h['desde'] as String, valor: _n(h['valor']), ato: h['ato'] as String?, fonte: h['fonte'] as String?, referencia: h['referencia'] == true)
         ],
         vsInflacao = j['vs_inflacao'] == null ? null : ValorInflacao.fromJson(j['vs_inflacao']);
 }

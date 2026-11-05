@@ -103,10 +103,10 @@ class _PerfilTelaState extends State<PerfilTela> {
                   const SizedBox(height: 24),
                   SecaoPosicao(p),
                   SecaoAlinhamento(p),
-                  _SecaoSalario(p.salario, beneficios: p.beneficios, doacao: p.doacaoSalario, pago: p.salarioPago),
-                  _SecaoGastos(p.gastos, estadual: p.resumo.esfera == 'estadual'),
+                  _SecaoSalario(p.salario, r: p.resumo, beneficios: p.beneficios, doacao: p.doacaoSalario, pago: p.salarioPago),
+                  _SecaoGastos(p.gastos, r: p.resumo, estadual: p.resumo.esfera == 'estadual'),
                   if (p.emendas != null) _SecaoEmendas(p.emendas!),
-                  _SecaoVotacoes(p, widget.api),
+                  if (!executivo(p.resumo)) _SecaoVotacoes(p, widget.api),
                   SecaoAtencao(
                     p,
                     aoVer: () => Navigator.of(context).push(
@@ -187,7 +187,8 @@ class _SecaoSalario extends StatelessWidget {
   final List<Beneficio> beneficios;
   final DoacaoSalario? doacao;
   final ValoresMensais? pago;
-  const _SecaoSalario(this.s, {this.beneficios = const [], this.doacao, this.pago});
+  const _SecaoSalario(this.s, {required this.r, this.beneficios = const [], this.doacao, this.pago});
+  final PoliticoResumo r;
 
   Widget? _linhaPago() {
     final ano = pago?.ultimoAno;
@@ -212,7 +213,7 @@ class _SecaoSalario extends StatelessWidget {
   Widget build(BuildContext context) {
     if (s.atual == null) {
       return Grupo(titulo: 'Salário', filhos: [
-        Linha(titulo: s.observacao ?? 'Não informado'),
+        SemDados(r, detalhe: s.observacao),
         if (doacao != null) _linhaDoacao(doacao!),
         ?_linhaPago(),
         for (final b in beneficios) Linha(titulo: b.descricao, subtitulo: 'Benefício além do salário'),
@@ -222,7 +223,12 @@ class _SecaoSalario extends StatelessWidget {
       titulo: 'Salário',
       descricao: s.observacao ?? 'Subsídio bruto mensal, fixado por decreto legislativo',
       filhos: [
-        Linha(titulo: s.teto ? 'Teto do salário' : 'Salário atual', valor: reais(s.atual)),
+        Linha(
+          titulo: s.teto ? 'Teto do salário' : 'Salário atual',
+          subtitulo: s.historico.isEmpty ? null : s.historico.last.ato,
+          valor: reais(s.atual),
+          aoTocar: s.historico.isEmpty || s.historico.last.fonte == null ? null : () => _abrir(s.historico.last.fonte),
+        ),
         if (s.vsInflacao != null)
           _LinhaInflacao(titulo: 'Desde ${mesAno(s.vsInflacao!.desde)}', v: s.vsInflacao!),
         if (doacao != null) _linhaDoacao(doacao!),
@@ -248,7 +254,7 @@ class _SecaoSalario extends StatelessWidget {
             shape: const Border(),
             children: [
               for (final h in s.historico.reversed)
-                Linha(titulo: 'Desde ${data(h.desde)}', subtitulo: h.ato, valor: reais(h.valor), aoTocar: h.fonte == null ? null : () => _abrir(h.fonte)),
+                Linha(titulo: h.referencia ? 'Valor em ${mesAno(h.desde)}' : 'Desde ${data(h.desde)}', subtitulo: h.ato, valor: reais(h.valor), aoTocar: h.fonte == null ? null : () => _abrir(h.fonte)),
             ],
           ),
       ],
@@ -259,13 +265,14 @@ class _SecaoSalario extends StatelessWidget {
 class _SecaoGastos extends StatelessWidget {
   final Gastos g;
   final bool estadual;
-  const _SecaoGastos(this.g, {this.estadual = false});
+  final PoliticoResumo r;
+  const _SecaoGastos(this.g, {required this.r, this.estadual = false});
 
   @override
   Widget build(BuildContext context) {
-    final titulo = estadual ? 'Gastos de gabinete' : 'Gastos da cota parlamentar';
+    final titulo = executivo(r) ? 'Gastos' : estadual ? 'Gastos de gabinete' : 'Gastos da cota parlamentar';
     if (g.total == 0) {
-      return Grupo(titulo: titulo, filhos: const [Linha(titulo: 'Nenhum gasto publicado pela fonte')]);
+      return Grupo(titulo: titulo, filhos: [SemDados(r)]);
     }
     return Grupo(
       titulo: titulo,
@@ -407,7 +414,7 @@ class _SecaoVotacoes extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (p.votacoes.isEmpty) {
-      return const Grupo(titulo: 'Votações', filhos: [Linha(titulo: 'Nenhuma votação nominal registrada')]);
+      return Grupo(titulo: 'Votações', filhos: [SemDados(p.resumo, detalhe: 'Nenhuma votação nominal registrada')]);
     }
     final total = p.totalVotacoes;
     final pct = total == 0 ? 0 : p.participou / total * 100;
@@ -504,7 +511,9 @@ class _SecaoGabinete extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final verba = p.verbaGabinete;
-    if (p.gabinete.isEmpty && verba == null) return const SizedBox();
+    if (p.gabinete.isEmpty && verba == null) {
+      return Grupo(titulo: 'Gabinete', filhos: [SemDados(p.resumo, detalhe: 'Equipe e custo do gabinete')]);
+    }
     final custo = p.custoGabinete;
     final anoVerba = verba?.ultimoAno;
     return Grupo(
@@ -520,6 +529,7 @@ class _SecaoGabinete extends StatelessWidget {
                     '${custo.referencia == null ? '' : ' · folha de ${mesAno(custo.referencia)}'}',
             valor: reais(custo.mensal),
           ),
+        if (custo == null && p.gabinete.isNotEmpty) SemDados(p.resumo, detalhe: 'Salário de cada pessoa do gabinete'),
         if (verba != null && anoVerba != null)
           ExpansionTile(
             title: Text('Verba de gabinete gasta em $anoVerba'),
@@ -568,6 +578,34 @@ class _Rodape extends StatelessWidget {
       'O AraraGov apenas organiza dados públicos e não faz acusações.',
       textAlign: TextAlign.center,
       style: tema.textTheme.bodySmall?.copyWith(color: tema.hintColor),
+    );
+  }
+}
+
+
+/// Governador e vice não votam em plenário.
+bool executivo(PoliticoResumo r) => r.cargo == 'Governador' || r.cargo == 'Vice-governador';
+
+/// Linha mostrada quando falta um dado: diz que não há dados e qual órgão
+/// é o responsável por publicá-los, sem afirmar o motivo da falta.
+class SemDados extends StatelessWidget {
+  final PoliticoResumo r;
+  final String? detalhe;
+  const SemDados(this.r, {super.key, this.detalhe});
+
+  @override
+  Widget build(BuildContext context) {
+    final esfera = switch (r.esfera) {
+      'federal' => 'esfera federal',
+      'estadual' => 'esfera estadual',
+      'municipal' => 'esfera municipal',
+      _ => null,
+    };
+    final responsavel = r.orgao.isEmpty ? null : 'Responsável por publicar: ${r.orgao}${esfera == null ? '' : ' ($esfera)'}';
+    return Linha(
+      prefixo: const Icon(Icons.info_outline),
+      titulo: 'Sem dados',
+      subtitulo: [?detalhe, ?responsavel].join('\n'),
     );
   }
 }

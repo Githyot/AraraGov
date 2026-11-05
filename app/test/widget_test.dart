@@ -106,6 +106,29 @@ void main() {
         'Declarou doar 30% do salário em 2020');
   });
 
+  test('salário estadual vindo da imprensa é marcado como referência', () {
+    final s = Salario.fromJson({
+      'atual': 21914.76,
+      'observacao': 'Valor publicado pela imprensa',
+      'historico': [
+        {'desde': '2026-10-04', 'valor': 21914.76, 'ato': 'Levantamento', 'fonte': 'https://example.org', 'referencia': true}
+      ],
+    });
+    expect(s.historico.single.referencia, isTrue);
+    expect(s.teto, isFalse);
+  });
+
+  testWidgets('sem dados mostra o órgão responsável', (tester) async {
+    final r = PoliticoResumo.fromJson({
+      'id': 'al-mt-1', 'casa': 'al-mt', 'cargo': 'Deputado estadual', 'nome': 'X',
+      'esfera': 'estadual', 'orgao': 'Assembleia Legislativa (MT)',
+    });
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: SemDados(r, detalhe: 'Equipe e custo do gabinete'))));
+    expect(find.text('Sem dados'), findsOneWidget);
+    expect(find.textContaining('Responsável por publicar: Assembleia Legislativa (MT) (esfera estadual)'), findsOneWidget);
+    expect(executivo(PoliticoResumo.fromJson({'id': 'g', 'casa': 'gov-sp', 'cargo': 'Governador', 'nome': 'G'})), isTrue);
+  });
+
   testWidgets('perfil troca o período e abre a comparação', (tester) async {
     final client = MockClient((req) async {
       final partes = req.url.pathSegments;
