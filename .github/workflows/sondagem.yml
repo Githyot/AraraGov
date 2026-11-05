@@ -1,0 +1,12 @@
+name: Sondagem
+on:
+  push:
+    branches: [sondagem-federal]
+    paths: [".github/workflows/sondagem.yml", "tool/sondagem.sh"]
+jobs:
+  sondar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Sondar
+        run: bash tool/sondagem.sh
