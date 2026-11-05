@@ -1,12 +1,14 @@
 set +e
 ua="AraraGov/0.1 (+https://github.com/Githyot/AraraGov)"
-txt() { python3 -c "
-import re,sys; h=open(sys.argv[1],encoding='utf-8',errors='replace').read(); i=h.find(sys.argv[2]); print(re.sub(r'\s+',' ',re.sub(r'<(?!/?t[rdh]\b)[^>]+>',' ',h[max(i,0):max(i,0)+int(sys.argv[3])])))" "$@"; }
-echo "### RO"; curl -sSL -A "$ua" --max-time 60 -w "%{http_code}\n" "https://transparencia.al.ro.leg.br/Deputados/VerbaIndenizatoria/" -o /tmp/r; grep -oE '<option[^>]*value="[^"]*"[^>]*>[^<]{0,30}' /tmp/r | head -30 | tr '\n' ' '; echo; grep -oE '<script[^>]*id="[^"]*"[^>]*>.{0,600}' /tmp/r | head -5; grep -oE '<form[^>]*>' /tmp/r
-echo "### RO dados abertos"; curl -sSL -A "$ua" --max-time 60 https://transparencia.al.ro.leg.br/DadosAbertos/ -o /tmp/d; grep -oiE 'href="[^"]*"' /tmp/d | grep -iE "csv|json|xls|api|dados|verba" | sort -u | head -20
-echo "### RO remuneracao"; curl -sSL -A "$ua" --max-time 60 https://transparencia.al.ro.leg.br/Deputados/Remuneracao/ -o /tmp/rr; txt /tmp/rr '<table' 900
-echo "### PA estrutura remuneratoria"; curl -sSL -A "$ua" --max-time 60 https://alepa.pa.gov.br/Transparencia/Page/EstruturaRemuneratoriaDeputados -o /tmp/pe; grep -oiE '(href|src)="[^"]*(pdf|sigep|frame|xls)[^"]*"' /tmp/pe | head; grep -oiE '.{100}(subs[ií]dio|R\$ ?[0-9.]+,[0-9]{2}).{100}' /tmp/pe | sed 's/<[^>]*>//g' | head -5
-echo "### PA dados abertos"; curl -sSL -A "$ua" --max-time 60 https://alepa.pa.gov.br/Transparencia/Page/DadosAbertos -o /tmp/pd; grep -oiE '(href|src)="[^"]*"' /tmp/pd | grep -viE "Home/Page|fonts|DXR|css|png|jpg|svg" | head -20
-echo "### SE ressarcimento"; curl -sSL -A "$ua" --max-time 60 https://al.se.leg.br/portal-da-transparencia/despesas/ressarcimento-dos-deputados/ -o /tmp/s; grep -oiE 'href="[^"]*(download|wpdm|\.pdf|\.xls|\.csv)[^"]*"' /tmp/s | sort -u | head -12
-echo "### RN verbas chunk"; js=$(curl -sSL -A "$ua" --max-time 60 https://transparencia.al.rn.leg.br/ | grep -oE 'main-[A-Z0-9]+\.js' | head -1); curl -sSL -A "$ua" --max-time 60 "https://transparencia.al.rn.leg.br/$js" -o /tmp/js; ch=$(grep -oE 'chunk-[A-Z0-9]+\.js"\)\.then\(e=>e\.verbasGabineteRoutes' /tmp/js | grep -oE 'chunk-[A-Z0-9]+\.js'); echo "chunk $ch"; curl -sSL -A "$ua" --max-time 60 "https://transparencia.al.rn.leg.br/$ch" -o /tmp/c; grep -oE '"(https?:)?//[^"]+"|`[^`]*(api|search|verba)[^`]*`|"/[a-z-]+/[^"]{0,60}"' /tmp/c | sort -u | head -20; for x in $(grep -oE 'chunk-[A-Z0-9]+\.js' /tmp/c | sort -u); do curl -sSL -A "$ua" --max-time 60 "https://transparencia.al.rn.leg.br/$x" | grep -oE 'apiUrl[^;]{0,120}|`\$\{[^`]{0,120}`' | head -8; done
-echo "### RN api root"; curl -sS -A "$ua" --max-time 30 -w " %{http_code}\n" https://api-transparencia.al.rn.leg.br/ | head -c 400
+R=https://transparencia.al.ro.leg.br
+echo "### RO verba set/2025"; curl -sSL -A "$ua" --max-time 90 "$R/Deputados/VerbaIndenizatoria/?ano=2025&mes=9&categoria=&gabinete=" -o /tmp/r; grep -oE '<option[^>]*value="[^"]*"[^>]*>[^<]{0,40}' /tmp/r | sed -n '22,40p' | tr '\n' ' '; echo; python3 -c "
+import re; h=open('/tmp/r',encoding='utf-8',errors='replace').read()
+m=re.search(r'id=\"dados-despesas\"[^>]*>(.*?)</script>',h,re.S); print('json:', m.group(1)[:700] if m else None)
+for t in re.findall(r'<table.*?</table>',h,re.S)[:2]: print(re.sub(r'\s+',' ',re.sub(r'<(?!/?t[rdh]\b|a\b)[^>]+>',' ',t))[:1500])
+print(sorted(set(re.findall(r'href=\"([^\"]*(?:csv|xls|json|pdf|export|download)[^\"]*)\"',h,re.I)))[:15])"
+echo "### RO api servidores"; curl -sS -A "$ua" --max-time 90 "$R/api/servidores?cargo=assessor%20parlamentar" -D /tmp/h -o /tmp/a; grep -iE "^(HTTP|content-type)" /tmp/h; head -c 1200 /tmp/a; echo; python3 -c "
+import json; d=json.load(open('/tmp/a')); print(type(d).__name__, list(d)[:10] if isinstance(d,dict) else len(d))
+x=d if isinstance(d,list) else (d.get('results') or d.get('data') or d.get('servidores') or [])
+print(len(x)); import collections; print(collections.Counter(i.get('lotacao') for i in x).most_common(8))"
+N=https://api-transparencia.al.rn.leg.br
+for p in "verbas/deputados" "verbas/meses/anos" "verbas/despesas/?ano=2025&mes=9" "verbas/despesas/json?ano=2025" "mandato/"; do echo "### RN $p"; curl -sS -A "$ua" --max-time 60 -w "\n%{http_code} %{content_type}\n" "$N/$p" | head -c 900; echo; done
