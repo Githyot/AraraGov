@@ -1,9 +1,5 @@
 set +e
 ua="AraraGov/0.1 (+https://github.com/Githyot/AraraGov)"
-ver() { curl -sSL -A "$ua" --max-time 40 -o /tmp/p -w "%{http_code}" "$1" > /tmp/code 2>/dev/null; echo "### $1 -> $(cat /tmp/code) $(wc -c </tmp/p 2>/dev/null)"; grep -oiE '(href|src|action)="[^"#]*"' /tmp/p 2>/dev/null | grep -iE "$2" | sort -u | head -${3:-15}; }
-for r in https://www.al.pb.leg.br https://transparencia.al.rr.leg.br https://www.al.ac.leg.br https://www.al.al.leg.br; do echo "### robots $r"; curl -sS -A "$ua" --max-time 20 $r/robots.txt | head -8; done
-ver https://www.al.pb.leg.br/transparencia "verba|viap|indeniz|deputad|gabinete|csv|xls|json|remunera|folha|despesa" 30
-ver https://transparencia.al.rr.leg.br/execucao-orcamentaria-e-financeira/gestao-de-pessoal-intro/ "verba|indeniz|deputad|gabinete|csv|xls|json|remunera|folha|cota" 20
-ver https://transparencia.al.rr.leg.br/ "verba|indeniz|deputad|gabinete|cota|parlamentar" 20
-ver https://www.al.ac.leg.br/ "transparen|verba|indeniz|gabinete|despesa|cota" 15
-ver https://www.al.al.leg.br/ "transparen|verba|indeniz|gabinete|despesa|cota" 15
+echo "### PB robots *"; curl -sS -A "$ua" --max-time 20 https://www.al.pb.leg.br/robots.txt -o /tmp/r; wc -l /tmp/r; awk '/^User-agent: \*/{f=1} f' /tmp/r | head -20; grep -ciE "^Disallow: /$" /tmp/r; grep -iE "araragov|python|curl" /tmp/r | head
+echo "### PB viap"; curl -sSL -A "$ua" --max-time 40 https://www.al.pb.leg.br/transparencia/deputados/viap-v2 -o /tmp/v; wc -c </tmp/v; grep -oiE '(href|src|action|data-url)="[^"#]*"|<(select|input)[^>]*name="[^"]*"' /tmp/v | grep -viE "fonts|\.css|\.png|\.jpg|\.svg|facebook|instagram|twitter|youtube|/transparencia/(?!deputados)" | grep -iE "viap|json|csv|xls|ajax|api|name=|pdf" | sort -u | head -25
+echo "### RR verbas"; curl -sSL -A "$ua" --max-time 40 https://transparencia.al.rr.leg.br/execucao-orcamentaria-e-financeira/verbas-indenizatorias-intro/ -o /tmp/rr; grep -oiE 'href="[^"#]*"' /tmp/rr | grep -iE "verba|indeniz|pdf|xls|csv|ods|uploads" | sort -u | head -25
