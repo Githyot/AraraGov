@@ -1,7 +1,7 @@
 name: Sondagem de fontes
 
 # Temporário: confere, a partir do GitHub, o formato de fontes novas antes de
-# escrever o coletor. Roda só em PR, fora da fila da coleta.
+# escrever o coletor (tentativa 2). Roda só em PR, fora da fila da coleta.
 
 on:
   pull_request:
@@ -15,8 +15,9 @@ jobs:
       - name: TCE-PB (novo portal)
         if: always()
         run: |
+          set +e
           A="AraraGov (dados publicos)"; H="https://dados-abertos.tce.pb.gov.br"
-          curl -sS -m 60 -A "$A" "$H/" -o /tmp/pb.html -w '[%{http_code} %{size_download}B]\n'; head -c 1200 /tmp/pb.html; echo
+          curl -sS --retry 4 --retry-all-errors --retry-delay 10 -m 60 -A "$A" "$H/" -o /tmp/pb.html -w '[%{http_code} %{size_download}B]\n'; head -c 1200 /tmp/pb.html; echo
           for js in $(grep -o '/assets/[^"]*\.js' /tmp/pb.html | sort -u); do
             echo "== $js"; curl -sS -m 60 -A "$A" "$H$js" | grep -o '"[^"]*\(api\|\.gz\|\.zip\|\.csv\|download\|sagres\|Sagres\)[^"]*"' | sort -u | head -80
           done
