@@ -104,6 +104,12 @@ jobs:
             code=$(curl -s -o /tmp/r -w '%{http_code} %{size_download}B %{time_total}s' -m 40 -A "AraraGov (dados publicos; github.com/Githyot/AraraGov)" "$u" || echo "falhou")
             echo "$code  $u"; head -c 300 /tmp/r 2>/dev/null; echo
           done
+          echo "== TCE-SP: links de dados abertos"
+          for p in conjunto-de-dados dados-abertos ""; do
+            curl -s -m 40 "https://transparencia.tce.sp.gov.br/$p" | grep -oE 'href="[^"]+\.(zip|csv|json)[^"]*"' | sort -u | head -40
+          done
+          echo "== PNCP: uma contratação de obra (modalidade 6, pregão) em SP"
+          curl -s -m 40 "https://pncp.gov.br/api/consulta/v1/contratacoes/publicacao?dataInicial=20250301&dataFinal=20250305&codigoModalidadeContratacao=6&uf=SP&pagina=1&tamanhoPagina=10" | head -c 2500; echo
       - name: Tamanho da API
         # O GitHub Pages aceita sites de até 1 GB.
         run: |
