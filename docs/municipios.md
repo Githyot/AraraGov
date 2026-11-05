@@ -135,7 +135,7 @@ disso, os arquivos de municípios vão para um repositório de dados separado.
 | Fase | Entrega | Situação |
 |---|---|---|
 | 0 | Este plano, o formato `.md` (leitor e escritor) e a metodologia de custo de referência | 🔄 |
-| 1 | Quem governa: prefeitos, vices e vereadores 2016/2020/2024 (TSE), por município e período | ⬜ |
+| 1 | Quem governa: prefeitos, vices e vereadores 2016/2020/2024 (TSE), por município e período | 🔄 |
 | 2 | Arrecadação e gastos por área (Siconfi), Brasil inteiro, com IPCA | ⬜ |
 | 3 | Banco de custos de referência (SINAPI, SICRO, índices, ANP, ANTT, artigos) | ⬜ |
 | 4 | Estado piloto: pagamentos, contratos e obras pelo TCE, com comparação de custo | ⬜ |
@@ -147,6 +147,23 @@ disso, os arquivos de municípios vão para um repositório de dados separado.
 **Estado piloto sugerido: Paraná.** O TCE-PR publica dados abertos de todos os
 399 municípios, e o caso de Campo Mourão serve de teste real. São Paulo
 (TCE-SP, 644 municípios) e Rio Grande do Sul (LicitaCon) vêm em seguida.
+
+## Fase 1: quem governa
+
+`araragov municipios --saida site` baixa os arquivos de candidaturas do TSE
+de 2016, 2020 e 2024 e grava `resumo.md` de cada município (tabela
+`mandatos`: eleição, início e fim do mandato, cargo, nome de urna, nome civil,
+número, partido, gênero e situação) e o `indice.md` com o prefeito atual e o
+número de vereadores. Roda na coleta semanal, depois da exportação.
+
+- O TSE usa código próprio de município. A ligação com o código do IBGE é
+  feita pelo nome dentro do estado; os que não batem aparecem no log da
+  coleta e são corrigidos em `araragov/referencia/municipios_tse_ibge.csv`.
+- O vice entra quando a chapa dele (mesmo número no mesmo município) elegeu o
+  prefeito, porque a linha do vice nem sempre diz "eleito".
+- Ainda não entram: eleições suplementares, suplentes que assumiram,
+  cassações e fotos. O `sq_candidato` e o `cd_eleicao` já ficam gravados para
+  ligar a foto e a prestação de contas nas próximas fases.
 
 ## Limitações conhecidas
 

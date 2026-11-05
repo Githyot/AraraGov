@@ -1,0 +1,4 @@
+# Municípios cujo nome no TSE não bate com o nome no IBGE (mudança de nome ou
+# grafia diferente). A coleta avisa no log quais faltam; cada linha precisa
+# do código do TSE (SG_UE) e do código do IBGE, conferidos nas duas fontes.
+uf;tse;ibge;nome_tse;nome_ibge

@@ -1,0 +1,5 @@
+[
+  {"id": 4104303, "nome": "Campo Mourão", "microrregiao": {"mesorregiao": {"UF": {"sigla": "PR"}}}},
+  {"id": 4100103, "nome": "Abatiá", "microrregiao": null, "regiao-imediata": {"regiao-intermediaria": {"UF": {"sigla": "PR"}}}},
+  {"id": 3133709, "nome": "Olhos-d'Água", "microrregiao": {"mesorregiao": {"UF": {"sigla": "MG"}}}}
+]

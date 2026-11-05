@@ -58,10 +58,20 @@ jobs:
           python -m araragov coletar tudo ${ANO:+--ano $ANO} ${{ steps.p.outputs.limite }}
       - name: Exportar API estática
         run: python -m araragov exportar --saida site
+      - name: Municípios (prefeitos e vereadores, TSE)
+        # Em PRs, só dois estados pequenos e a última eleição, para conferir o
+        # formato do TSE e do IBGE sem baixar tudo.
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            python -m araragov municipios --saida site --anos 2024 --ufs AC,RR
+            head -40 site/v1/municipios/indice.md
+          else
+            python -m araragov municipios --saida site
+          fi
       - name: Tamanho da API
         # O GitHub Pages aceita sites de até 1 GB.
         run: |
-          du -sh site site/v1/politicos site/v1/votacoes || true
+          du -sh site site/v1/politicos site/v1/votacoes site/v1/municipios || true
           tamanho=$(du -sm site | cut -f1)
           if [ "$tamanho" -gt 900 ]; then echo "::warning::API com ${tamanho} MB, perto do limite de 1 GB do GitHub Pages"; fi
       - uses: actions/upload-artifact@v4

@@ -90,7 +90,7 @@ sem acusar ninguém.
 
 - ✅ Necessidades levantadas com HP
 - 🔄 Fase 0: plano, formato `.md` que o app lê e metodologia de custo de referência em 3 níveis
-- ⬜ Fase 1: prefeitos, vices e vereadores 2016/2020/2024 (TSE)
+- 🔄 Fase 1: prefeitos, vices e vereadores 2016/2020/2024 (TSE), um arquivo por município
 - ⬜ Fase 2: arrecadação e gastos por área, Brasil inteiro (Siconfi), com IPCA
 - ⬜ Fase 3: banco de custos de referência (SINAPI, SICRO, ANP, ANTT, artigos)
 - ⬜ Fase 4: estado piloto (PR, pelo TCE-PR): pagamentos, contratos e obras com comparação de custo

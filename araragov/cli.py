@@ -94,6 +94,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     col.add_argument("--limite", type=int, help="processa só N itens (teste rápido)")
     sub.add_parser("resumo", help="mostra quantos registros há no banco")
+    mun = sub.add_parser("municipios", help="gera os arquivos .md dos municípios (prefeitos e vereadores, TSE)")
+    mun.add_argument("--saida", default="site", help="pasta de saída (padrão: site)")
+    mun.add_argument("--anos", default="2016,2020,2024", help="eleições municipais, ex.: 2024 ou 2016,2020,2024")
+    mun.add_argument("--ufs", default="", help="só estes estados, ex.: PR,SC (padrão: todos)")
     exp = sub.add_parser("exportar", help="gera a API estática (JSON) que o app lê")
     exp.add_argument("--saida", default="site", help="pasta de saída (padrão: site)")
     args = p.parse_args(argv)
@@ -114,6 +118,17 @@ def main(argv: list[str] | None = None) -> int:
 
         exportar(Path(args.saida))
         return 0
+
+    if args.comando == "municipios":
+        from pathlib import Path
+
+        from .collectors.tse import UFS
+        from .municipios import eleitos
+
+        ufs = [u.strip().upper() for u in args.ufs.split(",") if u.strip()] or list(UFS)
+        anos = [int(a) for a in args.anos.split(",") if a.strip()]
+        total = eleitos.gerar(HttpClient(), Path(args.saida), anos=anos, ufs=ufs)
+        return 0 if total else 1
 
     client = HttpClient()
     alvos = list(ALVOS) if args.alvo == "tudo" else [args.alvo]
