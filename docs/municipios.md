@@ -1,0 +1,149 @@
+# Municípios: plano
+
+A fase municipal é a mais difícil e a mais importante. São 5.570 prefeituras,
+cada uma com um portal próprio, e é nelas que obras superfaturadas e desvio de
+dinheiro costumam passar despercebidos.
+
+O AraraGov **não acusa ninguém**. Ele junta dados públicos, compara com
+referências públicas e mostra onde os números fogem do esperado, sempre com a
+fonte e uma ressalva. Quem conclui é o leitor, a imprensa, o Ministério
+Público e o Tribunal de Contas.
+
+## O que o app vai mostrar de cada município
+
+1. **Quem governa e governou**: prefeito, vice e vereadores de cada mandato
+   (2017-2020, 2021-2024, 2025-2028), com partido e foto do TSE.
+2. **Salários**: subsídio de prefeito, vice, secretários e vereadores (lei
+   municipal) e a folha da câmara e da prefeitura quando publicada.
+3. **Arrecadação**: quanto entrou por tipo (IPTU, ISS, ITBI, FPM, ICMS, SUS,
+   Fundeb, emendas, convênios), por ano, corrigido pelo IPCA.
+4. **Gastos por área**: saúde, educação, urbanismo, transporte, assistência,
+   cultura etc. Cada área abre em subáreas e depois nos pagamentos: quem
+   recebeu, quanto, quando, por qual contrato.
+5. **Obras**: cada obra com valor contratado, aditivos, valor pago, situação
+   (em andamento, concluída, paralisada) e o **custo de referência** para o
+   mesmo serviço naquele estado e ano (veja [custo-referencia.md](custo-referencia.md)).
+6. **Fornecedores (CNPJs)**: os que mais receberam em cada ano, com quem
+   governava na época, sócios (dados públicos da Receita) e indícios
+   documentados de vínculo (veja "Vínculos" abaixo).
+7. **Emendas e transferências**: emendas parlamentares e transferências
+   federais e estaduais que chegaram ao município, de quem vieram e em quem
+   foram gastas.
+8. **Venda e baixa de bens**: leilões e alienações comparados com o valor de
+   compra (caso real: [postes de R$ 4,5 milhões vendidos como sucata por
+   R$ 555 mil em Campo Mourão](https://www.tribunadointerior.com.br/campo-mourao/postes-que-custaram-r-45-milhoes-sao-vendidos-como-sucata-por-r-555-mil-em-campo-mourao/)).
+
+## Fontes
+
+A regra é: primeiro a fonte nacional e uniforme, depois o Tribunal de Contas
+do estado (que já recebe os dados de todos os municípios), e só por último o
+portal de cada prefeitura.
+
+| Dado | Fonte | Cobertura |
+|---|---|---|
+| Prefeitos, vices, vereadores, partido, foto | TSE, dados abertos (candidatos e eleitos 2016, 2020, 2024) | Brasil |
+| Doações e fornecedores de campanha | TSE, prestação de contas eleitorais | Brasil |
+| Arrecadação e gastos por função e subfunção | Tesouro Nacional, Siconfi (DCA anual, RREO bimestral, MSC mensal); FINBRA para anos antigos | Brasil (quem entrega) |
+| Empenhos, liquidações e pagamentos com o favorecido | Dados abertos dos TCEs: TCE-SP, TCE-RS (LicitaCon), TCE-PR, TCE-MG, TCE-PE (Tome Conta), TCE-CE, TCM-BA, TCM-GO, entre outros | Estado inteiro, de uma vez |
+| Licitações e contratos | PNCP (Portal Nacional de Contratações Públicas, obrigatório pela Lei 14.133) | Brasil, sobretudo a partir de 2023 |
+| Gastos detalhados onde o TCE não publica | Portais padrão das prefeituras: Fiorilli, Betha, IPM, Elotech, GovBR e similares | Por fornecedor de sistema |
+| Obras com dinheiro federal | Obrasgov.br (Cadastro Integrado de Projetos de Investimento), Transferegov | Brasil |
+| Emendas e "emendas Pix" (transferências especiais) | Portal da Transparência e Transferegov | Brasil |
+| Sócios dos CNPJs | Receita Federal, dados abertos do CNPJ (QSA) | Brasil |
+| Empresas punidas | CEIS e CNEP (Portal da Transparência) | Brasil |
+| Custo de referência de obras | SINAPI (Caixa/IBGE), SICRO (DNIT), índices de custo, ANP (asfalto e diesel), ANTT (frete) | Por estado e mês |
+| Inflação | IPCA (BCB SGS 433), já usado no federal | Brasil |
+
+Os portais municipais variam muito, então a coleta deles vem depois e por
+fornecedor de sistema: um coletor para Betha serve para todas as prefeituras
+que usam Betha.
+
+## Vínculos entre fornecedores e governo
+
+Este é o ponto mais delicado. A Lei Geral de Proteção de Dados (LGPD) e o
+princípio de não acusar valem aqui com força total.
+
+**O que o app mostra (indícios documentados, cada um com a fonte):**
+
+- Empresa que **doou** ou **prestou serviço** à campanha do prefeito ou de um
+  vereador e depois recebeu do município (TSE + pagamentos).
+- Sócio da empresa que **foi candidato** no mesmo município (TSE, nome
+  completo igual e mesmo município).
+- Sócio da empresa que aparece como **servidor ou comissionado** do município
+  (folha publicada, nome completo igual).
+- Empresas **com sócio em comum** ou **no mesmo endereço** disputando a mesma
+  licitação ou recebendo do mesmo órgão (dados de CNPJ, não de pessoas).
+- Empresa **aberta pouco antes** do primeiro contrato, com **capital social
+  muito menor** que o contrato, ou com atividade (CNAE) que não combina com o
+  que vendeu.
+- Empresa no **CEIS/CNEP** (punida) que continuou recebendo.
+
+**Coincidência de sobrenome** aparece só como "sobrenome em comum com o
+prefeito/vereador", nunca como "parente". Sobrenomes comuns (Silva, Santos,
+Oliveira, Souza e outros acima de um limite de frequência no estado) não
+geram aviso. O texto sempre diz que sobrenome igual não prova parentesco.
+
+**O que o app não faz:**
+
+- Não mostra CPF completo de ninguém. A Receita já publica o CPF do sócio
+  mascarado (`***123456**`) e o AraraGov mantém assim; o TSE publica CPF e o
+  AraraGov não lê esse campo, como já é feito nos estados.
+- Não infere parentesco ou amizade sem um dado público que diga isso.
+- Não segue dinheiro depois que ele sai do município para a empresa. A
+  cadeia "emenda → empresa → outra empresa → laranja" não aparece em dado
+  público; o app mostra até onde os dados chegam (emenda → município →
+  empenho → CNPJ → sócios) e diz onde a trilha para.
+- Não usa pontuação de risco nem ranking de "corruptos".
+
+## Formato dos dados
+
+Os dados municipais saem em arquivos `.md` com um formato fixo, que uma
+pessoa lê no navegador e o app lê sem bibliotecas extras. O formato está em
+[formato-md.md](formato-md.md). O app baixa só o arquivo do município aberto,
+então o tamanho do app não cresce com a base.
+
+Os arquivos de cada município ficam em:
+
+```
+v1/municipios/indice.md                 lista de municípios com dados
+v1/municipios/{uf}/{ibge}/resumo.md     governo, salários, totais por ano
+v1/municipios/{uf}/{ibge}/{ano}.md      arrecadação, gastos por área, maiores pagamentos
+v1/municipios/{uf}/{ibge}/obras.md      obras e comparação com a referência
+v1/municipios/{uf}/{ibge}/fornecedores.md  CNPJs, sócios e indícios
+v1/referencia/custos/{uf}.md            banco de custos de referência do estado
+```
+
+O GitHub Pages tem limite de 1 GB. Todos os pagamentos de 5.570 municípios
+não cabem nele, então os arquivos guardam os totais e os maiores itens de
+cada área, e o resto fica com link para a fonte. Se a base crescer além
+disso, os arquivos de municípios vão para um repositório de dados separado.
+
+## Fases (um PR por fase)
+
+| Fase | Entrega | Situação |
+|---|---|---|
+| 0 | Este plano, o formato `.md` (leitor e escritor) e a metodologia de custo de referência | 🔄 |
+| 1 | Quem governa: prefeitos, vices e vereadores 2016/2020/2024 (TSE), por município e período | ⬜ |
+| 2 | Arrecadação e gastos por área (Siconfi), Brasil inteiro, com IPCA | ⬜ |
+| 3 | Banco de custos de referência (SINAPI, SICRO, índices, ANP, ANTT, artigos) | ⬜ |
+| 4 | Estado piloto: pagamentos, contratos e obras pelo TCE, com comparação de custo | ⬜ |
+| 5 | Fornecedores: CNPJs, sócios (Receita), CEIS/CNEP e indícios de vínculo | ⬜ |
+| 6 | Emendas e transferências até o CNPJ que recebeu | ⬜ |
+| 7 | Telas do app (município, área, obra, fornecedor) | ⬜ |
+| 8 | Outros estados (um TCE por vez) e portais Fiorilli, Betha, IPM | ⬜ |
+
+**Estado piloto sugerido: Paraná.** O TCE-PR publica dados abertos de todos os
+399 municípios, e o caso de Campo Mourão serve de teste real. São Paulo
+(TCE-SP, 644 municípios) e Rio Grande do Sul (LicitaCon) vêm em seguida.
+
+## Limitações conhecidas
+
+- Muitos municípios atrasam ou não entregam dados ao Siconfi; o app mostra
+  "não entregue" em vez de zero.
+- A ligação entre pagamento e obra nem sempre está no dado: às vezes só o
+  número do contrato liga os dois.
+- Custo de referência é uma faixa, não um preço exato. Terreno, distância,
+  quantidade e qualidade mudam o preço. Por isso o app diz "acima da faixa de
+  referência", nunca "superfaturado".
+- A rede do ambiente de desenvolvimento bloqueia sites do governo; cada
+  coletor é conferido com dados reais no GitHub Actions, como no federal.

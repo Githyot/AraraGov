@@ -19,7 +19,7 @@ _Última atualização: 5 de novembro de 2026 (noite)_
 | Emendas parlamentares | ✅ |
 | Período, comparação e doação do salário | ✅ |
 | Base federal completa | ✅ · 🔄 histórico e listas curadas no PR #10 |
-| 5. Municípios | ⬜ aguardando as necessidades que HP vai trazer |
+| 5. Municípios | 🔄 plano, formato .md e metodologia de custo (fase 0) |
 
 ## 1. Base federal ✅
 
@@ -82,11 +82,22 @@ _Última atualização: 5 de novembro de 2026 (noite)_
 - ⬜ Votações nominais estaduais (poucas assembleias publicam)
 - ⬜ Gabinetes estaduais
 
-## 5. Municípios ⬜
+## 5. Municípios (em andamento)
 
-- ⬜ Levantar as necessidades com HP (foco em correção e desvio de dinheiro)
-- ⬜ Portais padrão: Fiorilli, Betha, IPM
-- ⬜ Prefeitos, vereadores, salários, gastos e contratos
+Plano completo em [docs/municipios.md](docs/municipios.md). Foco: arrecadação,
+gastos por área, obras comparadas com o custo de referência e fornecedores,
+sem acusar ninguém.
+
+- ✅ Necessidades levantadas com HP
+- 🔄 Fase 0: plano, formato `.md` que o app lê e metodologia de custo de referência em 3 níveis
+- ⬜ Fase 1: prefeitos, vices e vereadores 2016/2020/2024 (TSE)
+- ⬜ Fase 2: arrecadação e gastos por área, Brasil inteiro (Siconfi), com IPCA
+- ⬜ Fase 3: banco de custos de referência (SINAPI, SICRO, ANP, ANTT, artigos)
+- ⬜ Fase 4: estado piloto (PR, pelo TCE-PR): pagamentos, contratos e obras com comparação de custo
+- ⬜ Fase 5: fornecedores, sócios (Receita), empresas punidas e indícios de vínculo com fonte
+- ⬜ Fase 6: emendas e transferências até o CNPJ que recebeu
+- ⬜ Fase 7: telas do app (município, área, obra, fornecedor)
+- ⬜ Fase 8: outros TCEs e portais Fiorilli, Betha, IPM
 
 ## Pendências de configuração (HP)
 
