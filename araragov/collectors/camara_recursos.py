@@ -35,6 +35,13 @@ MESES = {m: i for i, m in enumerate("JAN FEV MAR ABR MAI JUN JUL AGO SET OUT NOV
 CENTAVO = Decimal("0.01")
 TRABALHOS = 4  # páginas baixadas em paralelo, para não sobrecarregar o site
 
+# Anos antigos não mudam: com o histórico da coleta anterior carregado (ver
+# historico.py), só buscamos os deputados que faltam, até este limite por
+# execução. O histórico completa ao longo de algumas semanas.
+ORCAMENTO_HISTORICO = 3000
+_restante = {"valor": ORCAMENTO_HISTORICO}
+MARCA = "coletado"  # linha de controle: deputado e ano já consultados
+
 
 def _reais(texto: str) -> Optional[Decimal]:
     """ "R$ 29.771" -> 29771; "46.366,191" -> 46366.19."""
@@ -114,14 +121,31 @@ def _beneficios(cod: int, dados: Dict[str, Any], fonte: str) -> List[Dict[str, A
     return saida
 
 
-def coletar_recursos(client: HttpClient, ano: int, limite: Optional[int] = None) -> int:
+def coletar_recursos(client: HttpClient, ano: int, limite: Optional[int] = None, so_faltantes: bool = False) -> int:
+    """Coleta os recursos do ano. Com `so_faltantes`, pula quem já foi
+    consultado nesse ano e respeita o limite de páginas por execução."""
     with sessao() as s:
         consulta = select(Politico.codigo).where(Politico.casa == "camara").order_by(Politico.codigo)
         codigos = list(s.execute(consulta).scalars())
+        feitos_antes = set()
+        if so_faltantes:
+            feitos_antes = set(
+                s.execute(
+                    select(RecursoMensal.codigo_politico).where(
+                        RecursoMensal.casa == "camara", RecursoMensal.ano == ano, RecursoMensal.tipo == MARCA
+                    )
+                ).scalars()
+            )
     if not codigos:
         raise RuntimeError("Nenhum deputado no banco. Rode antes: araragov coletar camara-deputados")
     if limite:
         codigos = codigos[:limite]
+    if so_faltantes:
+        codigos = [c for c in codigos if c not in feitos_antes][: max(_restante["valor"], 0)]
+        _restante["valor"] -= len(codigos)
+        if not codigos:
+            logger.info("Câmara %s: recursos já no histórico (ou limite da execução atingido)", ano)
+            return 0
 
     def um(cod: int):
         url = PAGINA.format(id=cod)
@@ -148,6 +172,7 @@ def coletar_recursos(client: HttpClient, ano: int, limite: Optional[int] = None)
         base = {"casa": "camara", "codigo_politico": cod, "ano": ano}
         mensais += [{**base, "tipo": "verba_gabinete", "mes": m, "valor": v, "disponivel": None} for m, v in dados["verba_gabinete"]]
         mensais += [{**base, "tipo": "salario", "mes": m, "valor": v, "disponivel": None} for m, v in salario]
+        mensais.append({**base, "tipo": MARCA, "mes": 0, "valor": Decimal(0), "disponivel": None})
     if codigos and ok == 0:
         raise RuntimeError(f"Nenhuma página de deputado respondeu ({ano})")
 

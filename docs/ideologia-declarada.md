@@ -22,5 +22,7 @@ Regras:
   "anarcocapitalista", "conservador").
 - Linhas sem link de fonte são ignoradas.
 
-Partidos conferidos até agora: PT, PCdoB, PDT e PL. Os demais entram à
-medida que a declaração for encontrada em documento do próprio partido.
+Partidos conferidos até agora: PT, PCdoB, PDT, PL, PSB, PSOL e Republicanos.
+O estatuto do PSDB e o do Novo não usam um rótulo ideológico, então ficam de
+fora até haver uma declaração do próprio partido. Os demais entram à medida
+que a declaração for encontrada.

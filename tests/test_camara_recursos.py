@@ -62,3 +62,39 @@ def test_coleta_e_exporta_recursos(client, tmp_path):
     assert "2025" in a["beneficios_anos"]
     b = json.loads((tmp_path / "v1/politicos/camara-62881.json").read_text())
     assert any(x["descricao"] == "4 viagens em missão oficial" for x in b["beneficios"])
+
+
+def test_historico_entre_coletas(client, tmp_path):
+    from araragov.collectors import historico
+
+    with db.sessao() as s:
+        s.add(db.Politico(casa="camara", cargo="Deputado Federal", codigo=160976, nome="Deputada A", uf="SP"))
+        s.add(db.Politico(casa="camara", cargo="Deputado Federal", codigo=62881, nome="Deputado B", uf="SP"))
+    url = cr.PAGINA.format(id=62881)
+    client.bytes(url, (PAGINAS / "deputado_62881.html").read_bytes())
+    client.bytes(f"{url}/remuneracao", (PAGINAS / "remuneracao.html").read_bytes())
+    cr.coletar_recursos(client, 2021, limite=1)
+    exportar(tmp_path)
+    publicado = json.loads((tmp_path / "v1/historico/recursos.json").read_text())
+    assert any(l[2] == "coletado" for l in publicado["recursos"])
+
+    # Coleta seguinte: banco novo, histórico lido da API publicada.
+    db.configurar("sqlite://")
+    with db.sessao() as s:
+        s.add(db.Politico(casa="camara", cargo="Deputado Federal", codigo=160976, nome="Deputada A", uf="SP"))
+        s.add(db.Politico(casa="camara", cargo="Deputado Federal", codigo=62881, nome="Deputado B", uf="SP"))
+    client.bytes(f"https://exemplo/v1/{historico.ARQUIVO}", (tmp_path / "v1/historico/recursos.json").read_bytes())
+    client.get_json = lambda u, p=None: json.loads(client.get_bytes(u, p))
+    assert historico.carregar(client, "https://exemplo/v1") > 0
+
+    # Só o deputado que faltava em 2021 é buscado.
+    url2 = cr.PAGINA.format(id=160976)
+    client.bytes(url2, (PAGINAS / "deputado_160976.html").read_bytes())
+    client.bytes(f"{url2}/remuneracao", (PAGINAS / "remuneracao.html").read_bytes())
+    client.chamadas.clear()
+    assert cr.coletar_recursos(client, 2021, so_faltantes=True) == 1
+    assert {u for u, _ in client.chamadas} == {url2, f"{url2}/remuneracao"}
+    with db.sessao() as s:
+        tipos = {(b.codigo_politico, b.tipo) for b in s.execute(select(db.Beneficio)).scalars()}
+    assert (62881, "imovel_funcional") in tipos  # veio do histórico
+    assert (160976, "auxilio_moradia") in tipos  # coletado agora

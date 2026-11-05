@@ -14,7 +14,11 @@ Regras da lista:
 
 Colunas (separadas por `;`): `casa` (camara, senado, al-sp…), `nome` (nome
 parlamentar, como aparece no app), `parte` (ex.: `20%`, vazio se for o
-salário inteiro), `descricao`, `fonte` (link) e `data` da declaração.
+salário inteiro), `periodo` (ano a que a doação se refere; vazio se a
+pessoa diz que doa todo mês), `descricao`, `fonte` (link) e `data` da declaração.
+
+Declarações com período aparecem no passado ("Declarou doar 30% do salário em
+2020"), para não sugerir que a doação continua.
 
 No app, o perfil mostra a declaração no grupo Salário, com o link para a
 fonte, e a busca tem o filtro "Doa o salário".

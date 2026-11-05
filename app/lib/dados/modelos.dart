@@ -243,15 +243,22 @@ class Beneficio {
 /// Doação do salário declarada pelo próprio político, com a fonte pública.
 class DoacaoSalario {
   final String? parte, data;
+
+  /// Ano ou período a que a declaração se refere (vazio = contínua).
+  final String? periodo;
   final String descricao, fonte;
 
   DoacaoSalario.fromJson(Map<String, dynamic> j)
       : parte = j['parte'],
         data = j['data'],
+        periodo = j['periodo'],
         descricao = j['descricao'] ?? '',
         fonte = j['fonte'] ?? '';
 
-  String get titulo => parte == null ? 'Declara doar o salário' : 'Declara doar $parte do salário';
+  String get titulo {
+    final quanto = parte == null ? 'o salário' : '$parte do salário';
+    return periodo == null ? 'Declara doar $quanto' : 'Declarou doar $quanto em $periodo';
+  }
 }
 
 List<VotoEmVotacao> _lerVotos(Map<String, dynamic> j) {
