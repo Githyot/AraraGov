@@ -1,8 +1,10 @@
 set +e
 ua="AraraGov/0.1 (+https://github.com/Githyot/AraraGov)"
 B=https://transparencia.al.ce.gov.br
-echo "### API doc"; curl -sSL -A "$ua" --max-time 60 $B/api -o /tmp/a; sed 's/<script.*//' /tmp/a | sed 's/<[^>]*>/\n/g' | tr -s ' \n' | grep -iE "api/|GET|endpoint|/v1|json|parametro|deputad|verba|vota" | head -60 | cut -c1-200
-echo "### votacao csv"; curl -sSL -A "$ua" --max-time 120 -D /tmp/h -o /tmp/v "$B/consultas-gerais/votacao-nominal/votacaoNominalcsv"; grep -iE "^(HTTP|content-)" /tmp/h; wc -lc /tmp/v; head -c 1500 /tmp/v | iconv -f latin1 -t utf8 2>/dev/null || head -c 1500 /tmp/v
-echo; echo "### votacao form"; curl -sSL -A "$ua" --max-time 60 "$B/consultas-gerais/votacao-nominal" | grep -oE '<(select|input)[^>]*name="[^"]*"[^>]*>|<option[^>]*>[^<]{0,40}' | head -20
-echo "### verba"; curl -sSL -A "$ua" --max-time 60 "$B/despesas/verba-desempenho-parlamentar" -o /tmp/vb; grep -oE '(href|action)="[^"#]*"|<(select|input)[^>]*name="[^"]*"' /tmp/vb | grep -iE "csv|xls|json|export|verba|ano|mes|deput|name=" | sort -u | head -25; python3 -c "
-import re; h=open('/tmp/vb',encoding='utf-8',errors='replace').read(); i=h.find('<table'); print(re.sub(r'\s+',' ',re.sub(r'<(?!/?t[rdh])[^>]+>','',h[i:i+2500])))"
+echo "### robots"; curl -sS -A "$ua" --max-time 30 $B/robots.txt | head
+echo "### verba csv"; curl -sSL -A "$ua" --max-time 120 -D /tmp/h -o /tmp/c "$B/despesas/verba-desempenho-parlamentar/csv?mes=9&ano=2026"; grep -iE "^(HTTP|content-)" /tmp/h; wc -lc /tmp/c; head -15 /tmp/c
+echo "### verba csv 2025-03"; curl -sSL -A "$ua" --max-time 120 -o /tmp/c2 "$B/despesas/verba-desempenho-parlamentar/csv?mes=3&ano=2025"; wc -l /tmp/c2; head -4 /tmp/c2; cut -d';' -f1 /tmp/c2 | sort | uniq -c | sort -rn | head -5
+echo "### api docs"; curl -sSL -A "$ua" --max-time 60 "$B/docs?api-docs.json" -o /tmp/j; python3 -c "
+import json; d=json.load(open('/tmp/j'))
+for p,v in d.get('paths',{}).items():
+  for m,o in v.items(): print(m.upper(),p,'|',(o.get('summary') or '')[:80],'|',[x.get('name') for x in o.get('parameters',[])])"
