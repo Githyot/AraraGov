@@ -1,14 +1,7 @@
 set +e
-git fetch -q --depth 1 origin etapa-9-estados && git checkout -q FETCH_HEAD -- araragov pyproject.toml
-pip install -q -e . 2>&1 | tail -1
-echo "### coleta real"
-python -m araragov coletar estados-eleitos 2>&1 | grep -iE "erro|error" | tail -3
-python -m araragov coletar alece-deputados 2>&1 | grep -iE "alece|erro|error|Traceback" | cut -c1-600
-python -m araragov coletar alece-despesas --ano 2026 2>&1 | grep -iE "ligados" | cut -c1-900
-python3 - <<'P'
-import sqlite3,glob
-db=glob.glob('**/*.db',recursive=True)+glob.glob('**/*.sqlite*',recursive=True); print(db)
-c=sqlite3.connect(db[0])
-print(c.execute("select fonte,em_exercicio,count(*) from politico where casa='al-ce' group by 1,2").fetchall())
-print(c.execute("select nome,nome_civil,partido from politico where casa='al-ce' and fonte='assembleia'").fetchall())
-P
+ua="AraraGov/0.1 (+https://github.com/Githyot/AraraGov)"
+for u in https://www.alepe.pe.gov.br https://transparencia.alepe.pe.gov.br https://www.al.rs.gov.br https://ww4.al.rs.gov.br https://www.al.es.gov.br https://www3.al.es.gov.br https://www.cl.df.gov.br https://dados.cl.df.gov.br https://www.aleam.gov.br https://transparencia.aleam.gov.br https://www.al.ap.gov.br https://www.al.ma.leg.br https://transparencia.al.ma.leg.br https://www.alepi.pi.gov.br https://alepi.pi.gov.br https://transparencia.alepi.pi.gov.br https://www.al.pb.leg.br https://transparencia.al.pb.leg.br https://al.rr.leg.br https://transparencia.al.rr.leg.br https://www.al.ac.leg.br https://www.al.al.leg.br https://transparencia.al.al.leg.br https://www.aleac.ac.gov.br; do
+  r=$(curl -sSL -A "$ua" --max-time 25 -o /tmp/p -w "%{http_code} %{url_effective}" "$u" 2>&1 | tail -1 | cut -c1-140); echo "### $u -> $r $(wc -c </tmp/p 2>/dev/null)"
+  grep -oiE 'href="[^"#]*(transparen|verba|indeniz|cota|ceap|gabinete|dados-?abertos|despesa)[^"]*"' /tmp/p 2>/dev/null | sort -u | head -8
+  rm -f /tmp/p
+done
