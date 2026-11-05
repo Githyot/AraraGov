@@ -473,7 +473,11 @@ class _ObrasState extends State<_Obras> {
                 ],
               ),
             _SemDados(linhas: contratos[ano]?.tabela('sem-dados') ?? const []),
-            _Fonte(widget.uf == 'SP' ? 'TCE-SP (contratos e despesas)' : 'PNCP (Portal Nacional de Contratações Públicas)'),
+            _Fonte(switch (widget.uf) {
+              'SP' => 'TCE-SP (contratos e despesas)',
+              'RJ' => 'TCE-RJ (contratos dos municípios) ou PNCP, na capital',
+              _ => 'PNCP (Portal Nacional de Contratações Públicas)',
+            }),
           ]);
         },
       );

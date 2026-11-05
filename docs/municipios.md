@@ -329,9 +329,10 @@ os municípios do Sagres
 o valor pago acumulado. O arquivo traz o CPF completo (com zeros à esquerda);
 ele é reconhecido pelo dígito verificador do CNPJ e nunca é gravado.
 - Outros tribunais sondados em 2026-11-05:
-  - TCE-RJ (`dados.tcerj.tc.br/api/v1`): contratos e compras diretas dos 91
-    municípios, com CNPJ e valor pago por contrato (CPF mascarado). Candidato
-    para os contratos do RJ.
+  - TCE-RJ (`dados.tcerj.tc.br/api/v1`): `araragov tce-rj` grava
+    `{ano}-contratos.md` dos 91 municípios (a capital fica no PNCP), com CNPJ e
+    valor pago por contrato. Sem quantidade, as obras não têm comparação de
+    custo, e o arquivo diz isso em `sem-dados`.
   - TCE-RN (`apidadosabertos.tce.rn.gov.br`): contratos por unidade com CNPJ;
     os empenhos vieram vazios para Mossoró em 2024, e os pagamentos exigem uma
     consulta por empenho.
