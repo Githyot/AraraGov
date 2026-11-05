@@ -102,6 +102,8 @@ void main() {
     expect(c.comuns, greaterThan(0));
     expect(c.iguais, lessThanOrEqualTo(c.comuns));
     expect(a.doacaoSalario!.titulo, 'Declara doar 20% do salário');
+    expect(DoacaoSalario.fromJson({'parte': '30%', 'periodo': '2020', 'descricao': '', 'fonte': ''}).titulo,
+        'Declarou doar 30% do salário em 2020');
   });
 
   testWidgets('perfil troca o período e abre a comparação', (tester) async {

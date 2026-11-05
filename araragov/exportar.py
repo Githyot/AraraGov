@@ -104,6 +104,7 @@ def doacoes_salario(caminho: Path = DOACOES_CSV) -> Dict[tuple, Dict[str, Any]]:
     return {
         (l["casa"].strip(), _chave_nome(l["nome"])): {
             "parte": (l.get("parte") or "").strip() or None,
+            "periodo": (l.get("periodo") or "").strip() or None,
             "descricao": l["descricao"].strip(),
             "fonte": l["fonte"].strip(),
             "data": (l.get("data") or "").strip() or None,
