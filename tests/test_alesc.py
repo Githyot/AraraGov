@@ -24,6 +24,9 @@ def test_casar_nome_como_a_assembleia_escreve():
     assert casar_nome("Marcos da Rosa", CANDIDATOS) == 3
     assert casar_nome("Alex Brasil", CANDIDATOS) == 5
     assert casar_nome("Rodrigo Minotto ", CANDIDATOS) is None
+    assert casar_nome("ALEX BRASIL", {9: ["Alexander Brasil Alves Pereira", None]}) == 9
+    assert casar_nome("LUNELLI", {7: ["Antidio Aleixo Lunelli", None], 8: ["Ana Paula Silva", None]}) == 7
+    assert casar_nome("SILVA", {7: ["Joao Silva", None], 8: ["Ana Silva", None]}) is None
 
 
 def test_casar_nome_ambiguo_fica_sem_dono():

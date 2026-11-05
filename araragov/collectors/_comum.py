@@ -86,6 +86,17 @@ def _tokens(nome: str) -> List[str]:
     return [p for p in t.split() if p and p not in _LIGACOES and p not in _TITULOS]
 
 
+def _prefixos_em_ordem(a: List[str], b: List[str]) -> bool:
+    j = 0
+    for t in a:
+        while j < len(b) and not b[j].startswith(t):
+            j += 1
+        if j == len(b):
+            return False
+        j += 1
+    return True
+
+
 def casar_nome(nome: str, candidatos: Dict[int, Iterable[str]]) -> Any:
     """Acha o código do político cujo nome (de urna ou civil) corresponde a
     `nome`, como as assembleias escrevem nas planilhas ("Ana Paula da Silva
@@ -99,6 +110,10 @@ def casar_nome(nome: str, candidatos: Dict[int, Iterable[str]]) -> Any:
         lambda a, b: a == b,
         lambda a, b: len(a) >= 2 and len(b) >= 2 and (set(a) <= set(b) or set(b) <= set(a)),
         lambda a, b: len(a) >= 2 and len(b) >= 2 and a[0] == b[0] and a[-1] == b[-1],
+        # "Alex Brasil" x "Alexander Brasil Alves Pereira": cada palavra começa uma palavra do outro, na ordem
+        lambda a, b: len(a) >= 2 and _prefixos_em_ordem(a, b),
+        # Sobrenome sozinho ("Lunelli"), só se for longo e único
+        lambda a, b: len(a) == 1 and len(a[0]) >= 5 and a[0] in b,
     ]
     for regra in regras:
         achados = {
