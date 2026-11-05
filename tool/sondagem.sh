@@ -1,17 +1,12 @@
 set +e
 ua="AraraGov/0.1 (+https://github.com/Githyot/AraraGov)"
-echo "### PA gabinete form"; curl -sSL -A "$ua" --max-time 60 https://sigep.alepa.pa.gov.br/transp/frame_verbagabinete.php -o /tmp/p; grep -oE '<form[^>]*>|<select[^>]*>|<option[^>]*value="[^"]*"[^>]*>[^<]{0,20}' /tmp/p | head -30
-python3 -c "
-import re; h=open('/tmp/p',encoding='utf-8',errors='replace').read(); i=h.find('<table'); t=re.sub(r'\s+',' ',re.sub(r'<(?!/?t[rdh]\b)[^>]+>','',h[i:])); print(t[:1200]); print('linhas', t.count('<tr'))"
-echo "### PA gabinete set/2025"; curl -sSL -A "$ua" --max-time 60 -d "mes=9&anoref=2025" https://sigep.alepa.pa.gov.br/transp/frame_verbagabinete.php -o /tmp/p2; python3 -c "
-import re; h=open('/tmp/p2',encoding='utf-8',errors='replace').read(); i=h.find('<table'); t=re.sub(r'\s+',' ',re.sub(r'<(?!/?t[rdh]\b)[^>]+>','',h[i:])); print(t[:600])"
-echo "### PA detalhe"; d=$(grep -oE 'frame_verbadetalhe.php[^"]*' /tmp/p | head -1 | sed 's/&amp;/\&/g'); curl -sSL -A "$ua" --max-time 60 "https://sigep.alepa.pa.gov.br/transp/$d" -o /tmp/d; python3 -c "
-import re; h=open('/tmp/d',encoding='utf-8',errors='replace').read(); i=h.find('<table'); print(re.sub(r'\s+',' ',re.sub(r'<(?!/?t[rdh]\b)[^>]+>','',h[i:i+2500])))"
-echo "### RO"; curl -sSL -A "$ua" --max-time 60 "https://transparencia.al.ro.leg.br/Deputados/VerbaIndenizatoria/?ano=2025&mes=9" -o /tmp/r; grep -oE '<select[^>]*>|<option[^>]*value="[^"]*"[^>]*>[^<]{0,30}' /tmp/r | head -40 | tr '\n' ' '; echo; python3 -c "
-import re; h=open('/tmp/r',encoding='utf-8',errors='replace').read()
-for m in re.finditer(r'<script[^>]*id=\"([^\"]+)\"[^>]*>(.*?)</script>', h, re.S): print(m.group(1), m.group(2)[:800])
-i=h.find('<table'); print(re.sub(r'\s+',' ',re.sub(r'<(?!/?t[rdh]\b)[^>]+>','',h[i:i+1500])))"
-echo "### TO"; curl -sSL -A "$ua" --max-time 60 https://www.al.to.leg.br/transparencia/verbaIndenizatoria -o /tmp/t; grep -oE '<option[^>]*value="[^"]*"[^>]*>[^<]{0,30}' /tmp/t | head -12 | tr '\n' ' '; echo; grep -oE '<form[^>]*>' /tmp/t
-curl -sSL -A "$ua" --max-time 60 "https://www.al.to.leg.br/transparencia/verbaIndenizatoria?transparencia.ano=2025&transparencia.mes=9&transparencia.parlamentar=&transparencia.tipoTransparencia.codigo=$(grep -oE 'tipoTransparencia.codigo"[^>]*value="[^"]*' /tmp/t | grep -oE '[^"]*$')" -o /tmp/t2; grep -oE 'href="[^"]*(pdf|xls|csv|download|arquivo)[^"]*"' /tmp/t2 | head -10; python3 -c "
-import re; h=open('/tmp/t2',encoding='utf-8',errors='replace').read(); i=h.find('<table'); print(re.sub(r'\s+',' ',re.sub(r'<(?!/?t[rdh]\b|a\b)[^>]+>','',h[i:i+1500])) if i>=0 else 'sem tabela')"
-echo "### TO robots"; curl -sS -A "$ua" --max-time 30 https://www.al.to.leg.br/robots.txt -o /tmp/tr -w "%{http_code} %{content_type}\n"; grep -i "allow" /tmp/tr | head
+txt() { python3 -c "
+import re,sys; h=open(sys.argv[1],encoding='utf-8',errors='replace').read(); i=h.find(sys.argv[2]); print(re.sub(r'\s+',' ',re.sub(r'<(?!/?t[rdh]\b)[^>]+>',' ',h[max(i,0):max(i,0)+int(sys.argv[3])])))" "$@"; }
+echo "### RO"; curl -sSL -A "$ua" --max-time 60 -w "%{http_code}\n" "https://transparencia.al.ro.leg.br/Deputados/VerbaIndenizatoria/" -o /tmp/r; grep -oE '<option[^>]*value="[^"]*"[^>]*>[^<]{0,30}' /tmp/r | head -30 | tr '\n' ' '; echo; grep -oE '<script[^>]*id="[^"]*"[^>]*>.{0,600}' /tmp/r | head -5; grep -oE '<form[^>]*>' /tmp/r
+echo "### RO dados abertos"; curl -sSL -A "$ua" --max-time 60 https://transparencia.al.ro.leg.br/DadosAbertos/ -o /tmp/d; grep -oiE 'href="[^"]*"' /tmp/d | grep -iE "csv|json|xls|api|dados|verba" | sort -u | head -20
+echo "### RO remuneracao"; curl -sSL -A "$ua" --max-time 60 https://transparencia.al.ro.leg.br/Deputados/Remuneracao/ -o /tmp/rr; txt /tmp/rr '<table' 900
+echo "### PA estrutura remuneratoria"; curl -sSL -A "$ua" --max-time 60 https://alepa.pa.gov.br/Transparencia/Page/EstruturaRemuneratoriaDeputados -o /tmp/pe; grep -oiE '(href|src)="[^"]*(pdf|sigep|frame|xls)[^"]*"' /tmp/pe | head; grep -oiE '.{100}(subs[ií]dio|R\$ ?[0-9.]+,[0-9]{2}).{100}' /tmp/pe | sed 's/<[^>]*>//g' | head -5
+echo "### PA dados abertos"; curl -sSL -A "$ua" --max-time 60 https://alepa.pa.gov.br/Transparencia/Page/DadosAbertos -o /tmp/pd; grep -oiE '(href|src)="[^"]*"' /tmp/pd | grep -viE "Home/Page|fonts|DXR|css|png|jpg|svg" | head -20
+echo "### SE ressarcimento"; curl -sSL -A "$ua" --max-time 60 https://al.se.leg.br/portal-da-transparencia/despesas/ressarcimento-dos-deputados/ -o /tmp/s; grep -oiE 'href="[^"]*(download|wpdm|\.pdf|\.xls|\.csv)[^"]*"' /tmp/s | sort -u | head -12
+echo "### RN verbas chunk"; js=$(curl -sSL -A "$ua" --max-time 60 https://transparencia.al.rn.leg.br/ | grep -oE 'main-[A-Z0-9]+\.js' | head -1); curl -sSL -A "$ua" --max-time 60 "https://transparencia.al.rn.leg.br/$js" -o /tmp/js; ch=$(grep -oE 'chunk-[A-Z0-9]+\.js"\)\.then\(e=>e\.verbasGabineteRoutes' /tmp/js | grep -oE 'chunk-[A-Z0-9]+\.js'); echo "chunk $ch"; curl -sSL -A "$ua" --max-time 60 "https://transparencia.al.rn.leg.br/$ch" -o /tmp/c; grep -oE '"(https?:)?//[^"]+"|`[^`]*(api|search|verba)[^`]*`|"/[a-z-]+/[^"]{0,60}"' /tmp/c | sort -u | head -20; for x in $(grep -oE 'chunk-[A-Z0-9]+\.js' /tmp/c | sort -u); do curl -sSL -A "$ua" --max-time 60 "https://transparencia.al.rn.leg.br/$x" | grep -oE 'apiUrl[^;]{0,120}|`\$\{[^`]{0,120}`' | head -8; done
+echo "### RN api root"; curl -sS -A "$ua" --max-time 30 -w " %{http_code}\n" https://api-transparencia.al.rn.leg.br/ | head -c 400
