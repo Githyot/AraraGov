@@ -97,6 +97,31 @@ def _prefixos_em_ordem(a: List[str], b: List[str]) -> bool:
     return True
 
 
+def _quase_igual(a: str, b: str) -> bool:
+    """Igual ou a um erro de digitação de distância (troca, falta, sobra ou
+    inversão de uma letra), só para palavras de 4 letras ou mais."""
+    if a == b:
+        return True
+    if min(len(a), len(b)) < 4 or abs(len(a) - len(b)) > 1:
+        return False
+    if len(a) == len(b):
+        dif = [i for i in range(len(a)) if a[i] != b[i]]
+        return len(dif) == 1 or (len(dif) == 2 and dif[1] == dif[0] + 1 and a[dif[0]] == b[dif[1]] and a[dif[1]] == b[dif[0]])
+    curto, longo = sorted((a, b), key=len)
+    return any(longo[:i] + longo[i + 1:] == curto for i in range(len(longo)))
+
+
+def _palavras_em_ordem(a: List[str], b: List[str]) -> bool:
+    j = 0
+    for t in a:
+        while j < len(b) and not _quase_igual(t, b[j]):
+            j += 1
+        if j == len(b):
+            return False
+        j += 1
+    return True
+
+
 def casar_nome(nome: str, candidatos: Dict[int, Iterable[str]]) -> Any:
     """Acha o código do político cujo nome (de urna ou civil) corresponde a
     `nome`, como as assembleias escrevem nas planilhas ("Ana Paula da Silva
@@ -114,6 +139,9 @@ def casar_nome(nome: str, candidatos: Dict[int, Iterable[str]]) -> Any:
         lambda a, b: len(a) >= 2 and _prefixos_em_ordem(a, b),
         # Sobrenome sozinho ("Lunelli"), só se for longo e único
         lambda a, b: len(a) == 1 and len(a[0]) >= 5 and a[0] in b,
+        # Erro de digitação da planilha ("Guilherme Samapaio", "Caludio Pinho"): todas as
+        # palavras, na ordem, iguais ou a uma letra de distância
+        lambda a, b: len(a) >= 2 and _palavras_em_ordem(a, b),
     ]
     for regra in regras:
         achados = {

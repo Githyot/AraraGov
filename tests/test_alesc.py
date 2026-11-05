@@ -29,6 +29,18 @@ def test_casar_nome_como_a_assembleia_escreve():
     assert casar_nome("SILVA", {7: ["Joao Silva", None], 8: ["Ana Silva", None]}) is None
 
 
+def test_casar_nome_com_erro_de_digitacao():
+    c = {1: ["Guilherme Sampaio", None], 2: ["Cláudio Pinho", None], 3: ["Sérgio Aguiar", None], 4: ["Walter Cavalcante", None], 5: ["Guilherme Landim", None]}
+    assert casar_nome("GUILHERME SAMAPAIO", c) == 1
+    assert casar_nome("GUILHERME SAMAPIO", c) == 1
+    assert casar_nome("CALUDIO PINHO", c) == 2
+    assert casar_nome("SEGIO AGUIAR", c) == 3
+    assert casar_nome("SERGIO AGUAIR", c) == 3
+    assert casar_nome("WALTER CAVACANTE", c) == 4
+    assert casar_nome("GUILHERME LANDIN", c) == 5
+    assert casar_nome("JOSE SILVA", {1: ["Jose Silvo", None], 2: ["Jose Silvi", None]}) is None
+
+
 def test_casar_nome_ambiguo_fica_sem_dono():
     assert casar_nome("Marcos", CANDIDATOS) is None
     assert casar_nome("João Silva", {1: ["João Silva Souza"], 2: ["João Pedro Silva"]}) is None
