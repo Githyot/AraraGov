@@ -17,14 +17,14 @@ from collections import Counter, defaultdict
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy import select
 
 from . import __version__
 from .analise import espectro, inflacao
 from .analise.atencao import motivo_atencao
-from .db import Assessor, Beneficio, Despesa, Emenda, Favorecido, Politico, Subsidio, Votacao, Voto, sessao
+from .db import Assessor, Beneficio, Despesa, Emenda, Favorecido, Politico, RecursoMensal, Subsidio, Votacao, Voto, sessao
 
 logger = logging.getLogger(__name__)
 
@@ -223,16 +223,63 @@ def _emendas(emendas: List[Emenda], favorecidos: List[Favorecido]) -> Optional[D
     }
 
 
-def _custo_gabinete(pessoas: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
-    """Soma da remuneração bruta do gabinete no mês, quando a casa publica."""
+def _mensais(linhas: List[RecursoMensal]) -> Optional[Dict[str, Any]]:
+    """Valores mensais (salário pago, verba de gabinete) somados por ano."""
+    if not linhas:
+        return None
+    anos: Dict[int, List[RecursoMensal]] = defaultdict(list)
+    for l in linhas:
+        anos[l.ano].append(l)
+    return {
+        "total": sum((l.valor for l in linhas), Decimal(0)),
+        "por_ano": [{"ano": a, "valor": sum((l.valor for l in anos[a]), Decimal(0))} for a in sorted(anos)],
+        "anos": {
+            str(a): {
+                "total": sum((l.valor for l in anos[a]), Decimal(0)),
+                "por_mes": [{"mes": l.mes, "valor": l.valor} for l in sorted(anos[a], key=lambda x: x.mes)],
+            }
+            for a in sorted(anos)
+        },
+    }
+
+
+def _ultimo_mes(linhas: List[RecursoMensal]) -> Optional[RecursoMensal]:
+    com_valor = [l for l in linhas if l.valor > 0]
+    return max(com_valor, key=lambda l: (l.ano, l.mes)) if com_valor else None
+
+
+def _beneficios_por_ano(itens: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], Dict[str, List[Dict[str, Any]]]]:
+    """Benefícios sem ano (retrato do mês) mais os do ano mais recente; e
+    todos os anos separados, para o filtro de período do app."""
+    sem_ano = [b for b in itens if b.get("ano") is None]
+    anos: Dict[int, List[Dict[str, Any]]] = defaultdict(list)
+    for b in itens:
+        if b.get("ano") is not None:
+            anos[b["ano"]].append(b)
+    atuais = sem_ano + (anos[max(anos)] if anos else [])
+    return atuais, {str(a): sem_ano + anos[a] for a in sorted(anos)}
+
+
+def _custo_gabinete(pessoas: List[Dict[str, Any]], verba: Optional[RecursoMensal] = None) -> Optional[Dict[str, Any]]:
+    """Custo mensal do gabinete: soma das remunerações, quando a casa publica
+    (Senado), ou a verba de gabinete gasta no último mês (Câmara)."""
     com_valor = [p for p in pessoas if p.get("remuneracao") is not None]
     if not com_valor:
-        return None
+        if verba is None:
+            return None
+        return {
+            "mensal": verba.valor,
+            "pessoas_com_valor": 0,
+            "pessoas": len(pessoas),
+            "referencia": f"{verba.ano}-{verba.mes:02d}",
+            "origem": "verba_gabinete",
+        }
     return {
         "mensal": sum((p["remuneracao"] for p in com_valor), Decimal(0)),
         "pessoas_com_valor": len(com_valor),
         "pessoas": len(pessoas),
         "referencia": com_valor[0].get("remuneracao_ref"),
+        "origem": "folha",
     }
 
 
@@ -399,14 +446,18 @@ def exportar(saida: Path) -> int:
         for b in s.execute(select(Beneficio).order_by(Beneficio.tipo)).scalars():
             beneficios[(b.casa, b.codigo_politico)].append(
                 {"tipo": b.tipo, "descricao": b.descricao, "valor_mensal": b.valor_mensal,
-                 "referencia": b.referencia, "fonte": b.fonte}
+                 "valor_ano": b.valor_ano, "ano": b.ano, "referencia": b.referencia, "fonte": b.fonte}
             )
+        recursos = defaultdict(lambda: defaultdict(list))
+        for r in s.execute(select(RecursoMensal)).scalars():
+            recursos[(r.casa, r.codigo_politico)][r.tipo].append(r)
 
     analises = _analises(politicos, votos_por, votacoes)
     salarios = {cargo: _salario(cargo, subsidios) for cargo in {p.cargo for p in politicos}}
     doacoes = doacoes_salario()
 
     for p in politicos:
+        ben_atuais, ben_anos = _beneficios_por_ano(beneficios[(p.casa, p.codigo)])
         votos = sorted(
             votos_por[(p.casa, p.codigo)],
             key=lambda v: votacoes[v.votacao_id].data or datetime.min,
@@ -421,8 +472,13 @@ def exportar(saida: Path) -> int:
             "salario": salarios[p.cargo],
             "gastos": _gastos(despesas_por[(p.casa, p.codigo)], p),
             "gabinete": gabinetes[(p.casa, p.codigo)],
-            "custo_gabinete": _custo_gabinete(gabinetes[(p.casa, p.codigo)]),
-            "beneficios": beneficios[(p.casa, p.codigo)],
+            "custo_gabinete": _custo_gabinete(
+                gabinetes[(p.casa, p.codigo)], _ultimo_mes(recursos[(p.casa, p.codigo)]["verba_gabinete"])
+            ),
+            "verba_gabinete": _mensais(recursos[(p.casa, p.codigo)]["verba_gabinete"]),
+            "salario_pago": _mensais(recursos[(p.casa, p.codigo)]["salario"]),
+            "beneficios": ben_atuais,
+            "beneficios_anos": ben_anos,
             "emendas": _emendas(emendas_por[(p.casa, p.codigo)], favorecidos_por[(p.casa, p.codigo)]),
             "presenca": dict(Counter(v.voto for v in votos)),
             **analises.get((p.casa, p.codigo), {}),

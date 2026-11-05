@@ -15,7 +15,7 @@ from datetime import date
 from sqlalchemy import func, select
 
 from . import db
-from .collectors import assembleias, beneficios, camara, emendas, gabinete, referencia, senado, tse
+from .collectors import assembleias, beneficios, camara, camara_recursos, emendas, gabinete, referencia, senado, tse
 from .http import HttpClient
 
 ALVOS = {
@@ -26,6 +26,7 @@ ALVOS = {
     "senado-votacoes": lambda c, a: senado.coletar_votacoes(c, a.ano, a.limite),
     "senado-despesas": lambda c, a: senado.coletar_despesas(c, a.ano, a.limite),
     "camara-gabinetes": lambda c, a: gabinete.coletar_camara(c),
+    "camara-recursos": lambda c, a: camara_recursos.coletar_recursos(c, a.ano, a.limite),
     "senado-gabinetes": lambda c, a: gabinete.coletar_senado(c),
     "senado-moradia": lambda c, a: beneficios.coletar_moradia_senado(c),
     "emendas": lambda c, a: emendas.coletar_emendas(c, a.ano, a.limite),
@@ -49,7 +50,7 @@ COM_RESERVA = {"almg-deputados", "almg-despesas", "alesp-deputados", "alesp-desp
 
 POR_ANO = {
     "camara-votacoes", "camara-despesas", "senado-votacoes", "senado-despesas",
-    "almg-despesas", "alesp-despesas", "emendas",
+    "almg-despesas", "alesp-despesas", "emendas", "camara-recursos",
 }
 
 
@@ -62,7 +63,7 @@ def _anos(texto: str) -> list[int]:
 
 def resumo() -> None:
     with db.sessao() as s:
-        for modelo in (db.Politico, db.Votacao, db.Voto, db.Despesa, db.Assessor, db.Beneficio, db.Emenda, db.Favorecido, db.Ipca, db.Subsidio):
+        for modelo in (db.Politico, db.Votacao, db.Voto, db.Despesa, db.Assessor, db.Beneficio, db.RecursoMensal, db.Emenda, db.Favorecido, db.Ipca, db.Subsidio):
             total = s.execute(select(func.count()).select_from(modelo)).scalar_one()
             print(f"{modelo.__tablename__:10} {total:>10}")
 

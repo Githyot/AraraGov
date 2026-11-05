@@ -200,6 +200,26 @@ class Beneficio(Base):
     valor_mensal: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 2))
     referencia: Mapped[Optional[str]] = mapped_column(String(40))
     fonte: Mapped[Optional[str]] = mapped_column(String(400))
+    # Câmara: o benefício é informado por ano, com o total recebido no ano.
+    ano: Mapped[Optional[int]] = mapped_column(Integer)
+    valor_ano: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 2))
+
+
+class RecursoMensal(Base):
+    """Valor mensal publicado pela casa: salário bruto pago ao parlamentar
+    ("salario") e verba de gabinete gasta com secretários ("verba_gabinete")."""
+
+    __tablename__ = "recurso_mensal"
+    __table_args__ = (Index("ix_recurso_politico", "casa", "codigo_politico"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    casa: Mapped[str] = mapped_column(String(10))
+    codigo_politico: Mapped[int] = mapped_column(Integer)
+    tipo: Mapped[str] = mapped_column(String(20))
+    ano: Mapped[int] = mapped_column(Integer)
+    mes: Mapped[int] = mapped_column(Integer)
+    valor: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    disponivel: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 2))
 
 
 class Ipca(Base):

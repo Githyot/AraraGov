@@ -160,11 +160,35 @@ class CustoGabinete {
   final int pessoasComValor, pessoas;
   final String? referencia;
 
+  /// "folha" (soma das remunerações) ou "verba_gabinete" (verba gasta no mês).
+  final String origem;
+
   CustoGabinete.fromJson(Map<String, dynamic> j)
       : mensal = _n(j['mensal']),
         pessoasComValor = j['pessoas_com_valor'] ?? 0,
         pessoas = j['pessoas'] ?? 0,
-        referencia = j['referencia'];
+        referencia = j['referencia'],
+        origem = j['origem'] ?? 'folha';
+}
+
+/// Valores mensais somados por ano: salário pago, verba de gabinete gasta.
+class ValoresMensais {
+  final double total;
+  final List<({int ano, double valor})> porAno;
+  final Map<int, ({double total, List<({int mes, double valor})> porMes})> anos;
+
+  ValoresMensais.fromJson(Map<String, dynamic> j)
+      : total = _n(j['total']),
+        porAno = [for (final a in (j['por_ano'] as List? ?? [])) (ano: a['ano'] as int, valor: _n(a['valor']))],
+        anos = {
+          for (final e in (j['anos'] as Map? ?? {}).entries)
+            int.parse(e.key as String): (
+              total: _n(e.value['total']),
+              porMes: [for (final m in (e.value['por_mes'] as List? ?? [])) (mes: m['mes'] as int, valor: _n(m['valor']))],
+            )
+        };
+
+  int? get ultimoAno => anos.isEmpty ? null : anos.keys.reduce((a, b) => a > b ? a : b);
 }
 
 class Emendas {
@@ -189,13 +213,16 @@ class Emendas {
 
 class Beneficio {
   final String tipo, descricao;
-  final double? valorMensal;
+  final double? valorMensal, valorAno;
+  final int? ano;
   final String? referencia, fonte;
 
   Beneficio.fromJson(Map<String, dynamic> j)
       : tipo = j['tipo'],
         descricao = j['descricao'],
         valorMensal = _nn(j['valor_mensal']),
+        valorAno = _nn(j['valor_ano']),
+        ano = j['ano'],
         referencia = j['referencia'],
         fonte = j['fonte'];
 }
@@ -223,6 +250,7 @@ class Perfil {
   final List<VotoEmVotacao> votacoes;
   final List<Assessor> gabinete;
   final CustoGabinete? custoGabinete;
+  final ValoresMensais? verbaGabinete, salarioPago;
   final List<Beneficio> beneficios;
   final Emendas? emendas;
   final DoacaoSalario? doacaoSalario;
@@ -246,6 +274,8 @@ class Perfil {
         votacoes = [for (final v in (j['votacoes'] as List? ?? [])) VotoEmVotacao.fromJson(v)],
         gabinete = [for (final a in (j['gabinete'] as List? ?? [])) Assessor.fromJson(a)],
         custoGabinete = j['custo_gabinete'] == null ? null : CustoGabinete.fromJson(j['custo_gabinete']),
+        verbaGabinete = j['verba_gabinete'] == null ? null : ValoresMensais.fromJson(j['verba_gabinete']),
+        salarioPago = j['salario_pago'] == null ? null : ValoresMensais.fromJson(j['salario_pago']),
         beneficios = [for (final b in (j['beneficios'] as List? ?? [])) Beneficio.fromJson(b)],
         emendas = j['emendas'] == null ? null : Emendas.fromJson(j['emendas']),
         doacaoSalario = j['doacao_salario'] == null ? null : DoacaoSalario.fromJson(j['doacao_salario']),
@@ -267,6 +297,7 @@ class Perfil {
         if (v.data != null && v.data!.length >= 4) int.parse(v.data!.substring(0, 4)),
       for (final a in base.gastos.porAno) a.ano,
       for (final a in base.emendas?.porAno ?? const <({int ano, double valor})>[]) a.ano,
+      ...?base.verbaGabinete?.anos.keys,
     };
     return anos.toList()..sort((a, b) => b.compareTo(a));
   }
@@ -308,6 +339,20 @@ class Perfil {
           if ((d['data'] as String? ?? '').startsWith(chave)) d
       ],
     };
+    final beneficiosAno = (j['beneficios_anos'] as Map?)?[chave];
+    if (beneficiosAno != null) j['beneficios'] = beneficiosAno;
+    for (final campo in ['verba_gabinete', 'salario_pago']) {
+      final doAno = ((j[campo] as Map?)?['anos'] as Map?)?[chave] as Map?;
+      j[campo] = doAno == null
+          ? null
+          : {
+              'total': doAno['total'],
+              'por_ano': [
+                {'ano': ano, 'valor': doAno['total']}
+              ],
+              'anos': {chave: doAno},
+            };
+    }
     final e = j['emendas'] as Map?;
     final emAno = (e?['anos'] as Map?)?[chave] as Map?;
     j['emendas'] = emAno == null ? null : (Map<String, dynamic>.from(emAno)..['por_ano'] = []);

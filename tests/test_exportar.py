@@ -72,7 +72,7 @@ def test_exporta_custo_do_gabinete_e_beneficios(tmp_path):
         s.add(db.Beneficio(casa="senado", codigo_politico=475, tipo="imovel_funcional", descricao="Ocupa imóvel funcional em Brasília"))
     exportar(tmp_path)
     perfil = json.loads((tmp_path / "v1/politicos/senado-475.json").read_text())
-    assert perfil["custo_gabinete"] == {"mensal": 15000.5, "pessoas_com_valor": 2, "pessoas": 3, "referencia": "2026-09"}
+    assert perfil["custo_gabinete"] == {"mensal": 15000.5, "pessoas_com_valor": 2, "pessoas": 3, "referencia": "2026-09", "origem": "folha"}
     assert perfil["beneficios"][0]["tipo"] == "imovel_funcional"
     assert {g["nome"]: g["remuneracao"] for g in perfil["gabinete"]} == {"A": 12000.5, "B": 3000.0, "C": None}
 

@@ -114,6 +114,9 @@ void main() {
     await tester.pumpWidget(MaterialApp(home: PerfilTela(api: api, id: 'camara-9001')));
     await tester.pumpAndSettle();
     expect(find.text('Declara doar 20% do salário'), findsOneWidget);
+    expect(find.text('Salário bruto pago em 2025'), findsOneWidget);
+    expect(find.text('Verba de gabinete gasta em 2025'), findsOneWidget);
+    expect(find.text('Total recebido em 2025'), findsOneWidget);
 
     await tester.tap(find.byTooltip('Período'));
     await tester.pumpAndSettle();

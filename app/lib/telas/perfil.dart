@@ -103,7 +103,7 @@ class _PerfilTelaState extends State<PerfilTela> {
                   const SizedBox(height: 24),
                   SecaoPosicao(p),
                   SecaoAlinhamento(p),
-                  _SecaoSalario(p.salario, beneficios: p.beneficios, doacao: p.doacaoSalario),
+                  _SecaoSalario(p.salario, beneficios: p.beneficios, doacao: p.doacaoSalario, pago: p.salarioPago),
                   _SecaoGastos(p.gastos, estadual: p.resumo.esfera == 'estadual'),
                   if (p.emendas != null) _SecaoEmendas(p.emendas!),
                   _SecaoVotacoes(p),
@@ -186,7 +186,20 @@ class _SecaoSalario extends StatelessWidget {
   final Salario s;
   final List<Beneficio> beneficios;
   final DoacaoSalario? doacao;
-  const _SecaoSalario(this.s, {this.beneficios = const [], this.doacao});
+  final ValoresMensais? pago;
+  const _SecaoSalario(this.s, {this.beneficios = const [], this.doacao, this.pago});
+
+  Widget? _linhaPago() {
+    final ano = pago?.ultimoAno;
+    if (ano == null) return null;
+    final doAno = pago!.anos[ano]!;
+    return ExpansionTile(
+      title: Text('Salário bruto pago em $ano'),
+      subtitle: Text('${reais(doAno.total)} em ${doAno.porMes.length} meses'),
+      shape: const Border(),
+      children: [for (final m in doAno.porMes) Linha(titulo: _nomeMes(m.mes), valor: reais(m.valor))],
+    );
+  }
 
   Widget _linhaDoacao(DoacaoSalario d) => Linha(
         prefixo: const Icon(Icons.volunteer_activism_outlined),
@@ -201,6 +214,7 @@ class _SecaoSalario extends StatelessWidget {
       return Grupo(titulo: 'Salário', filhos: [
         Linha(titulo: s.observacao ?? 'Não informado'),
         if (doacao != null) _linhaDoacao(doacao!),
+        ?_linhaPago(),
         for (final b in beneficios) Linha(titulo: b.descricao, subtitulo: 'Benefício além do salário'),
       ]);
     }
@@ -212,11 +226,20 @@ class _SecaoSalario extends StatelessWidget {
         if (s.vsInflacao != null)
           _LinhaInflacao(titulo: 'Desde ${mesAno(s.vsInflacao!.desde)}', v: s.vsInflacao!),
         if (doacao != null) _linhaDoacao(doacao!),
+        ?_linhaPago(),
         for (final b in beneficios)
           Linha(
             titulo: b.descricao,
-            subtitulo: b.referencia == null ? 'Benefício além do salário' : 'Benefício além do salário · ${b.referencia}',
-            valor: b.valorMensal == null ? null : reais(b.valorMensal),
+            subtitulo: b.valorAno != null && b.ano != null
+                ? 'Total recebido em ${b.ano}'
+                : b.referencia == null
+                    ? 'Benefício além do salário'
+                    : 'Benefício além do salário · ${b.referencia}',
+            valor: b.valorMensal != null
+                ? reais(b.valorMensal)
+                : b.valorAno != null
+                    ? reais(b.valorAno, centavos: false)
+                    : null,
             aoTocar: b.fonte == null ? null : () => _abrir(b.fonte),
           ),
         if (s.historico.isNotEmpty)
@@ -463,19 +486,35 @@ class _SecaoGabinete extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (p.gabinete.isEmpty) return const SizedBox();
+    final verba = p.verbaGabinete;
+    if (p.gabinete.isEmpty && verba == null) return const SizedBox();
     final custo = p.custoGabinete;
+    final anoVerba = verba?.ultimoAno;
     return Grupo(
       titulo: 'Gabinete',
-      descricao: '${p.gabinete.length} pessoas trabalham no gabinete',
+      descricao: p.gabinete.isEmpty ? null : '${p.gabinete.length} pessoas trabalham no gabinete',
       filhos: [
         if (custo != null)
           Linha(
             titulo: 'Custo mensal com salários',
-            subtitulo: 'Soma bruta de ${custo.pessoasComValor} de ${custo.pessoas} pessoas'
-                '${custo.referencia == null ? '' : ' · folha de ${mesAno(custo.referencia)}'}',
+            subtitulo: custo.origem == 'verba_gabinete'
+                ? 'Verba de gabinete gasta em ${mesAno(custo.referencia)}'
+                : 'Soma bruta de ${custo.pessoasComValor} de ${custo.pessoas} pessoas'
+                    '${custo.referencia == null ? '' : ' · folha de ${mesAno(custo.referencia)}'}',
             valor: reais(custo.mensal),
           ),
+        if (verba != null && anoVerba != null)
+          ExpansionTile(
+            title: Text('Verba de gabinete gasta em $anoVerba'),
+            subtitle: Text(reais(verba.anos[anoVerba]!.total)),
+            shape: const Border(),
+            children: [
+              if (verba.porAno.length > 1)
+                Padding(padding: const EdgeInsets.fromLTRB(12, 16, 16, 8), child: _GraficoAnos(verba.porAno)),
+              for (final m in verba.anos[anoVerba]!.porMes) Linha(titulo: _nomeMes(m.mes), valor: reais(m.valor)),
+            ],
+          ),
+        if (p.gabinete.isNotEmpty)
         ExpansionTile(
           title: const Text('Ver equipe'),
           shape: const Border(),
@@ -492,6 +531,12 @@ class _SecaoGabinete extends StatelessWidget {
     );
   }
 }
+
+const _mesesExtenso = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+];
+String _nomeMes(int m) => m >= 1 && m <= 12 ? _mesesExtenso[m - 1] : '$m';
 
 class _Rodape extends StatelessWidget {
   final Perfil p;

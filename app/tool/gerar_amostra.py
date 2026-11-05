@@ -80,8 +80,15 @@ def perfil(i, nome):
                     "favorecidos": [{"nome": "Prefeitura de Cidade Exemplo", "documento": None, "tipo": "Pessoa Jurídica", "municipio": "Cidade Exemplo", "uf": "EX", "valor": 6_000_000}],
                     "anos": {str(a): {"total_empenhado": e, "total_pago": pg, "quantidade": 8, "por_area": [{"nome": "Saúde", "valor": e}], "por_local": [], "favorecidos": []}
                              for a, e, pg in ((2023, 6_000_000, 5_000_000), (2024, 6_500_000, 4_200_000), (2025, 6_000_000, 2_000_000))}},
+        "verba_gabinete": None if casa == "senado" else {
+            "total": 12 * 120000.0, "por_ano": [{"ano": 2025, "valor": 12 * 120000.0}],
+            "anos": {"2025": {"total": 12 * 120000.0, "por_mes": [{"mes": m, "valor": 120000.0} for m in range(1, 13)]}}},
+        "salario_pago": None if casa == "senado" else {
+            "total": 44008.52 + 11 * 46366.19, "por_ano": [{"ano": 2025, "valor": 44008.52 + 11 * 46366.19}],
+            "anos": {"2025": {"total": 44008.52 + 11 * 46366.19, "por_mes": [{"mes": m, "valor": 44008.52 if m == 1 else 46366.19} for m in range(1, 13)]}}},
         "doacao_salario": {"parte": "20%", "descricao": "Declara doar parte do salário a instituições (exemplo).", "fonte": "https://example.org/declaracao", "data": "2025-01-10"} if i == 1 else None,
-        "beneficios": [{"tipo": "imovel_funcional", "descricao": "Ocupa imóvel funcional em Brasília", "valor_mensal": None, "referencia": "04/11/2026", "fonte": None}],
+        "beneficios": [{"tipo": "imovel_funcional", "descricao": "Ocupa imóvel funcional em Brasília", "valor_mensal": None, "referencia": "04/11/2026", "fonte": None}]
+                      + ([] if casa == "senado" else [{"tipo": "auxilio_moradia", "descricao": "Recebeu auxílio-moradia", "valor_mensal": None, "valor_ano": 29771.0, "ano": 2025, "referencia": "2025", "fonte": None}]),
         "presenca": {v: votos.count(v) for v in set(votos)},
         "posicao": {"pct_esquerda": pe, "pct_direita": round(100 - pe, 1), "faixa": faixa(pe),
                     "votacoes_consideradas": 180, "media_do_partido": pe_partido, "faixa_do_partido": faixa(pe_partido)},
