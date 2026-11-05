@@ -14,7 +14,7 @@ _Última atualização: 5 de novembro de 2026 (madrugada do dia 6)_
 | 1. Base federal (Câmara, Senado, IPCA) | ✅ |
 | 2. Análises (posição política, alinhamento, votações de atenção) | ✅ |
 | 3. App multiplataforma (Flutter, visual GNOME) | ✅ primeira versão · ⏸️ builds só quando pedido |
-| 4. Estados | ✅ início (TSE nos 27 estados, MG e SP) · 🔄 SC e salário real por estado no PR #11 |
+| 4. Estados | ✅ início (TSE nos 27 estados, MG e SP) · 🔄 SC e salário real por estado no PR #12 |
 | Benefícios e custo dos gabinetes | ✅ Senado |
 | Emendas parlamentares | ✅ |
 | Período, comparação e doação do salário | ✅ |
@@ -77,8 +77,8 @@ _Última atualização: 5 de novembro de 2026 (madrugada do dia 6)_
 - ✅ Minas Gerais (ALMG): deputados em exercício e verbas indenizatórias
 - ✅ São Paulo (Alesp): deputados em exercício e despesas de gabinete
 - ✅ Salário estadual mostrado como teto (75% do deputado federal)
-- 🔄 Santa Catarina (Alesc): gastos de gabinete de cada deputado, de 2011 até hoje, do CSV aberto da Alesc (PR #11)
-- 🔄 Salário real por estado, de uma lista com a fonte de cada valor (PR #11):
+- 🔄 Santa Catarina (Alesc): gastos de gabinete de cada deputado, de 2011 até hoje, do CSV aberto da Alesc (PR #12)
+- 🔄 Salário real por estado, de uma lista com a fonte de cada valor (PR #12):
   - deputados estaduais de SC e SP pela lei estadual; os outros estados seguem como teto até a lei ser conferida
   - governador e vice de SP pela lei estadual
   - governadores dos outros 26 estados pelo levantamento do Valor Econômico (out/2026), marcado no app como valor da imprensa
