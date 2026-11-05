@@ -116,10 +116,11 @@ class Campanha:
     servicos: Set[str] = field(default_factory=set)
 
 
-def ler_campanhas(linhas: Iterable[Dict[str, str]], ano: int, tse_ibge, cnpjs_por_mun: Dict[int, Set[str]]
-                  ) -> Dict[int, Dict[Tuple[str, str], Campanha]]:
+def ler_campanhas(linhas: Iterable[Dict[str, str]], ano: int, tse_ibge, cnpjs_por_mun: Dict[int, Set[str]],
+                  alcance: Optional[Dict[str, Set[str]]] = None) -> Dict[int, Dict[Tuple[str, str], Campanha]]:
     """IBGE -> (cnpj, sq_candidato) -> Campanha, só para empresas que também
-    receberam do mesmo município."""
+    receberam do mesmo município. Se `alcance` for dado, anota nele em
+    quantos municípios cada CNPJ serviu a campanhas (todos, sem filtro)."""
     saida: Dict[int, Dict[Tuple[str, str], Campanha]] = defaultdict(dict)
     for l in linhas:
         if (l.get("CD_TIPO_ELEICAO") or "").strip() != "2":  # só eleição ordinária
@@ -127,6 +128,8 @@ def ler_campanhas(linhas: Iterable[Dict[str, str]], ano: int, tse_ibge, cnpjs_po
         cnpj = so_digitos(l.get("NR_CPF_CNPJ_FORNECEDOR"))
         if len(cnpj) != 14:
             continue
+        if alcance is not None:
+            alcance.setdefault(cnpj, set()).add(f"{l.get('SG_UF')}-{l.get('SG_UE')}")
         ibge = tse_ibge(l.get("SG_UF"), l.get("SG_UE"), l.get("NM_UE"))
         if ibge is None or cnpj not in cnpjs_por_mun.get(ibge, ()):
             continue
@@ -145,11 +148,15 @@ def ler_campanhas(linhas: Iterable[Dict[str, str]], ano: int, tse_ibge, cnpjs_po
     return saida
 
 
-def remover_plataformas(campanhas: Dict[int, Dict[Tuple[str, str], Campanha]]) -> Dict[int, Dict[Tuple[str, str], Campanha]]:
-    municipios: Dict[str, Set[int]] = defaultdict(set)
+def remover_plataformas(campanhas: Dict[int, Dict[Tuple[str, str], Campanha]],
+                        alcance: Optional[Dict[str, Set[str]]] = None) -> Dict[int, Dict[Tuple[str, str], Campanha]]:
+    municipios: Dict[str, Set] = defaultdict(set)
     for ibge, d in campanhas.items():
         for c in d.values():
             municipios[c.cnpj].add(ibge)
+    for cnpj, ues in (alcance or {}).items():
+        if cnpj in municipios and len(ues) > len(municipios[cnpj]):
+            municipios[cnpj] = ues
     fora = {c for c, m in municipios.items() if len(m) > MAX_MUNICIPIOS_CAMPANHA}
     if fora:
         logger.info("Campanhas: %s empresas de serviço de massa fora do cruzamento", len(fora))
@@ -387,6 +394,7 @@ def gerar(client, saida: Path, ufs: Iterable[str] = ("SP",), eleicoes: Iterable[
     traduz = tradutor_tse_ibge()
     campanhas: Dict[int, Dict[Tuple[str, str], Campanha]] = defaultdict(dict)
     lidas = []
+    alcance: Dict[str, Set[str]] = {}
     for ano in sorted(eleicoes):
         arq = pasta_tmp / f"prestacao-{ano}.zip"
         try:
@@ -394,7 +402,7 @@ def gerar(client, saida: Path, ufs: Iterable[str] = ("SP",), eleicoes: Iterable[
             client.baixar_arquivo(CAMPANHA_URL.format(ano=ano), arq)
             logger.info("TSE %s: prestação de contas baixada em %.0f s", ano, time.monotonic() - inicio)
             padrao = re.compile(r"despesas_contratadas_candidatos_%d_(%s)\.csv$" % (ano, "|".join(ufs)), re.I)
-            por = ler_campanhas(_csv_do_zip(arq, lambda n: bool(padrao.search(n))), ano, traduz, cnpjs_por_mun)
+            por = ler_campanhas(_csv_do_zip(arq, lambda n: bool(padrao.search(n))), ano, traduz, cnpjs_por_mun, alcance)
         except Exception as e:  # noqa: BLE001 - segue sem o ano
             logger.warning("Prestação de contas do TSE de %s não lida: %s", ano, e)
             continue
@@ -405,7 +413,7 @@ def gerar(client, saida: Path, ufs: Iterable[str] = ("SP",), eleicoes: Iterable[
             campanhas[ibge].update(d)
         logger.info("TSE %s: %s municípios com fornecedor de campanha que também recebeu da prefeitura", ano, len(por))
 
-    campanhas = remover_plataformas(campanhas)
+    campanhas = remover_plataformas(campanhas, alcance)
     nomes = {cod: nome for (uf, _), (cod, nome) in municipios_ibge().items()}
     n = 0
     for (uf, ibge), forn in fornecedores.items():

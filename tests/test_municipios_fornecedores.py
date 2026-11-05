@@ -89,3 +89,11 @@ def test_plataformas_ficam_de_fora():
 def test_cpf_colado_ao_nome_sai():
     from araragov.municipios.tcesp import _resumir
     assert _resumir("LUCIANA MACEDO14576486870") == "LUCIANA MACEDO"
+
+
+def test_alcance_conta_todos_os_municipios():
+    alcance = {}
+    linhas = [dict(_despesa("13347016000117", str(i), "10,00"), SG_UE=str(i)) for i in range(20)]
+    por = fo.ler_campanhas(linhas, 2024, lambda *a: 3500105, {3500105: {"13347016000117"}}, alcance)
+    assert len(alcance["13347016000117"]) == 20
+    assert not fo.remover_plataformas(por, alcance)[3500105]
