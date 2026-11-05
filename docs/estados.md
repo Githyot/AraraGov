@@ -47,14 +47,20 @@ invertida por palavra (palavras de 4 letras ou mais), ainda só quando há um
   só tem proposições e normas.
 - **MT, MS:** o site não publica os gastos de cada deputado.
 - **PE, RS, ES, DF:** os portais não responderam a acessos de fora do Brasil
-  (onde roda a coleta). Vamos tentar de novo.
+  (onde roda a coleta), nem na nova tentativa de 05/11/2026.
 - **PA:** a verba indenizatória está só num painel interativo, sem arquivo.
 - **RO:** a página da verba indenizatória vem vazia fora do navegador.
 - **TO e SE:** só publicam PDF por deputado e mês.
 - **RN:** a API do portal exige login; não usamos a chave embutida no site.
-- **AM, AP, MA, PI, PB, RR:** os sites não responderam ou têm certificado
-  com nome errado.
-- **AC, AL:** não achamos página de gastos por deputado.
+- **PB:** o endereço certo é www.al.pb.leg.br. A página da VIAP (verba
+  indenizatória) tem filtros por ano e mês, mas a lista de deputados está
+  comentada no código da página e a consulta não devolve dados.
+- **RR:** as verbas indenizatórias ficam em pastas por ano (40 a 90 MB) que
+  só abrem pelo navegador, sem arquivo aberto por deputado.
+- **AM, AP, MA, PI:** os sites não responderam de fora do Brasil (nova
+  tentativa em 05/11/2026).
+- **AC:** o site recusa acesso automatizado (403). **AL:** não há página de
+  gastos por deputado.
 - **RJ:** os gastos ficam no sistema DOCIGP da Alerj, e o robots.txt dele fecha o site inteiro, então não coletamos.
 
 ## Gabinetes
