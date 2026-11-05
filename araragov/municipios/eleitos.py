@@ -6,9 +6,9 @@ foi eleito em cada mandato, e um `indice.md` com todos os municípios.
 
 O TSE identifica municípios por um código próprio (SG_UE). O resto do
 projeto usa o código do IBGE (Siconfi, TCEs), então os dois são ligados pelo
-nome dentro do estado, com a lista de municípios do IBGE. Os poucos nomes que
-mudaram ou são escritos de outro jeito ficam em
-`araragov/referencia/municipios_tse_ibge.csv`.
+nome dentro do estado, com a lista de municípios do IBGE guardada em
+`araragov/referencia/municipios_ibge.csv`. Os poucos nomes que mudaram ou
+são escritos de outro jeito ficam em `araragov/referencia/municipios_tse_ibge.csv`.
 
 CPF, título de eleitor, data de nascimento e e-mail existem no arquivo do
 TSE, mas não são lidos nem gravados.
@@ -33,7 +33,6 @@ from . import md
 
 logger = logging.getLogger(__name__)
 
-IBGE_MUNICIPIOS_URL = "https://servicodados.ibge.gov.br/api/v1/localidades/municipios"
 ANOS = (2016, 2020, 2024)
 
 ELEITO = {"ELEITO", "ELEITO POR QP", "ELEITO POR MÉDIA", "ELEITO POR MEDIA"}
@@ -72,26 +71,18 @@ def _valor(linha: Dict[str, str], campo: str) -> Optional[str]:
 # --- municípios do IBGE --------------------------------------------------------
 
 
-def _uf_ibge(m: Dict[str, Any]) -> Optional[str]:
-    # Municípios novos às vezes vêm sem microrregião; a região imediata é mais
-    # confiável.
-    for caminho in (("regiao-imediata", "regiao-intermediaria", "UF"), ("microrregiao", "mesorregiao", "UF")):
-        atual: Any = m
-        for parte in caminho:
-            atual = atual.get(parte) if isinstance(atual, dict) else None
-        if isinstance(atual, dict) and atual.get("sigla"):
-            return atual["sigla"]
-    return None
+def municipios_ibge(client=None) -> Dict[Tuple[str, str], Tuple[int, str]]:
+    """(UF, nome normalizado) -> (código IBGE, nome oficial).
 
-
-def municipios_ibge(client) -> Dict[Tuple[str, str], Tuple[int, str]]:
-    """(UF, nome normalizado) -> (código IBGE, nome oficial)."""
-    saida: Dict[Tuple[str, str], Tuple[int, str]] = {}
-    for m in client.get_json(IBGE_MUNICIPIOS_URL):
-        uf = _uf_ibge(m)
-        if uf:
-            saida[(uf, chave_nome(m["nome"]))] = (int(m["id"]), m["nome"])
-    return saida
+    A lista fica no repositório (referencia/municipios_ibge.csv) porque a API
+    de localidades do IBGE não responde para os servidores do GitHub Actions.
+    """
+    texto = resources.files("araragov").joinpath("referencia/municipios_ibge.csv").read_text(encoding="utf-8")
+    linhas = (l for l in texto.splitlines() if l.strip() and not l.startswith("#"))
+    return {
+        (r["uf"], chave_nome(r["nome"])): (int(r["ibge"]), r["nome"])
+        for r in csv.DictReader(linhas, delimiter=";")
+    }
 
 
 def correcoes_tse_ibge() -> Dict[Tuple[str, int], int]:
@@ -199,7 +190,7 @@ def gerar(
     hoje = hoje or date.today()
     ufs = [u.upper() for u in ufs]
     anos = sorted(anos)
-    ibge = municipios_ibge(client)
+    ibge = municipios_ibge()
     correcoes = correcoes_tse_ibge()
 
     por_municipio: Dict[Tuple[str, int], Dict[str, Any]] = {}

@@ -31,7 +31,6 @@ def _l(uf, ue, nome_ue, cargo, num, nome, partido, turno, sit, tipo=ORD, cpf="12
 
 
 def test_eleitos_e_arquivos(client, tmp_path):
-    client.json(eleitos.IBGE_MUNICIPIOS_URL, "ibge_municipios.json")
     client.bytes(CANDIDATOS_URL.format(ano=2024), _zip(2024, {
         "PR": [
             _l("PR", "75310", "CAMPO MOURÃO", "PREFEITO", "45", "ANA DA SILVA", "PSDB", "1", "2º TURNO"),
@@ -43,7 +42,7 @@ def test_eleitos_e_arquivos(client, tmp_path):
             _l("PR", "75310", "CAMPO MOURÃO", "VEREADOR", "13999", "FABI NUNES", "PT", "1", "SUPLENTE"),
             _l("PR", "74004", "ABATIÁ", "PREFEITO", "22", "GIL MOTA", "PL", "1", "ELEITO", tipo="ELEIÇÃO SUPLEMENTAR"),
         ],
-        "MG": [_l("MG", "43010", "OLHOS D'ÁGUA", "PREFEITO", "10", "HELO PIRES", "REPUBLICANOS", "1", "ELEITO")],
+        "MG": [_l("MG", "43010", "OLHOS-D'ÁGUA", "PREFEITO", "10", "HELO PIRES", "REPUBLICANOS", "1", "ELEITO")],
         "SP": [_l("SP", "71072", "SÃO PAULO", "PREFEITO", "15", "IVO ALVES", "MDB", "1", "ELEITO")],
     }))
     total = eleitos.gerar(client, tmp_path, anos=[2024], ufs=["PR", "MG"], hoje=date(2026, 11, 5))
@@ -60,16 +59,15 @@ def test_eleitos_e_arquivos(client, tmp_path):
     texto = (base / "pr" / "4104303" / "resumo.md").read_text(encoding="utf-8")
     assert "12345678901" not in texto and "1970" not in texto
 
-    # nome com hífen e apóstrofo no IBGE e sem hífen no TSE
-    assert (base / "mg" / "3133709" / "resumo.md").exists()
+    # nome com apóstrofo: TSE "OLHOS D'ÁGUA", IBGE "Olhos d'Água"
+    assert (base / "mg" / "3145455" / "resumo.md").exists()
 
     indice = md.ler((base / "indice.md").read_text(encoding="utf-8")).tabelas["municipios"]
     assert [(r["uf"], r["municipio"], r["prefeito"], r["vereadores"]) for r in indice] == [
-        ("MG", "Olhos-d'Água", "Helo", "0"), ("PR", "Campo Mourão", "Ana", "1")]
+        ("MG", "Olhos d'Água", "Helo", "0"), ("PR", "Campo Mourão", "Ana", "1")]
 
 
 def test_eleicao_sem_dados_vira_aviso_com_responsavel(client, tmp_path):
-    client.json(eleitos.IBGE_MUNICIPIOS_URL, "ibge_municipios.json")
     client.bytes(CANDIDATOS_URL.format(ano=2020), _zip(2020, {"PR": []}))
     client.bytes(CANDIDATOS_URL.format(ano=2024), _zip(2024, {
         "PR": [_l("PR", "75310", "CAMPO MOURÃO", "PREFEITO", "45", "ANA DA SILVA", "PSDB", "1", "ELEITO")],
@@ -83,3 +81,12 @@ def test_eleicao_sem_dados_vira_aviso_com_responsavel(client, tmp_path):
 
 def test_chave_nome():
     assert eleitos.chave_nome("Olhos-d'Água") == eleitos.chave_nome("OLHOS D'AGUA") == "OLHOS D AGUA"
+
+
+def test_lista_do_ibge_e_correcoes():
+    ibge = eleitos.municipios_ibge()
+    assert len(ibge) >= 5570
+    assert ibge[("PR", eleitos.chave_nome("CAMPO MOURÃO"))][0] == 4104303
+    correcoes = eleitos.correcoes_tse_ibge()
+    codigos = {c for c, _ in ibge.values()}
+    assert correcoes and set(correcoes.values()) <= codigos

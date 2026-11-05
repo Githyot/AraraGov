@@ -322,7 +322,18 @@ def gerar(
     hoje = hoje or date.today()
     anos = sorted(set(anos))
     principal = novo_cliente()
-    entes = entes_municipais(principal, ufs)
+    try:
+        entes = entes_municipais(principal, ufs)
+    except Exception as erro:
+        # Sem a lista do Siconfi, usa a do IBGE guardada no repositório.
+        logger.warning("Lista de entes do Siconfi indisponível (%s); usando a lista do IBGE", erro)
+        from .eleitos import municipios_ibge
+
+        filtro = {u.upper() for u in ufs}
+        entes = sorted(
+            (Ente(cod, nome, uf) for (uf, _), (cod, nome) in municipios_ibge().items() if uf in filtro),
+            key=lambda e: (e.uf, e.ibge),
+        )
     fatores, ipca_ate = fatores_ipca(principal, anos, hoje)
     recentes = {hoje.year - 1, hoje.year}
     pares = [(e, a) for a in sorted(anos, reverse=True) for e in entes]

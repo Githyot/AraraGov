@@ -1,4 +1,36 @@
 # Municípios cujo nome no TSE não bate com o nome no IBGE (mudança de nome ou
 # grafia diferente). A coleta avisa no log quais faltam; cada linha precisa
-# do código do TSE (SG_UE) e do código do IBGE, conferidos nas duas fontes.
+# do código do TSE (SG_UE) e do código do IBGE. Códigos conferidos com a
+# lista pública de betafcc/Municipios-Brasileiros-TSE e com o nome no IBGE.
 uf;tse;ibge;nome_tse;nome_ibge
+AP;6084;1600154;Água Branca do Amapari;Pedra Branca do Amapari
+BA;37460;2922250;Muquém do São Francisco;Muquém de São Francisco
+BA;38199;2925907;Quinjingue;Quijingue
+BA;38695;2928505;Santa Terezinha;Santa Teresinha
+CE;14273;2306306;Itapagé;Itapajé
+PA;4120;1502954;Eldorado dos Carajás;Eldorado do Carajás
+PA;5290;1506500;Santa Isabel do Pará;Santa Izabel do Pará
+PB;19666;2513653;Santarém;Joca Claudino
+PB;19429;2513968;São Domingos de Pombal;São Domingos
+PE;23310;2601607;Belém de São Francisco;Belém do São Francisco
+PE;24376;2606903;Iguaraci;Iguaracy
+PE;25615;2613107;São Caitano;São Caetano
+RJ;59170;3305901;Trajano de Morais;Trajano de Moraes
+RN;16039;2400208;Assú;Açu
+RN;17035;2405306;Boa Saúde;Januário Cicco (Boa Saúde)
+RN;16250;2401305;Campo Grande;Augusto Severo (Campo Grande)
+RO;310;1100015;Alta Floresta do Oeste;Alta Floresta D'Oeste
+RO;337;1100346;Alvorada do Oeste;Alvorada D'Oeste
+RO;256;1100098;Espigão do Oeste;Espigão D'Oeste
+RO;396;1100130;Machadinho do Oeste;Machadinho D'Oeste
+RO;370;1100148;Nova Brasilândia do Oeste;Nova Brasilândia D'Oeste
+RO;353;1100296;Santa Luzia do Oeste;Santa Luzia D'Oeste
+RO;710;1101484;São Felipe do Oeste;São Felipe D'Oeste
+RS;88455;4317103;Santana do Livramento;Sant'Ana do Livramento
+SC;81973;4210001;Luís Alves;Luiz Alves
+SC;82732;4213906;Presidente Castelo Branco;Presidente Castello Branco
+SE;31518;2802601;Graccho Cardoso;Gracho Cardoso
+SP;64238;3516101;Florínea;Florínia
+SP;71013;3550001;São Luís do Paraitinga;São Luiz do Paraitinga
+TO;93211;1706001;Couto de Magalhães;Couto Magalhães
+TO;92681;1720499;São Valério da Natividade;São Valério
