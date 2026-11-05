@@ -50,6 +50,9 @@ da coleta lista esses nomes.
   contracheque, que o robots.txt fecha, então o app mostra "Sem dados" para o
   salário da equipe, com a Alesc como responsável.
 
+- **BA:** o portal de RH da ALBA lista só servidores efetivos e funções de
+  confiança; os secretários parlamentares de cada gabinete não aparecem.
+
 ## Votações
 
 Nenhuma assembleia que responde publica o voto de cada deputado em arquivo

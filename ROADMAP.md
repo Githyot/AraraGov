@@ -94,6 +94,7 @@ _Última atualização: 5 de novembro de 2026 (madrugada do dia 6)_
   - ➖ RJ: os gastos dos deputados ficam no sistema DOCIGP, cujo robots.txt fecha todo o site (não coletamos)
 - ➖ Votações nominais estaduais: nenhuma das assembleias que respondem publica o voto de cada deputado em arquivo aberto (a Alep tem, mas na área /api/ que o robots.txt fecha; a Alesp só publica presença)
 - 🔄 Gabinetes estaduais: SC (Alesc) com a equipe de cada gabinete, nome e vínculo; o salário fica na tela de contracheque que o robots.txt fecha (PR #12)
+- ➖ BA: o portal de RH da ALBA lista só efetivos e funções de confiança, sem os secretários parlamentares dos gabinetes
 - ⬜ Gabinetes dos outros estados
 
 ## 5. Municípios ⬜
