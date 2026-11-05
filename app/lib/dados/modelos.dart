@@ -163,6 +163,26 @@ class CustoGabinete {
         referencia = j['referencia'];
 }
 
+class Emendas {
+  final double totalEmpenhado, totalPago;
+  final int quantidade;
+  final List<({int ano, double valor})> porAno;
+  final List<NomeValor> porArea, porLocal;
+  final List<({String nome, String? municipio, String? uf, double valor})> favorecidos;
+
+  Emendas.fromJson(Map<String, dynamic> j)
+      : totalEmpenhado = _n(j['total_empenhado']),
+        totalPago = _n(j['total_pago']),
+        quantidade = j['quantidade'] ?? 0,
+        porAno = [for (final a in (j['por_ano'] as List? ?? [])) (ano: a['ano'] as int, valor: _n(a['empenhado']))],
+        porArea = [for (final a in (j['por_area'] as List? ?? [])) (nome: a['nome'] as String, valor: _n(a['valor']))],
+        porLocal = [for (final a in (j['por_local'] as List? ?? [])) (nome: a['nome'] as String, valor: _n(a['valor']))],
+        favorecidos = [
+          for (final f in (j['favorecidos'] as List? ?? []))
+            (nome: f['nome'] as String, municipio: f['municipio'] as String?, uf: f['uf'] as String?, valor: _n(f['valor']))
+        ];
+}
+
 class Beneficio {
   final String tipo, descricao;
   final double? valorMensal;
@@ -186,6 +206,7 @@ class Perfil {
   final List<Assessor> gabinete;
   final CustoGabinete? custoGabinete;
   final List<Beneficio> beneficios;
+  final Emendas? emendas;
   final Posicao? posicao;
   final Alinhamento? alinhamento;
   final ({int votacoes, int votouSim, int votouNao})? atencao;
@@ -202,6 +223,7 @@ class Perfil {
         gabinete = [for (final a in (j['gabinete'] as List? ?? [])) Assessor.fromJson(a)],
         custoGabinete = j['custo_gabinete'] == null ? null : CustoGabinete.fromJson(j['custo_gabinete']),
         beneficios = [for (final b in (j['beneficios'] as List? ?? [])) Beneficio.fromJson(b)],
+        emendas = j['emendas'] == null ? null : Emendas.fromJson(j['emendas']),
         posicao = j['posicao'] == null ? null : Posicao.fromJson(j['posicao']),
         alinhamento = j['alinhamento'] == null ? null : Alinhamento.fromJson(j['alinhamento']),
         atencao = j['atencao'] == null

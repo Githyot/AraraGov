@@ -24,7 +24,7 @@ from sqlalchemy import select
 from . import __version__
 from .analise import espectro, inflacao
 from .analise.atencao import motivo_atencao
-from .db import Assessor, Beneficio, Despesa, Politico, Subsidio, Votacao, Voto, sessao
+from .db import Assessor, Beneficio, Despesa, Emenda, Favorecido, Politico, Subsidio, Votacao, Voto, sessao
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +33,7 @@ FONTES = {
     "senado": "https://legis.senado.leg.br/dadosabertos",
     "ipca": "https://www.bcb.gov.br (série SGS 433)",
     "tse": "https://dadosabertos.tse.jus.br (candidatos eleitos)",
+    "emendas": "https://portaldatransparencia.gov.br/emendas",
     "al-mg": "https://dadosabertos.almg.gov.br",
     "al-sp": "https://www.al.sp.gov.br/dados-abertos",
 }
@@ -136,6 +137,44 @@ def _salario(cargo: str, subsidios: List[Subsidio]) -> Dict[str, Any]:
                 "acima_da_inflacao_pct": round(comp.acima_da_inflacao_pct, 2),
             }
     return resultado
+
+
+def _emendas(emendas: List[Emenda], favorecidos: List[Favorecido]) -> Optional[Dict[str, Any]]:
+    """Resumo das emendas do parlamentar: quanto indicou, quanto foi pago,
+    para quais áreas e lugares, e quem recebeu o dinheiro."""
+    if not emendas:
+        return None
+    por_ano: Dict[int, Dict[str, Decimal]] = defaultdict(lambda: {"empenhado": Decimal(0), "pago": Decimal(0)})
+    por_area: Dict[str, Decimal] = defaultdict(Decimal)
+    por_local: Dict[str, Decimal] = defaultdict(Decimal)
+    for e in emendas:
+        por_ano[e.ano]["empenhado"] += e.empenhado
+        por_ano[e.ano]["pago"] += e.pago
+        por_area[e.funcao or "Não informada"] += e.empenhado
+        por_local[e.localidade or "Não informado"] += e.empenhado
+    receb: Dict[tuple, Decimal] = defaultdict(Decimal)
+    meta: Dict[tuple, Favorecido] = {}
+    for f in favorecidos:
+        chave = (f.nome, f.documento)
+        receb[chave] += f.valor
+        meta.setdefault(chave, f)
+
+    def top(d: Dict[str, Decimal], k: int = 8) -> List[Dict[str, Any]]:
+        return [{"nome": nome, "valor": v} for nome, v in sorted(d.items(), key=lambda x: -x[1])[:k]]
+
+    return {
+        "total_empenhado": sum((e.empenhado for e in emendas), Decimal(0)),
+        "total_pago": sum((e.pago for e in emendas), Decimal(0)),
+        "quantidade": len(emendas),
+        "por_ano": [{"ano": a, **v} for a, v in sorted(por_ano.items())],
+        "por_area": top(por_area),
+        "por_local": top(por_local),
+        "favorecidos": [
+            {"nome": nome, "documento": doc, "tipo": meta[(nome, doc)].tipo,
+             "municipio": meta[(nome, doc)].municipio, "uf": meta[(nome, doc)].uf, "valor": v}
+            for (nome, doc), v in sorted(receb.items(), key=lambda x: -x[1])[:10]
+        ],
+    }
 
 
 def _custo_gabinete(pessoas: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
@@ -295,6 +334,12 @@ def exportar(saida: Path) -> int:
                     "remuneracao": a.remuneracao, "remuneracao_ref": a.remuneracao_ref,
                 }
             )
+        emendas_por = defaultdict(list)
+        for e in s.execute(select(Emenda).where(Emenda.codigo_politico.is_not(None))).scalars():
+            emendas_por[(e.casa, e.codigo_politico)].append(e)
+        favorecidos_por = defaultdict(list)
+        for f in s.execute(select(Favorecido)).scalars():
+            favorecidos_por[(f.casa, f.codigo_politico)].append(f)
         beneficios = defaultdict(list)
         for b in s.execute(select(Beneficio).order_by(Beneficio.tipo)).scalars():
             beneficios[(b.casa, b.codigo_politico)].append(
@@ -321,6 +366,7 @@ def exportar(saida: Path) -> int:
             "gabinete": gabinetes[(p.casa, p.codigo)],
             "custo_gabinete": _custo_gabinete(gabinetes[(p.casa, p.codigo)]),
             "beneficios": beneficios[(p.casa, p.codigo)],
+            "emendas": _emendas(emendas_por[(p.casa, p.codigo)], favorecidos_por[(p.casa, p.codigo)]),
             "presenca": dict(Counter(v.voto for v in votos)),
             **analises.get((p.casa, p.codigo), {}),
             "votacoes": [

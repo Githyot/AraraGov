@@ -73,5 +73,6 @@ void main() {
     expect(find.textContaining('Votou com o lado da'), findsWidgets);
     expect(find.text('Custo mensal com salários'), findsOneWidget);
     expect(find.text('Ocupa imóvel funcional em Brasília'), findsOneWidget);
+    expect(find.text('Emendas parlamentares'), findsOneWidget);
   });
 }

@@ -58,6 +58,7 @@ class _PerfilTelaState extends State<PerfilTela> {
                   SecaoAlinhamento(p),
                   _SecaoSalario(p.salario, beneficios: p.beneficios),
                   _SecaoGastos(p.gastos, estadual: p.resumo.esfera == 'estadual'),
+                  if (p.emendas != null) _SecaoEmendas(p.emendas!),
                   _SecaoVotacoes(p),
                   SecaoAtencao(
                     p,
@@ -218,6 +219,47 @@ class _SecaoGastos extends StatelessWidget {
               ),
           ],
         ),
+      ],
+    );
+  }
+}
+
+class _SecaoEmendas extends StatelessWidget {
+  final Emendas e;
+  const _SecaoEmendas(this.e);
+
+  @override
+  Widget build(BuildContext context) {
+    return Grupo(
+      titulo: 'Emendas parlamentares',
+      descricao: 'Dinheiro do orçamento federal que o parlamentar indicou para áreas e lugares',
+      filhos: [
+        Linha(titulo: 'Indicado (empenhado)', subtitulo: '${e.quantidade} emendas', valor: reais(e.totalEmpenhado)),
+        Linha(titulo: 'Já pago', valor: reais(e.totalPago)),
+        if (e.porAno.length > 1) Padding(padding: const EdgeInsets.fromLTRB(12, 16, 16, 8), child: _GraficoAnos(e.porAno)),
+        ExpansionTile(
+          title: const Text('Por área'),
+          shape: const Border(),
+          children: [for (final a in e.porArea) Linha(titulo: a.nome, valor: reaisCurto(a.valor))],
+        ),
+        ExpansionTile(
+          title: const Text('Para onde foi'),
+          shape: const Border(),
+          children: [for (final a in e.porLocal) Linha(titulo: a.nome, valor: reaisCurto(a.valor))],
+        ),
+        if (e.favorecidos.isNotEmpty)
+          ExpansionTile(
+            title: const Text('Quem recebeu'),
+            shape: const Border(),
+            children: [
+              for (final f in e.favorecidos)
+                Linha(
+                  titulo: f.nome,
+                  subtitulo: [f.municipio, f.uf].whereType<String>().join(' · '),
+                  valor: reaisCurto(f.valor),
+                ),
+            ],
+          ),
       ],
     );
   }

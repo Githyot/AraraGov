@@ -5,7 +5,7 @@ o que falta. Este arquivo é atualizado a cada entrega.
 
 Legenda: ✅ pronto (no `main`) · ✅ em revisão (PR aberto) · ⬜ falta fazer · ⏸️ só quando pedido
 
-_Última atualização: 4 de novembro de 2026 (PRs #4, #5 e #6 no main)_
+_Última atualização: 5 de novembro de 2026_
 
 ## Visão geral
 
@@ -16,6 +16,7 @@ _Última atualização: 4 de novembro de 2026 (PRs #4, #5 e #6 no main)_
 | 3. App multiplataforma (Flutter, visual GNOME) | ✅ primeira versão · ⏸️ builds só quando pedido |
 | 4. Estados | ✅ início (TSE nos 27 estados, MG e SP) |
 | Benefícios e custo dos gabinetes | ✅ Senado |
+| Emendas parlamentares | 🔄 PR #7 |
 | 5. Municípios | ⬜ aguardando as necessidades que HP vai trazer |
 
 ## 1. Base federal ✅
@@ -34,7 +35,7 @@ _Última atualização: 4 de novembro de 2026 (PRs #4, #5 e #6 no main)_
 - ⬜ Câmara: auxílio-moradia e imóvel funcional (a página da Câmara está atrás de login)
 - ⬜ Outros penduricalhos: verba de gabinete total, passagens, plano de saúde
 - ⬜ Fotos e dados de legislaturas anteriores
-- ⬜ Emendas parlamentares (para onde vai o dinheiro de cada um)
+- 🔄 Emendas parlamentares: quanto cada um indicou, quanto foi pago, para onde e quem recebeu (PR #7)
 
 ## 2. Análises ✅
 

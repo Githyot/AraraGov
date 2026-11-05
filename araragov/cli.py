@@ -15,7 +15,7 @@ from datetime import date
 from sqlalchemy import func, select
 
 from . import db
-from .collectors import assembleias, beneficios, camara, gabinete, referencia, senado, tse
+from .collectors import assembleias, beneficios, camara, emendas, gabinete, referencia, senado, tse
 from .http import HttpClient
 
 ALVOS = {
@@ -28,6 +28,7 @@ ALVOS = {
     "camara-gabinetes": lambda c, a: gabinete.coletar_camara(c),
     "senado-gabinetes": lambda c, a: gabinete.coletar_senado(c),
     "senado-moradia": lambda c, a: beneficios.coletar_moradia_senado(c),
+    "emendas": lambda c, a: emendas.coletar_emendas(c, a.ano, a.limite),
     # Estados: eleitos do TSE nos 27 estados. Onde a assembleia tem lista
     # própria (MG, SP), a coleta dela vem depois e substitui a do TSE; se a
     # assembleia estiver fora do ar, fica a lista do TSE.
@@ -48,7 +49,7 @@ COM_RESERVA = {"almg-deputados", "almg-despesas", "alesp-deputados", "alesp-desp
 
 POR_ANO = {
     "camara-votacoes", "camara-despesas", "senado-votacoes", "senado-despesas",
-    "almg-despesas", "alesp-despesas",
+    "almg-despesas", "alesp-despesas", "emendas",
 }
 
 
@@ -61,7 +62,7 @@ def _anos(texto: str) -> list[int]:
 
 def resumo() -> None:
     with db.sessao() as s:
-        for modelo in (db.Politico, db.Votacao, db.Voto, db.Despesa, db.Assessor, db.Beneficio, db.Ipca, db.Subsidio):
+        for modelo in (db.Politico, db.Votacao, db.Voto, db.Despesa, db.Assessor, db.Beneficio, db.Emenda, db.Favorecido, db.Ipca, db.Subsidio):
             total = s.execute(select(func.count()).select_from(modelo)).scalar_one()
             print(f"{modelo.__tablename__:10} {total:>10}")
 
