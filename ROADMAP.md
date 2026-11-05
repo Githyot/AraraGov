@@ -3,7 +3,7 @@
 Linha de progresso do projeto: o que já está pronto, o que está em revisão e
 o que falta. Este arquivo é atualizado a cada entrega.
 
-Legenda: ✅ pronto (no `main`) · ✅ em revisão (PR aberto) · ⬜ falta fazer · ⏸️ só quando pedido
+Legenda: ✅ pronto (no `main`) · 🔄 em revisão (PR aberto) · ⬜ falta fazer · ⏸️ só quando pedido
 
 _Última atualização: 5 de novembro de 2026_
 
@@ -17,6 +17,7 @@ _Última atualização: 5 de novembro de 2026_
 | 4. Estados | ✅ início (TSE nos 27 estados, MG e SP) |
 | Benefícios e custo dos gabinetes | ✅ Senado |
 | Emendas parlamentares | 🔄 PR #7 |
+| Período, comparação e doação do salário | 🔄 PR #8 |
 | 5. Municípios | ⬜ aguardando as necessidades que HP vai trazer |
 
 ## 1. Base federal ✅
@@ -34,6 +35,7 @@ _Última atualização: 5 de novembro de 2026_
 - ⬜ Câmara: salário dos assessores por nível (falta a tabela da Lei 15.349/2026)
 - ⬜ Câmara: auxílio-moradia e imóvel funcional (a página da Câmara está atrás de login)
 - ⬜ Outros penduricalhos: verba de gabinete total, passagens, plano de saúde
+- ⬜ Ampliar a lista de quem declara doar o salário (cada nome com fonte pública)
 - ⬜ Fotos e dados de legislaturas anteriores
 - 🔄 Emendas parlamentares: quanto cada um indicou, quanto foi pago, para onde e quem recebeu (PR #7)
 
@@ -56,8 +58,9 @@ _Última atualização: 5 de novembro de 2026_
 - ✅ Busca por nome, partido, estado e casa; perfil completo com gráficos
 - ✅ Telas de posição política, alinhamento e votações de atenção
 - ✅ Filtro Federal/Estadual e perfis estaduais
-- ⬜ Filtro por período (ano/legislatura)
-- ⬜ Comparar dois políticos lado a lado
+- 🔄 Filtro por período (ano) no perfil (PR #8)
+- 🔄 Comparar dois políticos lado a lado, com % de votos iguais (PR #8)
+- 🔄 Doação do salário: quem declara doar, com a fonte, e filtro na busca (PR #8)
 - ⏸️ Gerar os aplicativos (lojas e instaladores): só quando HP pedir
 
 ## 4. Estados (em andamento)

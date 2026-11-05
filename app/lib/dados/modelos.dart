@@ -8,6 +8,9 @@ class PoliticoResumo {
   final String? partido, uf, foto;
   final bool emExercicio;
 
+  /// Declara publicamente doar o salário ou parte dele (lista curada, com fonte).
+  final bool doaSalario;
+
   PoliticoResumo.fromJson(Map<String, dynamic> j)
       : id = j['id'],
         casa = j['casa'],
@@ -18,7 +21,8 @@ class PoliticoResumo {
         partido = j['partido'],
         uf = j['uf'],
         foto = j['foto'],
-        emExercicio = j['em_exercicio'] ?? false;
+        emExercicio = j['em_exercicio'] ?? false,
+        doaSalario = j['doa_salario'] ?? false;
 
   String get partidoUf => [partido, uf].whereType<String>().join(' · ');
 }
@@ -196,6 +200,20 @@ class Beneficio {
         fonte = j['fonte'];
 }
 
+/// Doação do salário declarada pelo próprio político, com a fonte pública.
+class DoacaoSalario {
+  final String? parte, data;
+  final String descricao, fonte;
+
+  DoacaoSalario.fromJson(Map<String, dynamic> j)
+      : parte = j['parte'],
+        data = j['data'],
+        descricao = j['descricao'] ?? '',
+        fonte = j['fonte'] ?? '';
+
+  String get titulo => parte == null ? 'Declara doar o salário' : 'Declara doar $parte do salário';
+}
+
 class Perfil {
   final PoliticoResumo resumo;
   final String? nomeCivil, email, avisoCadastro;
@@ -207,12 +225,18 @@ class Perfil {
   final CustoGabinete? custoGabinete;
   final List<Beneficio> beneficios;
   final Emendas? emendas;
+  final DoacaoSalario? doacaoSalario;
   final Posicao? posicao;
   final Alinhamento? alinhamento;
   final ({int votacoes, int votouSim, int votouNao})? atencao;
 
-  Perfil.fromJson(Map<String, dynamic> j)
-      : resumo = PoliticoResumo.fromJson(j),
+  /// Ano do filtro de período, ou null para todo o período.
+  final int? ano;
+  final Map<String, dynamic> _json;
+
+  Perfil.fromJson(Map<String, dynamic> j, {this.ano})
+      : _json = j,
+        resumo = PoliticoResumo.fromJson(j),
         nomeCivil = j['nome_civil'],
         email = j['email'],
         avisoCadastro = j['aviso_cadastro'],
@@ -224,6 +248,7 @@ class Perfil {
         custoGabinete = j['custo_gabinete'] == null ? null : CustoGabinete.fromJson(j['custo_gabinete']),
         beneficios = [for (final b in (j['beneficios'] as List? ?? [])) Beneficio.fromJson(b)],
         emendas = j['emendas'] == null ? null : Emendas.fromJson(j['emendas']),
+        doacaoSalario = j['doacao_salario'] == null ? null : DoacaoSalario.fromJson(j['doacao_salario']),
         posicao = j['posicao'] == null ? null : Posicao.fromJson(j['posicao']),
         alinhamento = j['alinhamento'] == null ? null : Alinhamento.fromJson(j['alinhamento']),
         atencao = j['atencao'] == null
@@ -233,6 +258,61 @@ class Perfil {
                 votouSim: j['atencao']['votou_sim'] as int,
                 votouNao: j['atencao']['votou_nao'] as int,
               );
+
+  /// Anos que têm algum dado (votações, gastos ou emendas), do mais recente.
+  List<int> get anosDisponiveis {
+    final base = Perfil.fromJson(_json);
+    final anos = <int>{
+      for (final v in base.votacoes)
+        if (v.data != null && v.data!.length >= 4) int.parse(v.data!.substring(0, 4)),
+      for (final a in base.gastos.porAno) a.ano,
+      for (final a in base.emendas?.porAno ?? const <({int ano, double valor})>[]) a.ano,
+    };
+    return anos.toList()..sort((a, b) => b.compareTo(a));
+  }
+
+  /// O mesmo perfil, só com o que aconteceu em [ano] (null = todo o período).
+  /// Posição e alinhamento continuam calculados sobre todo o período.
+  Perfil noAno(int? ano) {
+    if (ano == null) return Perfil.fromJson(_json);
+    final j = Map<String, dynamic>.from(_json);
+    final chave = '$ano';
+    final votos = [
+      for (final v in (j['votacoes'] as List? ?? []))
+        if ((v['data'] as String? ?? '').startsWith(chave)) v
+    ];
+    j['votacoes'] = votos;
+    final presenca = <String, int>{};
+    for (final v in votos) {
+      presenca[v['voto'] as String] = (presenca[v['voto']] ?? 0) + 1;
+    }
+    j['presenca'] = presenca;
+    final comAtencao = votos.where((v) => v['atencao'] != null).toList();
+    j['atencao'] = comAtencao.isEmpty
+        ? null
+        : {
+            'votacoes': comAtencao.length,
+            'votou_sim': comAtencao.where((v) => v['voto'] == 'sim').length,
+            'votou_nao': comAtencao.where((v) => v['voto'] == 'nao').length,
+          };
+    final g = Map<String, dynamic>.from(j['gastos'] as Map? ?? {});
+    final doAno = (g['anos'] as Map?)?[chave] as Map?;
+    j['gastos'] = {
+      'total': doAno?['total'] ?? 0,
+      'por_ano': [for (final a in (g['por_ano'] as List? ?? [])) if (a['ano'] == ano) a],
+      'por_categoria': doAno?['por_categoria'] ?? [],
+      'maiores_fornecedores': doAno?['maiores_fornecedores'] ?? [],
+      'vs_inflacao': [for (final v in (g['vs_inflacao'] as List? ?? [])) if (v['ano'] == ano) v],
+      'documentos_recentes': [
+        for (final d in (g['documentos_recentes'] as List? ?? []))
+          if ((d['data'] as String? ?? '').startsWith(chave)) d
+      ],
+    };
+    final e = j['emendas'] as Map?;
+    final emAno = (e?['anos'] as Map?)?[chave] as Map?;
+    j['emendas'] = emAno == null ? null : (Map<String, dynamic>.from(emAno)..['por_ano'] = []);
+    return Perfil.fromJson(j, ano: ano);
+  }
 
   int get totalVotacoes => presenca.values.fold(0, (a, b) => a + b);
   int get participou => ['sim', 'nao', 'abstencao', 'obstrucao', 'presidente', 'presente_sem_voto']

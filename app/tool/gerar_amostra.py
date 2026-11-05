@@ -38,7 +38,7 @@ def perfil(i, nome):
         "id": f"{casa}-{9000 + i}", "casa": casa,
         "cargo": "Senador" if casa == "senado" else "Deputado Federal",
         "nome": nome, "partido": PARTIDOS[i % len(PARTIDOS)], "uf": UFS[i % len(UFS)],
-        "foto": None, "em_exercicio": i != 9,
+        "foto": None, "em_exercicio": i != 9, "doa_salario": i == 1,
     }
     anos = [{"ano": a, "valor": round(random.uniform(250e3, 520e3), 2)} for a in (2023, 2024, 2025)]
     votos = random.choices(["sim", "nao", "abstencao", "ausente", "obstrucao"], weights=[50, 30, 4, 12, 4], k=len(VOTACOES))
@@ -53,6 +53,10 @@ def perfil(i, nome):
         },
         "gastos": {
             "total": sum(a["valor"] for a in anos), "por_ano": anos, "por_mes": [],
+            "anos": {str(a["ano"]): {"total": a["valor"],
+                                     "por_categoria": [{"nome": CATEGORIAS[0], "valor": round(a["valor"] * 0.6, 2)}, {"nome": CATEGORIAS[1], "valor": round(a["valor"] * 0.4, 2)}],
+                                     "maiores_fornecedores": [{"nome": f"Fornecedor Exemplo {a['ano']} Ltda", "valor": round(a["valor"] * 0.2, 2)}]}
+                     for a in anos},
             "por_categoria": sorted(({"nome": c, "valor": round(random.uniform(5e3, 300e3), 2)} for c in CATEGORIAS), key=lambda x: -x["valor"]),
             "maiores_fornecedores": [{"nome": f"Fornecedor Exemplo {k} Ltda", "valor": round(random.uniform(5e3, 90e3), 2)} for k in range(1, 6)],
             "vs_inflacao": [
@@ -73,7 +77,10 @@ def perfil(i, nome):
                     "por_ano": [{"ano": 2023, "empenhado": 6_000_000, "pago": 5_000_000}, {"ano": 2024, "empenhado": 6_500_000, "pago": 4_200_000}, {"ano": 2025, "empenhado": 6_000_000, "pago": 2_000_000}],
                     "por_area": [{"nome": "Saúde", "valor": 9_000_000}, {"nome": "Urbanismo", "valor": 5_500_000}, {"nome": "Educação", "valor": 4_000_000}],
                     "por_local": [{"nome": "Cidade Exemplo - EX", "valor": 7_000_000}, {"nome": "Vila Fictícia - EX", "valor": 4_000_000}],
-                    "favorecidos": [{"nome": "Prefeitura de Cidade Exemplo", "documento": None, "tipo": "Pessoa Jurídica", "municipio": "Cidade Exemplo", "uf": "EX", "valor": 6_000_000}]},
+                    "favorecidos": [{"nome": "Prefeitura de Cidade Exemplo", "documento": None, "tipo": "Pessoa Jurídica", "municipio": "Cidade Exemplo", "uf": "EX", "valor": 6_000_000}],
+                    "anos": {str(a): {"total_empenhado": e, "total_pago": pg, "quantidade": 8, "por_area": [{"nome": "Saúde", "valor": e}], "por_local": [], "favorecidos": []}
+                             for a, e, pg in ((2023, 6_000_000, 5_000_000), (2024, 6_500_000, 4_200_000), (2025, 6_000_000, 2_000_000))}},
+        "doacao_salario": {"parte": "20%", "descricao": "Declara doar parte do salário a instituições (exemplo).", "fonte": "https://example.org/declaracao", "data": "2025-01-10"} if i == 1 else None,
         "beneficios": [{"tipo": "imovel_funcional", "descricao": "Ocupa imóvel funcional em Brasília", "valor_mensal": None, "referencia": "04/11/2026", "fonte": None}],
         "presenca": {v: votos.count(v) for v in set(votos)},
         "posicao": {"pct_esquerda": pe, "pct_direita": round(100 - pe, 1), "faixa": faixa(pe),

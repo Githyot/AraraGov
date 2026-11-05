@@ -9,6 +9,7 @@ import '../tema.dart';
 import '../widgets/adw.dart';
 import '../widgets/voto.dart';
 import 'analises.dart';
+import 'comparar.dart';
 
 class PerfilTela extends StatefulWidget {
   final Api api;
@@ -23,6 +24,16 @@ class PerfilTela extends StatefulWidget {
 
 class _PerfilTelaState extends State<PerfilTela> {
   late Future<Perfil> _perfil = widget.api.perfil(widget.id);
+  int? _ano;
+
+  @override
+  void didUpdateWidget(PerfilTela antigo) {
+    super.didUpdateWidget(antigo);
+    if (antigo.id != widget.id) {
+      _perfil = widget.api.perfil(widget.id);
+      _ano = null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,6 +41,33 @@ class _PerfilTelaState extends State<PerfilTela> {
       appBar: AppBar(
         automaticallyImplyLeading: !widget.embutido,
         title: Text(widget.resumo?.nome ?? ''),
+        actions: [
+          FutureBuilder<Perfil>(
+            future: _perfil,
+            builder: (context, snap) {
+              if (!snap.hasData) return const SizedBox();
+              final anos = snap.data!.anosDisponiveis;
+              return Row(mainAxisSize: MainAxisSize.min, children: [
+                if (anos.length > 1)
+                  PopupMenuButton<int>(
+                    tooltip: 'Período',
+                    icon: const Icon(Icons.calendar_month_outlined),
+                    initialValue: _ano ?? 0,
+                    onSelected: (v) => setState(() => _ano = v == 0 ? null : v),
+                    itemBuilder: (_) => [
+                      const PopupMenuItem(value: 0, child: Text('Todo o período')),
+                      for (final a in anos) PopupMenuItem(value: a, child: Text('$a')),
+                    ],
+                  ),
+                IconButton(
+                  tooltip: 'Comparar com outro político',
+                  icon: const Icon(Icons.compare_arrows),
+                  onPressed: () => abrirComparacao(context, widget.api, snap.data!),
+                ),
+              ]);
+            },
+          ),
+        ],
       ),
       body: FutureBuilder<Perfil>(
         future: _perfil,
@@ -46,17 +84,26 @@ class _PerfilTelaState extends State<PerfilTela> {
             );
           }
           if (!snap.hasData) return const Center(child: CircularProgressIndicator());
-          final p = snap.data!;
+          final p = snap.data!.noAno(_ano);
           return ListView(
             padding: const EdgeInsets.symmetric(horizontal: Adw.espaco, vertical: 24),
             children: [
               Clamp(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                   _Cabecalho(p),
+                  if (_ano != null) ...[
+                    const SizedBox(height: 12),
+                    Center(
+                      child: InputChip(
+                        label: Text('Mostrando só $_ano'),
+                        onDeleted: () => setState(() => _ano = null),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 24),
                   SecaoPosicao(p),
                   SecaoAlinhamento(p),
-                  _SecaoSalario(p.salario, beneficios: p.beneficios),
+                  _SecaoSalario(p.salario, beneficios: p.beneficios, doacao: p.doacaoSalario),
                   _SecaoGastos(p.gastos, estadual: p.resumo.esfera == 'estadual'),
                   if (p.emendas != null) _SecaoEmendas(p.emendas!),
                   _SecaoVotacoes(p),
@@ -138,13 +185,22 @@ class _LinhaInflacao extends StatelessWidget {
 class _SecaoSalario extends StatelessWidget {
   final Salario s;
   final List<Beneficio> beneficios;
-  const _SecaoSalario(this.s, {this.beneficios = const []});
+  final DoacaoSalario? doacao;
+  const _SecaoSalario(this.s, {this.beneficios = const [], this.doacao});
+
+  Widget _linhaDoacao(DoacaoSalario d) => Linha(
+        prefixo: const Icon(Icons.volunteer_activism_outlined),
+        titulo: d.titulo,
+        subtitulo: '${d.descricao}\nDeclaração pública do próprio político; o AraraGov não confere a doação.',
+        aoTocar: () => _abrir(d.fonte),
+      );
 
   @override
   Widget build(BuildContext context) {
     if (s.atual == null) {
       return Grupo(titulo: 'Salário', filhos: [
         Linha(titulo: s.observacao ?? 'Não informado'),
+        if (doacao != null) _linhaDoacao(doacao!),
         for (final b in beneficios) Linha(titulo: b.descricao, subtitulo: 'Benefício além do salário'),
       ]);
     }
@@ -155,6 +211,7 @@ class _SecaoSalario extends StatelessWidget {
         Linha(titulo: s.teto ? 'Teto do salário' : 'Salário atual', valor: reais(s.atual)),
         if (s.vsInflacao != null)
           _LinhaInflacao(titulo: 'Desde ${mesAno(s.vsInflacao!.desde)}', v: s.vsInflacao!),
+        if (doacao != null) _linhaDoacao(doacao!),
         for (final b in beneficios)
           Linha(
             titulo: b.descricao,

@@ -72,3 +72,4 @@ def test_exporta_emendas(client, tmp_path):
     assert (e["total_empenhado"], e["total_pago"], e["quantidade"]) == (150000.0, 50000.0, 1)
     assert e["por_area"][0] == {"nome": "Saúde", "valor": 150000.0}
     assert e["favorecidos"][0]["nome"] == "MUNICIPIO DE SALVADOR"
+    assert e["anos"]["2025"]["total_pago"] == 50000.0

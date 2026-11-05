@@ -85,7 +85,41 @@ def orgao(casa: str) -> Dict[str, str]:
     return {"esfera": "outra", "orgao": casa}
 
 
-def _resumo(p: Politico) -> Dict[str, Any]:
+DOACOES_CSV = Path(__file__).parent / "referencia" / "doacao_salario.csv"
+
+
+def doacoes_salario(caminho: Path = DOACOES_CSV) -> Dict[tuple, Dict[str, Any]]:
+    """Políticos que declaram publicamente doar o salário (ou parte dele).
+
+    Lista curada à mão: cada linha precisa de uma fonte pública (fala do
+    próprio político ou reportagem). O app mostra como "declara doar", sem
+    afirmar que a doação foi conferida."""
+    import csv
+    from .collectors.gabinete import _chave_nome
+
+    if not caminho.exists():
+        return {}
+    with caminho.open(encoding="utf-8", newline="") as f:
+        linhas = list(csv.DictReader(f, delimiter=";"))
+    return {
+        (l["casa"].strip(), _chave_nome(l["nome"])): {
+            "parte": (l.get("parte") or "").strip() or None,
+            "descricao": l["descricao"].strip(),
+            "fonte": l["fonte"].strip(),
+            "data": (l.get("data") or "").strip() or None,
+        }
+        for l in linhas
+        if (l.get("fonte") or "").strip().startswith("http")
+    }
+
+
+def _doacao(p: Politico, doacoes: Dict[tuple, Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    from .collectors.gabinete import _chave_nome
+
+    return doacoes.get((p.casa, _chave_nome(p.nome or "")))
+
+
+def _resumo(p: Politico, doacoes: Optional[Dict[tuple, Dict[str, Any]]] = None) -> Dict[str, Any]:
     return {
         "id": f"{p.casa}-{p.codigo}",
         "casa": p.casa,
@@ -96,6 +130,7 @@ def _resumo(p: Politico) -> Dict[str, Any]:
         "uf": p.uf,
         "foto": p.url_foto,
         "em_exercicio": bool(p.em_exercicio),
+        "doa_salario": bool(doacoes and _doacao(p, doacoes)),
     }
 
 
@@ -139,17 +174,10 @@ def _salario(cargo: str, subsidios: List[Subsidio]) -> Dict[str, Any]:
     return resultado
 
 
-def _emendas(emendas: List[Emenda], favorecidos: List[Favorecido]) -> Optional[Dict[str, Any]]:
-    """Resumo das emendas do parlamentar: quanto indicou, quanto foi pago,
-    para quais áreas e lugares, e quem recebeu o dinheiro."""
-    if not emendas:
-        return None
-    por_ano: Dict[int, Dict[str, Decimal]] = defaultdict(lambda: {"empenhado": Decimal(0), "pago": Decimal(0)})
+def _resumo_emendas(emendas: List[Emenda], favorecidos: List[Favorecido]) -> Dict[str, Any]:
     por_area: Dict[str, Decimal] = defaultdict(Decimal)
     por_local: Dict[str, Decimal] = defaultdict(Decimal)
     for e in emendas:
-        por_ano[e.ano]["empenhado"] += e.empenhado
-        por_ano[e.ano]["pago"] += e.pago
         por_area[e.funcao or "Não informada"] += e.empenhado
         por_local[e.localidade or "Não informado"] += e.empenhado
     receb: Dict[tuple, Decimal] = defaultdict(Decimal)
@@ -166,7 +194,6 @@ def _emendas(emendas: List[Emenda], favorecidos: List[Favorecido]) -> Optional[D
         "total_empenhado": sum((e.empenhado for e in emendas), Decimal(0)),
         "total_pago": sum((e.pago for e in emendas), Decimal(0)),
         "quantidade": len(emendas),
-        "por_ano": [{"ano": a, **v} for a, v in sorted(por_ano.items())],
         "por_area": top(por_area),
         "por_local": top(por_local),
         "favorecidos": [
@@ -174,6 +201,25 @@ def _emendas(emendas: List[Emenda], favorecidos: List[Favorecido]) -> Optional[D
              "municipio": meta[(nome, doc)].municipio, "uf": meta[(nome, doc)].uf, "valor": v}
             for (nome, doc), v in sorted(receb.items(), key=lambda x: -x[1])[:10]
         ],
+    }
+
+
+def _emendas(emendas: List[Emenda], favorecidos: List[Favorecido]) -> Optional[Dict[str, Any]]:
+    """Resumo das emendas do parlamentar: quanto indicou, quanto foi pago,
+    para quais áreas e lugares, e quem recebeu o dinheiro. Também por ano,
+    para o filtro de período do app."""
+    if not emendas:
+        return None
+    anos = sorted({e.ano for e in emendas})
+    por_ano_resumo = {
+        a: _resumo_emendas([e for e in emendas if e.ano == a], [f for f in favorecidos if f.ano == a]) for a in anos
+    }
+    return {
+        **_resumo_emendas(emendas, favorecidos),
+        "por_ano": [
+            {"ano": a, "empenhado": r["total_empenhado"], "pago": r["total_pago"]} for a, r in por_ano_resumo.items()
+        ],
+        "anos": {str(a): r for a, r in por_ano_resumo.items()},
     }
 
 
@@ -195,7 +241,12 @@ def _gastos(despesas: List[Despesa], politico: Politico) -> Dict[str, Any]:
     por_mes: Dict[str, Decimal] = defaultdict(Decimal)
     por_categoria: Dict[str, Decimal] = defaultdict(Decimal)
     por_fornecedor: Dict[str, Decimal] = defaultdict(Decimal)
+    # Para o filtro de período do app: categoria e fornecedor de cada ano.
+    cat_ano: Dict[int, Dict[str, Decimal]] = defaultdict(lambda: defaultdict(Decimal))
+    forn_ano: Dict[int, Dict[str, Decimal]] = defaultdict(lambda: defaultdict(Decimal))
     for d in despesas:
+        cat_ano[d.ano][d.categoria or "Outros"] += d.valor
+        forn_ano[d.ano][d.fornecedor or "Não informado"] += d.valor
         por_ano[d.ano] += d.valor
         por_mes[f"{d.ano}-{d.mes:02d}"] += d.valor
         por_categoria[d.categoria or "Outros"] += d.valor
@@ -218,6 +269,10 @@ def _gastos(despesas: List[Despesa], politico: Politico) -> Dict[str, Any]:
         "por_mes": [{"mes": m, "valor": v} for m, v in sorted(por_mes.items())],
         "por_categoria": top(por_categoria, 20),
         "maiores_fornecedores": top(por_fornecedor, 10),
+        "anos": {
+            str(a): {"total": por_ano[a], "por_categoria": top(cat_ano[a], 20), "maiores_fornecedores": top(forn_ano[a], 10)}
+            for a in sorted(por_ano)
+        },
         "vs_inflacao": vs_inflacao,
         "documentos_recentes": [
             {
@@ -349,6 +404,7 @@ def exportar(saida: Path) -> int:
 
     analises = _analises(politicos, votos_por, votacoes)
     salarios = {cargo: _salario(cargo, subsidios) for cargo in {p.cargo for p in politicos}}
+    doacoes = doacoes_salario()
 
     for p in politicos:
         votos = sorted(
@@ -357,7 +413,8 @@ def exportar(saida: Path) -> int:
             reverse=True,
         )
         perfil = {
-            **_resumo(p),
+            **_resumo(p, doacoes),
+            "doacao_salario": _doacao(p, doacoes),
             "aviso_cadastro": AVISO_TSE if p.fonte == "tse" else None,
             "nome_civil": p.nome_civil,
             "email": p.email,
@@ -388,7 +445,7 @@ def exportar(saida: Path) -> int:
         }
         _gravar(base / "politicos" / f"{p.casa}-{p.codigo}.json", perfil)
 
-    _gravar(base / "politicos.json", [_resumo(p) for p in politicos])
+    _gravar(base / "politicos.json", [_resumo(p, doacoes) for p in politicos])
     _gravar(
         base / "meta.json",
         {"gerado_em": datetime.now(timezone.utc), "versao": __version__, "total_politicos": len(politicos), "fontes": FONTES},
