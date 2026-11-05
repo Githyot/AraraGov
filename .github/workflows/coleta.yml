@@ -75,6 +75,10 @@ jobs:
             # 4000 pares município-ano no Siconfi; o resto vem das semanas seguintes.
             python -m araragov municipios --saida site --financas 2019-$(( $(date +%Y) - 1 )) --limite-siconfi 4000
           fi
+      - name: Sondar o pacote do SINAPI
+        if: ${{ github.event_name == 'pull_request' && !cancelled() }}
+        continue-on-error: true
+        run: python -m araragov sinapi-sondar --mes 2025-06 | head -400
       - name: Tamanho da API
         # O GitHub Pages aceita sites de até 1 GB.
         run: |

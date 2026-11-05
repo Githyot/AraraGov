@@ -101,6 +101,8 @@ def main(argv: list[str] | None = None) -> int:
     mun.add_argument("--financas", type=_anos, default=[], help="anos de arrecadação e gastos (Siconfi), ex.: 2019-2025")
     mun.add_argument("--limite-siconfi", type=int, help="máximo de pares município-ano buscados no Siconfi nesta execução")
     mun.add_argument("--sem-eleitos", action="store_true", help="não gera os resumos com prefeitos e vereadores")
+    son = sub.add_parser("sinapi-sondar", help="mostra o formato do pacote mensal do SINAPI")
+    son.add_argument("--mes", default="", help="AAAA-MM (padrão: dois meses atrás)")
     exp = sub.add_parser("exportar", help="gera a API estática (JSON) que o app lê")
     exp.add_argument("--saida", default="site", help="pasta de saída (padrão: site)")
     args = p.parse_args(argv)
@@ -120,6 +122,20 @@ def main(argv: list[str] | None = None) -> int:
         from .exportar import exportar
 
         exportar(Path(args.saida))
+        return 0
+
+    if args.comando == "sinapi-sondar":
+        from .municipios import sinapi
+
+        if args.mes:
+            ano, mes = (int(x) for x in args.mes.split("-"))
+        else:
+            hoje = date.today()
+            ano, mes = (hoje.year, hoje.month - 2) if hoje.month > 2 else (hoje.year - 1, hoje.month + 10)
+        for parte in sinapi.sondar(sinapi.baixar(HttpClient(), ano, mes)):
+            print(f"== {parte['arquivo']} | {parte['aba']} | {parte['dimensao']} linhas")
+            for linha in parte["amostra"]:
+                print("   ", linha)
         return 0
 
     if args.comando == "municipios":
