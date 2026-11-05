@@ -138,15 +138,16 @@ disso, os arquivos de municípios vão para um repositório de dados separado.
 | 1 | Quem governa: prefeitos, vices e vereadores 2016/2020/2024 (TSE), por município e período | 🔄 |
 | 2 | Arrecadação e gastos por área (Siconfi), Brasil inteiro, com IPCA | 🔄 |
 | 3 | Banco de custos de referência (SINAPI, SICRO, índices, ANP, ANTT, artigos) | 🔄 |
-| 4 | Estado piloto: pagamentos, contratos e obras pelo TCE, com comparação de custo | ⬜ |
+| 4 | Estado piloto (SP): pagamentos, contratos e obras pelo TCE-SP, com comparação de custo | 🔄 |
 | 5 | Fornecedores: CNPJs, sócios (Receita), CEIS/CNEP e indícios de vínculo | ⬜ |
 | 6 | Emendas e transferências até o CNPJ que recebeu | ⬜ |
 | 7 | Telas do app (município, área, obra, fornecedor) | ⬜ |
 | 8 | Outros estados (um TCE por vez) e portais Fiorilli, Betha, IPM | ⬜ |
 
-**Estado piloto sugerido: Paraná.** O TCE-PR publica dados abertos de todos os
-399 municípios, e o caso de Campo Mourão serve de teste real. São Paulo
-(TCE-SP, 644 municípios) e Rio Grande do Sul (LicitaCon) vêm em seguida.
+**Estado piloto: São Paulo.** O plano sugeria o Paraná, mas o portal de
+dados abertos do TCE-PR não respondeu a partir do GitHub (nem o do TCE-RS).
+O TCE-SP responde e publica de uma vez os 644 municípios do estado (menos a
+capital, que tem tribunal próprio). O Paraná volta na fase 8.
 
 ## Fase 1: quem governa
 
@@ -190,6 +191,34 @@ algumas semanas.
 
 O detalhe abaixo da subfunção (cada pagamento, quem recebeu) não está no
 Siconfi e vem na fase 4, pelos Tribunais de Contas.
+
+## Fase 4: pagamentos, contratos e obras (SP)
+
+`araragov tce-sp --anos 2024-2025` lê os dados abertos do TCE-SP e grava, por
+município:
+
+- `{ano}-pagamentos.md`: só o que foi pago (não o empenhado). Tabelas
+  `resumo` (empresas, pessoas físicas e pessoal/dívida), `favorecidos` (as 50
+  empresas e entidades que mais receberam, com as áreas),
+  `areas-favorecidos` (as 10 maiores de cada subfunção) e `obras` (elemento
+  4.4.90.51, obras e instalações, com o histórico do empenho). Pagamento a
+  pessoa física aparece só como total e quantidade, sem nome nem CPF. Folha,
+  encargos e dívida ficam fora do ranking.
+- `{ano}-contratos.md`: `obras` (contratos cujo objeto é obra de um item do
+  catálogo de custos, com o valor por m², metro ou unidade comparado com a
+  faixa de `v1/referencia/custos/sp.md`), `contratos` (os 60 maiores) e
+  `contratacoes-diretas` (empresas com 3 ou mais dispensas ou
+  inexigibilidades no ano).
+
+A comparação é feita só quando faz sentido:
+
+- Prédios (escola, creche, UBS, hospital) só contam como obra nova ou
+  ampliação. Reforma, pintura, piso, vidro e manutenção ficam de fora, porque
+  não se comparam com o custo do m² de um prédio inteiro.
+- Sem quantidade ou unidade no contrato: "Quantidade não informada".
+- Valor por unidade mais de 10 vezes acima ou abaixo da faixa (por exemplo,
+  uma escola inteira lançada como "1 m²"): "Quantidade ou unidade incoerente",
+  sem comparação. Isso é quase sempre erro de cadastro, não preço.
 
 ## Limitações conhecidas
 

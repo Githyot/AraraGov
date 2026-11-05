@@ -47,12 +47,22 @@ REGRAS: List[Tuple[str, Tuple[str, ...], Tuple[str, ...]]] = [
     ("drenagem-tubo-600", ("drenagem",), ()),
     ("luminaria-led", ("lumin", "led"), ()),
     ("poste-concreto", ("poste",), ()),
-    ("creche", ("creche",), ("aliment", "material", "uniforme")),
-    ("ubs", ("unidade basica de saude",), ()),
-    ("ubs", ("ubs",), ()),
-    ("hospital", ("hospital", "constru"), ()),
-    ("escola", ("escola", "constru"), ("material", "aliment", "uniforme", "transporte")),
 ]
+
+# Prédios: só obra nova ou ampliação. Reforma, pintura, piso, vidro e
+# manutenção não se comparam com o custo do m² de um prédio inteiro.
+PREDIOS = (("creche", ("creche",)), ("ubs", ("unidade basica de saude", "ubs")),
+           ("hospital", ("hospital",)), ("escola", ("escola", "unidade escolar", "predio escolar")))
+OBRA_NOVA = ("construc", "constru ", "ampliac", "edificac")
+NAO_PREDIO = ("reforma", "pintura", "piso", "vidro", "manutenc", "aquisic", "fornecimento", "locac", "limpeza",
+              "aliment", "material", "uniforme", "transporte", "telhado", "cobertura", "reparo", "adequac")
+
+# Nomes que o TCE-SP grafa diferente do IBGE.
+NOMES_TCESP = {"florinea": 3516101}
+
+# Fora desta proporção da faixa, o mais provável é quantidade ou unidade
+# cadastrada errado (ex.: obra inteira lançada como "1 m²"); não se compara.
+LIMITE_COERENCIA = Decimal(10)
 
 UNIDADES = {
     "m²": ("M2", "M²", "METRO QUADRADO", "METROS QUADRADOS", "MT2"),
@@ -76,6 +86,10 @@ def classificar(objeto: str) -> Optional[str]:
     for item, precisa, exclui in REGRAS:
         if all(p in t for p in precisa) and not any(e in t for e in exclui):
             return item
+    if any(o in t + " " for o in OBRA_NOVA) and not any(e in t for e in NAO_PREDIO):
+        for item, nomes in PREDIOS:
+            if any(n in t for n in nomes):
+                return item
     return None
 
 
@@ -138,6 +152,10 @@ def comparar(item: Optional[str], unid: Optional[str], qtd: Decimal, total: Deci
     if ref is None:
         return {**vazio, "valor_unitario": unitario, "comparacao": "Sem faixa de referência para este item e ano", "aviso": None}
     minimo, maximo = Decimal(ref["minimo"]), Decimal(ref["maximo"])
+    if unitario > maximo * LIMITE_COERENCIA or unitario * LIMITE_COERENCIA < minimo:
+        return {**vazio, "valor_unitario": unitario,
+                "comparacao": "Quantidade ou unidade incoerente com o valor (provável erro de cadastro); comparação não feita",
+                "aviso": None}
     if unitario > maximo:
         texto = f"{((unitario / maximo - 1) * 100).quantize(Decimal('0.1'))}% acima da faixa de referência"
     elif unitario < minimo:
@@ -241,7 +259,7 @@ def gerar(client, saida: Path, anos: Iterable[int], hoje: Optional[date] = None,
             continue
         por_mun = agregar((l for a in arquivos for l in linhas_ajustes(a)), ano, refs, unidades_itens)
         for mun, dados in por_mun.items():
-            cod = ibge.get(chave_nome(mun))
+            cod = ibge.get(chave_nome(mun)) or NOMES_TCESP.get(chave_nome(mun))
             if not cod:
                 logger.warning("TCE-SP: município sem código IBGE: %s", mun)
                 continue
