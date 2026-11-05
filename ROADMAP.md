@@ -54,8 +54,9 @@ _Última atualização: 5 de novembro de 2026 (noite)_
   anistia, foro e imunidade, sem acusar ninguém
 - ✅ Metodologia publicada e conferida com os dados reais de 2025
 - ✅ Ideologia declarada pelo partido (PT, PCdoB, PDT, PL) ao lado da posição pelos votos, com a fonte
-- 🔄 Ideologia declarada também por PSB, PSOL e Republicanos (PR #10)
-- ⬜ Declarações de políticos e dos partidos que faltam (cada uma com fonte)
+- ✅ Ideologia declarada também por PSB, PSOL e Republicanos
+- 🔄 Ideologia declarada por PSDB (estatuto), PSD (presidente do partido) e Rede (princípios do partido)
+- ⬜ Declarações de políticos e dos partidos que faltam (cada uma com fonte). MDB, PP, União, Novo e Podemos não se definem em esquerda, direita ou outra corrente no estatuto nem nas falas oficiais achadas
 - ✅ Votações do Senado desde 2019 (código pronto; conferir com dados reais quando a API do Senado voltar, hoje responde erro 503)
 
 ## 3. App ✅
