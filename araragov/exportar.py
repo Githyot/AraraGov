@@ -119,6 +119,30 @@ def _doacao(p: Politico, doacoes: Dict[tuple, Dict[str, Any]]) -> Optional[Dict[
     return doacoes.get((p.casa, _chave_nome(p.nome or "")))
 
 
+VOTOS_INLINE = 8
+
+
+def _dia(valor: Any) -> Optional[str]:
+    return valor.isoformat()[:10] if valor else None
+
+
+def _detalhe(votacao: Votacao, analises: Dict[Any, Any]) -> Dict[str, Any]:
+    return {
+        "data": votacao.data,
+        "proposicao": votacao.proposicao,
+        "descricao": votacao.descricao,
+        "ementa": votacao.ementa,
+        "resultado": votacao.resultado,
+        "link": votacao.link,
+        "lado_sim": analises["_lados"].get(votacao.id),
+        "atencao": analises["_atencao"].get(votacao.id),
+    }
+
+
+def _detalhe_voto(v: Voto, votacao: Votacao, analises: Dict[Any, Any]) -> Dict[str, Any]:
+    return {"id": v.votacao_id, **_detalhe(votacao, analises), "voto": v.voto, "partido_na_epoca": v.partido}
+
+
 def _resumo(p: Politico, doacoes: Optional[Dict[tuple, Dict[str, Any]]] = None) -> Dict[str, Any]:
     return {
         "id": f"{p.casa}-{p.codigo}",
@@ -482,29 +506,41 @@ def exportar(saida: Path) -> int:
             "emendas": _emendas(emendas_por[(p.casa, p.codigo)], favorecidos_por[(p.casa, p.codigo)]),
             "presenca": dict(Counter(v.voto for v in votos)),
             **analises.get((p.casa, p.codigo), {}),
-            "votacoes": [
-                {
-                    "id": v.votacao_id,
-                    "data": votacoes[v.votacao_id].data,
-                    "proposicao": votacoes[v.votacao_id].proposicao,
-                    "descricao": votacoes[v.votacao_id].descricao,
-                    "ementa": votacoes[v.votacao_id].ementa,
-                    "resultado": votacoes[v.votacao_id].resultado,
-                    "link": votacoes[v.votacao_id].link,
-                    "voto": v.voto,
-                    "partido_na_epoca": v.partido,
-                    "lado_sim": analises["_lados"].get(v.votacao_id),
-                    "atencao": analises["_atencao"].get(v.votacao_id),
-                }
+            # Todos os votos em formato compacto; detalhes de cada votação ficam
+            # em votacoes/{ano}.json, compartilhados por todos os perfis.
+            "votos_formato": ["id", "data", "voto", "lado_sim", "atencao"],
+            "votos": [
+                [
+                    v.votacao_id,
+                    _dia(votacoes[v.votacao_id].data),
+                    v.voto,
+                    analises["_lados"].get(v.votacao_id),
+                    1 if analises["_atencao"].get(v.votacao_id) else 0,
+                ]
                 for v in votos
+            ],
+            # Detalhes inline só das mais recentes e das de atenção, para o
+            # perfil abrir sem baixar mais nada.
+            "votacoes": [
+                _detalhe_voto(v, votacoes[v.votacao_id], analises)
+                for i, v in enumerate(votos)
+                if i < VOTOS_INLINE or analises["_atencao"].get(v.votacao_id)
             ],
         }
         _gravar(base / "politicos" / f"{p.casa}-{p.codigo}.json", perfil)
 
+    por_ano: Dict[int, Dict[str, Any]] = defaultdict(dict)
+    for vid, votacao in votacoes.items():
+        if votacao.data:
+            por_ano[votacao.data.year][vid] = _detalhe(votacao, analises)
+    for ano, itens in por_ano.items():
+        _gravar(base / "votacoes" / f"{ano}.json", itens)
+
     _gravar(base / "politicos.json", [_resumo(p, doacoes) for p in politicos])
     _gravar(
         base / "meta.json",
-        {"gerado_em": datetime.now(timezone.utc), "versao": __version__, "total_politicos": len(politicos), "fontes": FONTES},
+        {"gerado_em": datetime.now(timezone.utc), "versao": __version__, "total_politicos": len(politicos),
+         "anos_votacoes": sorted(por_ano), "fontes": FONTES},
     )
     logger.info("Exportados %s políticos em %s", len(politicos), base)
     return len(politicos)

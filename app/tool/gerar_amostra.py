@@ -107,7 +107,18 @@ def perfil(i, nome):
             for k, (pr, em) in enumerate(VOTACOES)
         ],
     }
+    # Mesmo formato da API real: todos os votos compactos, detalhes inline só
+    # dos 8 mais recentes e dos de atenção; o resto em votacoes/{ano}.json.
+    completos = sorted(p["votacoes"], key=lambda v: v["data"], reverse=True)
+    p["votos_formato"] = ["id", "data", "voto", "lado_sim", "atencao"]
+    p["votos"] = [[v["id"], v["data"][:10], v["voto"], v["lado_sim"], 1 if v["atencao"] else 0] for v in completos]
+    p["votacoes"] = [v for i, v in enumerate(completos) if i < 8 or v["atencao"]]
+    for v in completos:
+        DETALHES[v["id"]] = {k: v[k] for k in ("data", "proposicao", "descricao", "ementa", "resultado", "link", "lado_sim", "atencao")}
     return resumo, p
+
+
+DETALHES = {}
 
 
 os.makedirs(os.path.join(SAIDA, "politicos"), exist_ok=True)
@@ -117,6 +128,9 @@ for i, nome in enumerate(NOMES):
     lista.append(resumo)
     with open(os.path.join(SAIDA, "politicos", f"{resumo['id']}.json"), "w", encoding="utf-8") as f:
         json.dump(p, f, ensure_ascii=False)
+os.makedirs(os.path.join(SAIDA, "votacoes"), exist_ok=True)
+with open(os.path.join(SAIDA, "votacoes", "2025.json"), "w", encoding="utf-8") as f:
+    json.dump(DETALHES, f, ensure_ascii=False)
 with open(os.path.join(SAIDA, "politicos.json"), "w", encoding="utf-8") as f:
     json.dump(lista, f, ensure_ascii=False)
 print(len(lista), "perfis de exemplo em", SAIDA)

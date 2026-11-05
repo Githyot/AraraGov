@@ -97,6 +97,19 @@ class VotoEmVotacao {
     return ladoSim == 'esquerda' ? 'direita' : 'esquerda';
   }
 
+  /// Voto em formato compacto [id, data, voto, lado_sim, atencao], com os
+  /// detalhes da votação quando já conhecidos.
+  factory VotoEmVotacao.compacto(List<dynamic> c, Map<String, dynamic>? detalhe) => VotoEmVotacao.fromJson({
+        ...?detalhe,
+        'id': c[0],
+        'data': detalhe?['data'] ?? c[1],
+        'voto': c[2],
+        'lado_sim': c.length > 3 ? c[3] : null,
+        'atencao': detalhe?['atencao'] ?? ((c.length > 4 && c[4] == 1) ? 'Votação de atenção' : null),
+      });
+
+  bool get temDetalhe => proposicao != null || descricao != null || ementa != null;
+
   VotoEmVotacao.fromJson(Map<String, dynamic> j)
       : id = j['id'],
         voto = j['voto'],
@@ -241,6 +254,13 @@ class DoacaoSalario {
   String get titulo => parte == null ? 'Declara doar o salário' : 'Declara doar $parte do salário';
 }
 
+List<VotoEmVotacao> _lerVotos(Map<String, dynamic> j) {
+  final inline = {for (final v in (j['votacoes'] as List? ?? [])) v['id'] as String: Map<String, dynamic>.from(v)};
+  final votos = j['votos'] as List?;
+  if (votos == null) return [for (final v in inline.values) VotoEmVotacao.fromJson(v)];
+  return [for (final c in votos) VotoEmVotacao.compacto(c as List, inline[c[0]])];
+}
+
 class Perfil {
   final PoliticoResumo resumo;
   final String? nomeCivil, email, avisoCadastro;
@@ -271,7 +291,7 @@ class Perfil {
         salario = Salario.fromJson(j['salario'] ?? {}),
         gastos = Gastos.fromJson(j['gastos'] ?? {}),
         presenca = {for (final e in (j['presenca'] as Map? ?? {}).entries) e.key as String: e.value as int},
-        votacoes = [for (final v in (j['votacoes'] as List? ?? [])) VotoEmVotacao.fromJson(v)],
+        votacoes = _lerVotos(j),
         gabinete = [for (final a in (j['gabinete'] as List? ?? [])) Assessor.fromJson(a)],
         custoGabinete = j['custo_gabinete'] == null ? null : CustoGabinete.fromJson(j['custo_gabinete']),
         verbaGabinete = j['verba_gabinete'] == null ? null : ValoresMensais.fromJson(j['verba_gabinete']),
@@ -313,18 +333,25 @@ class Perfil {
         if ((v['data'] as String? ?? '').startsWith(chave)) v
     ];
     j['votacoes'] = votos;
+    if (j['votos'] != null) {
+      j['votos'] = [
+        for (final c in (j['votos'] as List))
+          if (((c as List)[1] as String? ?? '').startsWith(chave)) c
+      ];
+    }
+    final votosAno = _lerVotos(j);
     final presenca = <String, int>{};
-    for (final v in votos) {
-      presenca[v['voto'] as String] = (presenca[v['voto']] ?? 0) + 1;
+    for (final v in votosAno) {
+      presenca[v.voto] = (presenca[v.voto] ?? 0) + 1;
     }
     j['presenca'] = presenca;
-    final comAtencao = votos.where((v) => v['atencao'] != null).toList();
+    final comAtencao = votosAno.where((v) => v.atencao != null).toList();
     j['atencao'] = comAtencao.isEmpty
         ? null
         : {
             'votacoes': comAtencao.length,
-            'votou_sim': comAtencao.where((v) => v['voto'] == 'sim').length,
-            'votou_nao': comAtencao.where((v) => v['voto'] == 'nao').length,
+            'votou_sim': comAtencao.where((v) => v.voto == 'sim').length,
+            'votou_nao': comAtencao.where((v) => v.voto == 'nao').length,
           };
     final g = Map<String, dynamic>.from(j['gastos'] as Map? ?? {});
     final doAno = (g['anos'] as Map?)?[chave] as Map?;

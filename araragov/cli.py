@@ -19,9 +19,13 @@ from .collectors import assembleias, beneficios, camara, camara_recursos, emenda
 from .http import HttpClient
 
 ALVOS = {
+    # Legislatura anterior primeiro: a coleta atual vem depois e atualiza
+    # partido e situação de quem continua no mandato.
+    "camara-deputados-anteriores": lambda c, a: camara.coletar_deputados(c, camara.legislatura_atual(c) - 1),
     "camara-deputados": lambda c, a: camara.coletar_deputados(c),
     "camara-votacoes": lambda c, a: camara.coletar_votacoes(c, a.ano, a.limite),
     "camara-despesas": lambda c, a: camara.coletar_despesas(c, a.ano, a.limite),
+    "senado-senadores-anteriores": lambda c, a: senado.coletar_senadores_anteriores(c),
     "senado-senadores": lambda c, a: senado.coletar_senadores(c),
     "senado-votacoes": lambda c, a: senado.coletar_votacoes(c, a.ano, a.limite),
     "senado-despesas": lambda c, a: senado.coletar_despesas(c, a.ano, a.limite),
@@ -52,6 +56,19 @@ POR_ANO = {
     "camara-votacoes", "camara-despesas", "senado-votacoes", "senado-despesas",
     "almg-despesas", "alesp-despesas", "emendas", "camara-recursos",
 }
+
+
+# Alvos pesados (uma página por político e ano) ficam só com os anos mais
+# recentes do intervalo pedido.
+ANOS_RECENTES = {"camara-recursos": 2}
+
+
+def _anos_do_alvo(alvo: str, anos: list[int]) -> list[int]:
+    if alvo not in POR_ANO:
+        return anos[-1:]
+    if alvo in ANOS_RECENTES:
+        return anos[-ANOS_RECENTES[alvo]:]
+    return anos
 
 
 def _anos(texto: str) -> list[int]:
@@ -109,7 +126,7 @@ def main(argv: list[str] | None = None) -> int:
     avisos = []
     anos = args.ano
     for alvo in alvos:
-        for ano in anos if alvo in POR_ANO else anos[:1]:
+        for ano in _anos_do_alvo(alvo, anos):
             args.ano = ano
             try:
                 ALVOS[alvo](client, args)

@@ -34,6 +34,11 @@ def test_exporta_lista_e_perfil(client, tmp_path):
     assert perfil["votacoes"][0]["voto"] == "sim"
     assert perfil["votacoes"][0]["proposicao"] == "PL 1/2025"
     assert perfil["presenca"] == {"sim": 1}
+    vid, dia, voto, _lado, _atencao = perfil["votos"][0]
+    assert voto == "sim" and dia.startswith("2025-")
+    detalhes = json.loads((tmp_path / "v1/votacoes/2025.json").read_text())
+    assert detalhes[vid]["proposicao"] == "PL 1/2025"
+    assert json.loads((tmp_path / "v1/meta.json").read_text())["anos_votacoes"] == [2025]
     assert json.loads((tmp_path / "v1/meta.json").read_text())["total_politicos"] == 3
 
 

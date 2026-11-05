@@ -43,11 +43,25 @@ def _get(d: Dict[str, Any], *chaves: str) -> Any:
     return None
 
 
+def coletar_senadores_anteriores(client: HttpClient, inicio: int = 56, fim: int = 57) -> int:
+    """Senadores com mandato nas legislaturas indicadas (inclusive quem já
+    saiu), para ligar votos e gastos antigos a um perfil. Rode antes de
+    coletar_senadores, que marca quem está em exercício hoje."""
+    dados = client.get_json(f"{API}/senador/lista/legislatura/{inicio}/{fim}")
+    raiz = dados.get("ListaParlamentarLegislatura") or dados.get("ListaParlamentarEmExercicio") or {}
+    parlamentares = _lista((raiz.get("Parlamentares") or {}).get("Parlamentar"))
+    return _gravar_senadores(parlamentares, em_exercicio=False)
+
+
 def coletar_senadores(client: HttpClient) -> int:
     dados = client.get_json(f"{API}/senador/lista/atual")
     parlamentares = _lista(
         ((dados.get("ListaParlamentarEmExercicio") or {}).get("Parlamentares") or {}).get("Parlamentar")
     )
+    return _gravar_senadores(parlamentares, em_exercicio=True)
+
+
+def _gravar_senadores(parlamentares: List[Dict[str, Any]], em_exercicio: bool) -> int:
     with sessao() as s:
         for p in parlamentares:
             ident = p.get("IdentificacaoParlamentar") or {}
@@ -67,10 +81,10 @@ def coletar_senadores(client: HttpClient) -> int:
                     "sexo": n.texto(ident.get("SexoParlamentar")),
                     "url_foto": n.texto(ident.get("UrlFotoParlamentar")),
                     "email": n.texto(ident.get("EmailParlamentar")),
-                    "em_exercicio": True,
+                    "em_exercicio": em_exercicio,
                 },
             )
-    logger.info("Senado: %s senadores gravados", len(parlamentares))
+    logger.info("Senado: %s senadores gravados (%s)", len(parlamentares), "em exercício" if em_exercicio else "legislaturas anteriores")
     return len(parlamentares)
 
 

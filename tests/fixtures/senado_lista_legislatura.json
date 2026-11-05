@@ -1,0 +1,32 @@
+{
+ "ListaParlamentarLegislatura": {
+  "Parlamentares": {
+   "Parlamentar": [
+    {
+     "IdentificacaoParlamentar": {
+      "CodigoParlamentar": "475",
+      "NomeParlamentar": "Confúcio Moura",
+      "NomeCompletoParlamentar": "Confúcio Aires Moura",
+      "SexoParlamentar": "Masculino",
+      "UrlFotoParlamentar": "http://www.senado.leg.br/senadores/img/fotos-oficiais/senador475.jpg",
+      "EmailParlamentar": "sen.confuciomoura@senado.leg.br",
+      "SiglaPartidoParlamentar": "MDB",
+      "UfParlamentar": "RO"
+     }
+    },
+    {
+     "IdentificacaoParlamentar": {
+      "CodigoParlamentar": "4000",
+      "NomeParlamentar": "Senador Antigo",
+      "NomeCompletoParlamentar": "Senador Antigo da Silva",
+      "SexoParlamentar": "Masculino",
+      "UrlFotoParlamentar": null,
+      "EmailParlamentar": null,
+      "SiglaPartidoParlamentar": "PEX",
+      "UfParlamentar": "SP"
+     }
+    }
+   ]
+  }
+ }
+}

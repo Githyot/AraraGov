@@ -106,11 +106,11 @@ class _PerfilTelaState extends State<PerfilTela> {
                   _SecaoSalario(p.salario, beneficios: p.beneficios, doacao: p.doacaoSalario, pago: p.salarioPago),
                   _SecaoGastos(p.gastos, estadual: p.resumo.esfera == 'estadual'),
                   if (p.emendas != null) _SecaoEmendas(p.emendas!),
-                  _SecaoVotacoes(p),
+                  _SecaoVotacoes(p, widget.api),
                   SecaoAtencao(
                     p,
                     aoVer: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => TodasVotacoes(p, soAtencao: true)),
+                      MaterialPageRoute(builder: (_) => TodasVotacoes(p, api: widget.api, soAtencao: true)),
                     ),
                   ),
                   _SecaoGabinete(p),
@@ -401,7 +401,8 @@ class _GraficoAnos extends StatelessWidget {
 
 class _SecaoVotacoes extends StatelessWidget {
   final Perfil p;
-  const _SecaoVotacoes(this.p);
+  final Api api;
+  const _SecaoVotacoes(this.p, this.api);
 
   @override
   Widget build(BuildContext context) {
@@ -415,7 +416,7 @@ class _SecaoVotacoes extends StatelessWidget {
       titulo: 'Votações',
       descricao: 'Votações nominais em que o voto de cada parlamentar é registrado',
       acao: TextButton(
-        onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => TodasVotacoes(p))),
+        onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => TodasVotacoes(p, api: api))),
         child: const Text('Ver todas'),
       ),
       filhos: [
@@ -442,7 +443,7 @@ class LinhaVotacao extends StatelessWidget {
     final tema = Theme.of(context);
     final lado = v.ladoDoVoto;
     return ListTile(
-      title: Text(v.proposicao ?? v.descricao ?? 'Votação'),
+      title: Text(v.proposicao ?? v.descricao ?? 'Votação de ${data(v.data)}'),
       subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text([data(v.data), if (v.resultado != null) v.resultado!, if (v.ementa != null) v.ementa!].join(' · ')),
         if (lado != null || v.atencao != null)
@@ -460,21 +461,37 @@ class LinhaVotacao extends StatelessWidget {
   }
 }
 
-class TodasVotacoes extends StatelessWidget {
+class TodasVotacoes extends StatefulWidget {
   final Perfil p;
+  final Api api;
   final bool soAtencao;
-  const TodasVotacoes(this.p, {super.key, this.soAtencao = false});
+  const TodasVotacoes(this.p, {super.key, required this.api, this.soAtencao = false});
+
+  @override
+  State<TodasVotacoes> createState() => _TodasVotacoesState();
+}
+
+class _TodasVotacoesState extends State<TodasVotacoes> {
+  late final List<VotoEmVotacao> _base =
+      widget.soAtencao ? widget.p.votacoes.where((v) => v.atencao != null).toList() : widget.p.votacoes;
+  late final Future<List<VotoEmVotacao>> _lista = widget.api.completarVotos(_base);
 
   @override
   Widget build(BuildContext context) {
-    final lista = soAtencao ? p.votacoes.where((v) => v.atencao != null).toList() : p.votacoes;
     return Scaffold(
-      appBar: AppBar(title: Text(soAtencao ? 'Votações que merecem atenção' : 'Votações de ${p.resumo.nome}')),
-      body: ListView.separated(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        itemCount: lista.length,
-        separatorBuilder: (_, _) => const Clamp(child: Divider()),
-        itemBuilder: (_, i) => Clamp(child: LinhaVotacao(lista[i])),
+      appBar: AppBar(title: Text(widget.soAtencao ? 'Votações que merecem atenção' : 'Votações de ${widget.p.resumo.nome}')),
+      body: FutureBuilder<List<VotoEmVotacao>>(
+        future: _lista,
+        builder: (context, snap) {
+          if (!snap.hasData && !snap.hasError) return const Center(child: CircularProgressIndicator());
+          final lista = snap.data ?? _base;
+          return ListView.separated(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            itemCount: lista.length,
+            separatorBuilder: (_, _) => const Clamp(child: Divider()),
+            itemBuilder: (_, i) => Clamp(child: LinhaVotacao(lista[i])),
+          );
+        },
       ),
     );
   }

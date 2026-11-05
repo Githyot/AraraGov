@@ -90,6 +90,8 @@ void main() {
     final a = Perfil.fromJson(ler('camara-9001'));
     final b = Perfil.fromJson(ler('camara-9002'));
     expect(a.anosDisponiveis, [2025, 2024, 2023]);
+    expect(a.votacoes.length, 14); // compactos
+    expect(a.votacoes.where((v) => v.temDetalhe).length, lessThan(14));
     final de2024 = a.noAno(2024);
     expect(de2024.votacoes, isEmpty);
     expect(de2024.gastos.total, a.gastos.porAno.firstWhere((x) => x.ano == 2024).valor);
@@ -103,8 +105,8 @@ void main() {
 
   testWidgets('perfil troca o período e abre a comparação', (tester) async {
     final client = MockClient((req) async {
-      final caminho = req.url.path.endsWith('politicos.json') ? 'assets/amostra/v1/politicos.json'
-          : 'assets/amostra/v1/politicos/${req.url.pathSegments.last}';
+      final partes = req.url.pathSegments;
+      final caminho = 'assets/amostra/v1/${partes.sublist(partes.indexOf('v1') + 1).join('/')}';
       return http.Response.bytes(File(caminho).readAsBytesSync(), 200);
     });
     tester.view.physicalSize = const Size(800, 6000);
@@ -117,6 +119,12 @@ void main() {
     expect(find.text('Salário bruto pago em 2025'), findsOneWidget);
     expect(find.text('Verba de gabinete gasta em 2025'), findsOneWidget);
     expect(find.text('Total recebido em 2025'), findsOneWidget);
+
+    await tester.tap(find.text('Ver todas'));
+    await tester.pumpAndSettle();
+    expect(find.text('PL 111/2025'), findsOneWidget); // detalhe vindo de votacoes/2025.json
+    await tester.pageBack();
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('Período'));
     await tester.pumpAndSettle();
