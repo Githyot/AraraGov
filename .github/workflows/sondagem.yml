@@ -17,11 +17,15 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -e .
-      - name: TCE-RJ (5 municípios)
+      - name: TCE-RN (contratos por ano)
         run: |
-          python -m araragov tce-rj --saida site --anos 2024 --limite-municipios 5
-          ls site/v1/municipios/rj/
-          f=$(ls site/v1/municipios/rj/*/2024-contratos.md | head -1); head -60 "$f"; grep -A8 "tabela: contratacoes-diretas" "$f"
+          set +e
+          A="AraraGov (dados publicos)"; R="https://apidadosabertos.tce.rn.gov.br/api"
+          for id in 418 337; do
+            curl -sS -m 300 -A "$A" "$R/ContratosApi/Contratos/Json/$id/true" -o /tmp/c.json -w "[$id %{http_code} %{size_download}B %{time_total}s]\n"
+            python3 -c "import json,collections;d=json.load(open('/tmp/c.json'));print(len(d));print(sorted(collections.Counter(r.get('anoContrato') for r in d).items()));print(collections.Counter(r.get('idTipoDocumentoContratado') for r in d))"
+          done
+          for ano in 2024 2025; do curl -sS -m 120 -A "$A" "$R/EmpenhosLiquidacoesPagamentosApi/Empenhos/Json/$ano/337" -w "[%{http_code} %{size_download}B]\n" | head -c 1500; echo; done
       - name: TCE-CE (6 municípios, 3 meses)
         if: false
         run: |
