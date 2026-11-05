@@ -116,8 +116,14 @@ qualidade inventada.
 - **Tabelas curadas** em `araragov/referencia/`: itens, preços com link,
   composições e períodos atípicos.
 - O pacote completo do SINAPI na Caixa (preço de cada serviço, como o m² de
-  CBUQ) recusa downloads vindos do GitHub (HTTP 429). Enquanto isso não for
-  resolvido, os preços por serviço vêm das tabelas curadas e, na fase 4, dos
+  CBUQ) recusa downloads vindos do GitHub (HTTP 429). Ele é baixado uma vez
+  por mês num computador comum (`araragov coleta-local`, em `dados/locais/`).
+  No catálogo, cada item aponta para as composições que cobrem o serviço
+  inteiro, com fator de conversão quando a unidade muda
+  (`95995*0.05` = m³ de CBUQ vezes 5 cm de espessura = m²). Composição que é
+  só uma parte do serviço (só assentamento, sem o tubo ou o poste) não entra
+  sozinha, porque faria a obra parecer cara sem ser.
+- Sem preço do SINAPI para o item, a faixa vem dos
   contratos de outros municípios: em SP, a faixa vai do 1º ao 3º quartil do
   valor por unidade em pelo menos 10 contratos do estado no ano (TCE-SP).
 - Contrato com valor por unidade mais de 10 vezes fora da faixa não é

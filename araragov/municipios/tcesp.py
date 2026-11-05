@@ -113,6 +113,12 @@ def linhas_despesas(conteudo_zip: Path) -> Iterator[Dict[str, str]]:
                     yield from csv.DictReader(io.TextIOWrapper(f, encoding="latin-1", newline=""), delimiter=";")
 
 
+def _capitalizar(texto: Optional[str]) -> str:
+    """'SAUDE' -> 'Saude'; texto já em caixa mista fica como veio."""
+    t = (texto or "").strip()
+    return t.title() if t.isupper() else t
+
+
 def agregar(linhas: Iterable[Dict[str, str]], limite: Optional[int] = None) -> Dict[int, Municipio]:
     municipios: Dict[int, Municipio] = defaultdict(Municipio)
     for i, l in enumerate(linhas):
@@ -149,8 +155,8 @@ def agregar(linhas: Iterable[Dict[str, str]], limite: Optional[int] = None) -> D
         f = m.favorecidos.setdefault(ident, Favorecido(nome))
         f.pago += v
         f.pagamentos += 1
-        funcao = (l.get("ds_funcao_governo") or "").strip().title()
-        subfuncao = (l.get("ds_subfuncao_governo") or "").strip().title()
+        funcao = _capitalizar(l.get("ds_funcao_governo"))
+        subfuncao = _capitalizar(l.get("ds_subfuncao_governo"))
         f.areas.add(funcao)
         m.por_area[(funcao, subfuncao)][ident] += v
         m.nomes[ident] = nome

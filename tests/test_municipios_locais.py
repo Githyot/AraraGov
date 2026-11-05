@@ -59,3 +59,26 @@ def test_filtrar_socios(tmp_path):
         z.writestr("K3241.SOCIOCSV", texto.encode("latin-1"))
     linhas = list(locais.filtrar_socios(locais.linhas_socios(arq), {"10448277"}))
     assert linhas == [["10448277", "PF", "LUCIENE FERNANDES NOGUEIRA", "***428156**", "22", "2008-11-03", "5"]]
+
+
+def test_observacoes_locais_soma_e_converte(tmp_path):
+    import csv as _csv
+    from decimal import Decimal
+
+    from araragov.municipios import sinapi
+    from araragov.municipios.custos import Item
+
+    pasta = tmp_path / "sinapi"
+    pasta.mkdir()
+    with gzip.open(pasta / "2025-09.csv.gz", "wt", encoding="utf-8", newline="") as f:
+        w = _csv.writer(f, delimiter=";")
+        w.writerow(["codigo", "descricao", "unidade", "uf", "custo"])
+        w.writerow(["95995", "CBUQ", "M3", "SP", "1473.95"])
+        w.writerow(["96001", "FRESAGEM", "M2", "SP", "7.41"])
+        w.writerow(["95995", "CBUQ", "M3", "CE", "1300"])
+    itens = {"recape": Item("recape", "Recape", "m²", "pavimentacao", ("96001+95995*0.04",)),
+             "cbuq": Item("cbuq", "CBUQ", "m²", "pavimentacao", ("95995*0.05",))}
+    obs = {(o.item, o.uf): o for o in sinapi.observacoes_locais(itens, pasta)}
+    assert obs[("cbuq", "SP")].valor == Decimal("73.70")
+    assert obs[("recape", "SP")].valor == Decimal("66.37")
+    assert ("recape", "CE") not in obs and obs[("cbuq", "CE")].valor == Decimal("65.00")
