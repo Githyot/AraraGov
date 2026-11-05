@@ -98,6 +98,9 @@ def main(argv: list[str] | None = None) -> int:
     mun.add_argument("--saida", default="site", help="pasta de saída (padrão: site)")
     mun.add_argument("--anos", default="2016,2020,2024", help="eleições municipais, ex.: 2024 ou 2016,2020,2024")
     mun.add_argument("--ufs", default="", help="só estes estados, ex.: PR,SC (padrão: todos)")
+    mun.add_argument("--financas", type=_anos, default=[], help="anos de arrecadação e gastos (Siconfi), ex.: 2019-2025")
+    mun.add_argument("--limite-siconfi", type=int, help="máximo de pares município-ano buscados no Siconfi nesta execução")
+    mun.add_argument("--sem-eleitos", action="store_true", help="não gera os resumos com prefeitos e vereadores")
     exp = sub.add_parser("exportar", help="gera a API estática (JSON) que o app lê")
     exp.add_argument("--saida", default="site", help="pasta de saída (padrão: site)")
     args = p.parse_args(argv)
@@ -123,12 +126,18 @@ def main(argv: list[str] | None = None) -> int:
         from pathlib import Path
 
         from .collectors.tse import UFS
-        from .municipios import eleitos
+        from .municipios import eleitos, financas
 
         ufs = [u.strip().upper() for u in args.ufs.split(",") if u.strip()] or list(UFS)
-        anos = [int(a) for a in args.anos.split(",") if a.strip()]
-        total = eleitos.gerar(HttpClient(), Path(args.saida), anos=anos, ufs=ufs)
-        return 0 if total else 1
+        ok = True
+        if not args.sem_eleitos:
+            anos = [int(a) for a in args.anos.split(",") if a.strip()]
+            ok = eleitos.gerar(HttpClient(), Path(args.saida), anos=anos, ufs=ufs) > 0
+        if args.financas:
+            r = financas.gerar(HttpClient, Path(args.saida), anos=args.financas, ufs=ufs,
+                               limite_siconfi=args.limite_siconfi)
+            ok = ok and (r["siconfi"] + r["reaproveitados"]) > 0
+        return 0 if ok else 1
 
     client = HttpClient()
     alvos = list(ALVOS) if args.alvo == "tudo" else [args.alvo]

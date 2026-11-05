@@ -136,7 +136,7 @@ disso, os arquivos de municípios vão para um repositório de dados separado.
 |---|---|---|
 | 0 | Este plano, o formato `.md` (leitor e escritor) e a metodologia de custo de referência | 🔄 |
 | 1 | Quem governa: prefeitos, vices e vereadores 2016/2020/2024 (TSE), por município e período | 🔄 |
-| 2 | Arrecadação e gastos por área (Siconfi), Brasil inteiro, com IPCA | ⬜ |
+| 2 | Arrecadação e gastos por área (Siconfi), Brasil inteiro, com IPCA | 🔄 |
 | 3 | Banco de custos de referência (SINAPI, SICRO, índices, ANP, ANTT, artigos) | ⬜ |
 | 4 | Estado piloto: pagamentos, contratos e obras pelo TCE, com comparação de custo | ⬜ |
 | 5 | Fornecedores: CNPJs, sócios (Receita), CEIS/CNEP e indícios de vínculo | ⬜ |
@@ -164,6 +164,32 @@ número de vereadores. Roda na coleta semanal, depois da exportação.
 - Ainda não entram: eleições suplementares, suplentes que assumiram,
   cassações e fotos. O `sq_candidato` e o `cd_eleicao` já ficam gravados para
   ligar a foto e a prestação de contas nas próximas fases.
+
+## Fase 2: arrecadação e gastos por área
+
+`araragov municipios --financas 2019-2025` grava `{ano}.md` de cada
+município com o que vem da Declaração de Contas Anuais (DCA) no Siconfi:
+
+- `destaques`: IPTU, ISS, ITBI, FPM, cota de ICMS e IPVA, Fundeb e SUS.
+- `receitas`: receita bruta, deduções e líquida por conta (até o 6º nível do
+  código; principal, multa e juros ficam somados).
+- `areas`: empenhado, liquidado e pago por função (saúde, educação…) e
+  subfunção (atenção básica, ensino fundamental…). A despesa
+  intraorçamentária (de um órgão do município para outro) é somada.
+- No cabeçalho, `ipca_fator` leva os valores de dezembro do ano até o último
+  IPCA (`ipca_ate`), para comparar anos.
+- Se a DCA não está no Siconfi depois de 30 de abril do ano seguinte, a
+  tabela `sem-dados` aponta a prefeitura como responsável (LRF, art. 51).
+  Antes do prazo, diz só que a entrega ainda está no prazo.
+
+São 5.570 municípios e dois pedidos por ano. A coleta semanal busca no
+máximo 4.000 pares município-ano no Siconfi, sempre refaz os dois últimos
+anos (a prefeitura pode retificar) e reaproveita do site publicado os anos
+fechados que já têm dados. A base completa de 2019 em diante se forma em
+algumas semanas.
+
+O detalhe abaixo da subfunção (cada pagamento, quem recebeu) não está no
+Siconfi e vem na fase 4, pelos Tribunais de Contas.
 
 ## Limitações conhecidas
 
