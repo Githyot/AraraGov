@@ -139,7 +139,7 @@ disso, os arquivos de municípios vão para um repositório de dados separado.
 | 2 | Arrecadação e gastos por área (Siconfi), Brasil inteiro, com IPCA | 🔄 |
 | 3 | Banco de custos de referência (SINAPI, SICRO, índices, ANP, ANTT, artigos) | 🔄 |
 | 4 | Estado piloto (SP): pagamentos, contratos e obras pelo TCE-SP, com comparação de custo | 🔄 |
-| 5 | Fornecedores: CNPJs, sócios (Receita), CEIS/CNEP e indícios de vínculo | ⬜ |
+| 5 | Fornecedores: CNPJs, sócios (Receita), CEIS/CNEP e indícios de vínculo | 🔄 |
 | 6 | Emendas e transferências até o CNPJ que recebeu | ⬜ |
 | 7 | Telas do app (município, área, obra, fornecedor) | ⬜ |
 | 8 | Outros estados (um TCE por vez) e portais Fiorilli, Betha, IPM | ⬜ |
@@ -219,6 +219,29 @@ A comparação é feita só quando faz sentido:
 - Valor por unidade mais de 10 vezes acima ou abaixo da faixa (por exemplo,
   uma escola inteira lançada como "1 m²"): "Quantidade ou unidade incoerente",
   sem comparação. Isso é quase sempre erro de cadastro, não preço.
+
+Quando o item não tem faixa publicada (o preço por serviço do SINAPI ainda
+falta), a faixa vem dos próprios contratos: do 1º ao 3º quartil do valor por
+unidade em pelo menos 10 contratos de municípios de SP no mesmo ano (nível 1,
+"preços contratados em outros municípios").
+
+## Fase 5: fornecedores
+
+`araragov fornecedores --ufs SP` grava `fornecedores.md` de cada município
+com as empresas das fases anteriores (pagamentos e contratos) e só fatos com
+fonte pública:
+
+- `fornecedores`: total pago, anos, número e valor de contratos e a coluna
+  `indicios` ("Sanção no CEIS", "Fornecedora de campanha (2024)"). As
+  empresas com indício aparecem primeiro, seguidas das 100 maiores.
+- `sancoes`: registros do CEIS e do CNEP (CGU) da empresa, com órgão, estado,
+  abrangência, período e fundamento. Pessoas físicas não são lidas.
+- `campanha`: serviços que a empresa prestou a candidatos do mesmo município,
+  declarados por eles ao TSE (despesas contratadas), com o valor e se o
+  candidato foi eleito (pelo `resumo.md` da fase 1). Só eleições ordinárias.
+- `sem-dados`: os sócios e endereços (base de CNPJ da Receita Federal) ainda
+  não entram, porque o servidor não responde à coleta automática. Sem eles,
+  não há cruzamento de sócio com político, nem de sobrenome.
 
 ## Limitações conhecidas
 

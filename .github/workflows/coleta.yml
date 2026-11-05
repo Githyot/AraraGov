@@ -31,26 +31,6 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  sondar-fornecedores:
-    # Sondagem rápida (só em PR) do formato das fontes da fase 5 dos municípios.
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - name: CEIS e CNEP (Portal da Transparência)
-        run: |
-          d=$(date -d yesterday +%Y%m%d)
-          for b in ceis cnep; do
-            curl -sSL -m 120 -o /tmp/$b.zip -w "$b %{http_code} %{size_download}B %{url_effective}\n" -A "AraraGov (dados publicos)" "https://portaldatransparencia.gov.br/download-de-dados/$b/$d" || true
-            unzip -l /tmp/$b.zip || head -c 400 /tmp/$b.zip
-            f=$(unzip -Z1 /tmp/$b.zip 2>/dev/null | head -1); [ -n "$f" ] && unzip -p /tmp/$b.zip "$f" | iconv -f latin1 -t utf-8 | head -4
-          done
-      - name: Prestação de contas de campanha (TSE)
-        run: |
-          u=https://cdn.tse.jus.br/estatistica/sead/odsele/prestacao_contas/prestacao_de_contas_eleitorais_candidatos_2024.zip
-          curl -sSI -m 60 "$u" | head -8
-          curl -sSL -m 900 -o /tmp/pc.zip "$u" && unzip -l /tmp/pc.zip | grep -i "_SP\|BRASIL\|README\|leiame" | head -30
-          for f in $(unzip -Z1 /tmp/pc.zip | grep -i "_SP.csv" | head -6); do echo "== $f"; unzip -p /tmp/pc.zip "$f" | iconv -f latin1 -t utf-8 | head -3 | cut -c1-1500; done
   coleta:
     runs-on: ubuntu-latest
     timeout-minutes: 240
@@ -81,11 +61,11 @@ jobs:
       - name: Municípios (TSE e Siconfi)
         # Independe das APIs federais: roda mesmo se a coleta acima falhar.
         if: ${{ !cancelled() }}
-        # Em PRs, só dois estados pequenos e a última eleição, para conferir o
+        # Em PRs, dois estados pequenos e SP (piloto do TCE) na última eleição, para conferir o
         # formato do TSE e do IBGE sem baixar tudo.
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            python -m araragov municipios --saida site --anos 2024 --ufs AC,RR --financas 2023 --limite-siconfi 6
+            python -m araragov municipios --saida site --anos 2024 --ufs AC,RR,SP --financas 2023 --limite-siconfi 6
             head -40 site/v1/municipios/indice.md
             for f in $(ls site/v1/municipios/*/*/2023.md | head -2); do
               echo "== $f"; head -30 "$f"; grep -A25 "tabela: areas" "$f" || true; grep -A5 "tabela: sem-dados" "$f" || true
@@ -117,6 +97,19 @@ jobs:
           else
             # Ano passado e o atual (o atual ainda muda a cada mês).
             python -m araragov tce-sp --saida site --anos $(( $(date +%Y) - 1 ))-$(date +%Y)
+          fi
+      - name: Fornecedores dos municípios (CEIS/CNEP e campanhas no TSE)
+        if: ${{ !cancelled() }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            python -m araragov fornecedores --saida site --ufs SP --eleicoes 2024
+            grep -l "Sanção no\|Fornecedora de campanha" site/v1/municipios/sp/*/fornecedores.md | wc -l
+            f=$(grep -l "Fornecedora de campanha" site/v1/municipios/sp/*/fornecedores.md | head -1)
+            [ -n "$f" ] && { head -30 "$f"; grep -A6 "tabela: campanha" "$f"; }
+            f=$(grep -l "Sanção no" site/v1/municipios/sp/*/fornecedores.md | head -1)
+            [ -n "$f" ] && grep -A6 "tabela: sancoes" "$f" || true
+          else
+            python -m araragov fornecedores --saida site --ufs SP
           fi
       - name: Sondar o pacote do SINAPI
         if: ${{ github.event_name == 'pull_request' && !cancelled() }}

@@ -58,11 +58,14 @@ NAO_PREDIO = ("reforma", "pintura", "piso", "vidro", "manutenc", "aquisic", "for
               "aliment", "material", "uniforme", "transporte", "telhado", "cobertura", "reparo", "adequac")
 
 # Nomes que o TCE-SP grafa diferente do IBGE.
-NOMES_TCESP = {"florinea": 3516101}
+NOMES_TCESP = {"FLORINEA": 3516101}
 
 # Fora desta proporção da faixa, o mais provável é quantidade ou unidade
 # cadastrada errado (ex.: obra inteira lançada como "1 m²"); não se compara.
 LIMITE_COERENCIA = Decimal(10)
+
+SEM_FAIXA = "Sem faixa de referência para este item e ano"
+MIN_CONTRATOS_FAIXA = 10  # contratos no estado e ano para formar a faixa
 
 UNIDADES = {
     "m²": ("M2", "M²", "METRO QUADRADO", "METROS QUADRADOS", "MT2"),
@@ -150,7 +153,7 @@ def comparar(item: Optional[str], unid: Optional[str], qtd: Decimal, total: Deci
         return {**vazio, "comparacao": f"Unidade do contrato ({unid}) diferente da referência ({unidades_itens.get(item)})", "aviso": None}
     unitario = (total / qtd).quantize(Decimal("0.01"))
     if ref is None:
-        return {**vazio, "valor_unitario": unitario, "comparacao": "Sem faixa de referência para este item e ano", "aviso": None}
+        return {**vazio, "valor_unitario": unitario, "comparacao": SEM_FAIXA, "aviso": None}
     minimo, maximo = Decimal(ref["minimo"]), Decimal(ref["maximo"])
     if unitario > maximo * LIMITE_COERENCIA or unitario * LIMITE_COERENCIA < minimo:
         return {**vazio, "valor_unitario": unitario,
@@ -210,6 +213,45 @@ def agregar(linhas: Iterable[Dict[str, str]], ano: int, refs, unidades_itens) ->
     return por_mun
 
 
+def _quartil(valores: List[Decimal], q: float) -> Decimal:
+    v = sorted(valores)
+    pos = (len(v) - 1) * q
+    i = int(pos)
+    j = min(i + 1, len(v) - 1)
+    return (v[i] + (v[j] - v[i]) * Decimal(str(pos - i))).quantize(Decimal("0.01"))
+
+
+def faixas_dos_contratos(por_mun: Dict[str, Dict[str, Any]], ano: int) -> Dict[Tuple[str, int], Dict[str, str]]:
+    """Nível 1 pelos preços contratados no estado: para cada item sem faixa
+    publicada, a faixa vai do 1º ao 3º quartil do valor por unidade dos
+    contratos de SP no ano (pelo menos 10 contratos)."""
+    precos: Dict[str, List[Decimal]] = defaultdict(list)
+    for m in por_mun.values():
+        for o in m["obras"]:
+            if o.get("comparacao") == SEM_FAIXA and o.get("valor_unitario"):
+                precos[o["item"]].append(o["valor_unitario"])
+    faixas = {}
+    for item, v in precos.items():
+        if len(v) < MIN_CONTRATOS_FAIXA:
+            continue
+        faixas[(item, ano)] = {
+            "minimo": str(_quartil(v, 0.25)), "maximo": str(_quartil(v, 0.75)), "nivel": "1",
+            "avisos": f"Faixa dos preços contratados por municípios de SP no ano (1º ao 3º quartil de {len(v)} contratos, TCE-SP)",
+        }
+    return faixas
+
+
+def comparar_com_contratos(por_mun: Dict[str, Dict[str, Any]], ano: int, unidades_itens: Dict[str, str]) -> int:
+    faixas = faixas_dos_contratos(por_mun, ano)
+    n = 0
+    for m in por_mun.values():
+        for o in m["obras"]:
+            if o.get("comparacao") == SEM_FAIXA and (o["item"], ano) in faixas:
+                o.update(comparar(o["item"], o["unidade"], o["quantidade"], o["valor"], faixas, ano, unidades_itens))
+                n += 1
+    return n
+
+
 def documento(ibge: int, mun: str, ano: int, dados: Dict[str, Any], hoje: date) -> str:
     obras = sorted(dados["obras"], key=lambda r: r["valor"], reverse=True)
     contratos = sorted(dados["contratos"], key=lambda r: r["valor"], reverse=True)[:TOP_CONTRATOS]
@@ -258,6 +300,8 @@ def gerar(client, saida: Path, anos: Iterable[int], hoje: Optional[date] = None,
             logger.warning("TCE-SP: nenhum arquivo de contratos de %s na página", ano)
             continue
         por_mun = agregar((l for a in arquivos for l in linhas_ajustes(a)), ano, refs, unidades_itens)
+        logger.info("TCE-SP contratos %s: %s obras comparadas com a faixa dos contratos do estado",
+                    ano, comparar_com_contratos(por_mun, ano, unidades_itens))
         for mun, dados in por_mun.items():
             cod = ibge.get(chave_nome(mun)) or NOMES_TCESP.get(chave_nome(mun))
             if not cod:

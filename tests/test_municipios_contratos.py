@@ -63,3 +63,17 @@ def test_agregar_compara_e_aponta_diretas(tmp_path):
     d = doc.tabelas["contratacoes-diretas"]
     assert d[0]["cnpj"] == "33.444.555/0001-66" and d[0]["contratacoes"] == "3" and d[0]["valor"] == "175000"
     assert doc.tabelas["obras"][0]["comparacao"].endswith("acima da faixa de referência")
+
+
+def test_faixa_pelos_contratos_do_estado():
+    def obra(v):
+        return {"item": "poste-concreto", "unidade": "un", "quantidade": D("10"), "valor": D(v) * 10,
+                "valor_unitario": D(v), "comparacao": contratos.SEM_FAIXA}
+    precos = ["1000", "1100", "1200", "1300", "1400", "1500", "1600", "1700", "1800", "1900", "5000"]
+    por = {"A": {"obras": [obra(v) for v in precos]}, "B": {"obras": [obra("2600")]}}
+    assert contratos.comparar_com_contratos(por, 2024, {"poste-concreto": "un"}) == 12
+    caro = por["B"]["obras"][0]
+    assert caro["nivel"] == "1" and caro["comparacao"].endswith("acima da faixa de referência")
+    assert "12 contratos" in caro["aviso"]
+    assert por["A"]["obras"][4]["comparacao"] == "Dentro da faixa de referência"
+    assert contratos.comparar_com_contratos({"A": {"obras": [obra("1")]}}, 2024, {"poste-concreto": "un"}) == 0

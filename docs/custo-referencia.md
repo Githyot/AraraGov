@@ -118,7 +118,10 @@ qualidade inventada.
 - O pacote completo do SINAPI na Caixa (preço de cada serviço, como o m² de
   CBUQ) recusa downloads vindos do GitHub (HTTP 429). Enquanto isso não for
   resolvido, os preços por serviço vêm das tabelas curadas e, na fase 4, dos
-  contratos de outros municípios (PNCP e TCEs).
+  contratos de outros municípios: em SP, a faixa vai do 1º ao 3º quartil do
+  valor por unidade em pelo menos 10 contratos do estado no ano (TCE-SP).
+- Contrato com valor por unidade mais de 10 vezes fora da faixa não é
+  comparado: quase sempre é quantidade ou unidade cadastrada errado.
 
 ## Banco de referência
 

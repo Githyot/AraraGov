@@ -67,6 +67,8 @@ def _anos_do_alvo(alvo: str, anos: list[int]) -> list[int]:
 
 
 def _anos(texto: str) -> list[int]:
+    if "," in texto:
+        return sorted({a for parte in texto.split(",") if parte.strip() for a in _anos(parte.strip())})
     if "-" in texto:
         inicio, fim = (int(x) for x in texto.split("-", 1))
         return list(range(inicio, fim + 1))
@@ -109,6 +111,10 @@ def main(argv: list[str] | None = None) -> int:
     tsp.add_argument("--saida", default="site")
     tsp.add_argument("--anos", type=_anos, default=[date.today().year - 1])
     tsp.add_argument("--limite-linhas", type=int, help="lê só N linhas do arquivo (teste)")
+    frn = sub.add_parser("fornecedores", help="fornecedores dos municípios com sanções (CEIS/CNEP) e campanhas (TSE)")
+    frn.add_argument("--saida", default="site")
+    frn.add_argument("--ufs", default="SP", help="estados já coletados pelo TCE (padrão: SP)")
+    frn.add_argument("--eleicoes", type=_anos, default=[2016, 2020, 2024], help="eleições municipais, ex.: 2020,2024")
     son = sub.add_parser("sinapi-sondar", help="mostra o formato do pacote mensal do SINAPI")
     son.add_argument("--mes", default="", help="AAAA-MM (padrão: dois meses atrás)")
     exp = sub.add_parser("exportar", help="gera a API estática (JSON) que o app lê")
@@ -151,6 +157,14 @@ def main(argv: list[str] | None = None) -> int:
         n_contratos = contratos.gerar(client, Path(args.saida), args.anos)
         n_pagamentos = tcesp.gerar(client, Path(args.saida), args.anos, args.limite_linhas)
         return 0 if n_contratos and n_pagamentos else 1
+
+    if args.comando == "fornecedores":
+        from pathlib import Path
+
+        from .municipios import fornecedores
+
+        ufs = [u.strip().upper() for u in args.ufs.split(",") if u.strip()]
+        return 0 if fornecedores.gerar(HttpClient(), Path(args.saida), ufs, args.eleicoes) else 1
 
     if args.comando == "sinapi-sondar":
         from .municipios import sinapi
