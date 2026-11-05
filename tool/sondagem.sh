@@ -4,7 +4,7 @@ ua="AraraGov/0.1 (+https://github.com/Githyot/AraraGov)"
 get() { for t in 1 2 3 4; do curl -sSL -A "$ua" --max-time 120 -o "$2" "$1" && return 0; sleep 10; done; }
 for a in 2025 2019; do echo "### $a"; get "https://www.al.ba.gov.br/transparencia/verbas-idenizatorias-excel?ano=$a" /tmp/v$a.xlsx; python3 -c "
 import openpyxl,collections
-wb=openpyxl.load_workbook('/tmp/v$a.xlsx',read_only=True); print(wb.sheetnames); ws=wb.active
+wb=openpyxl.load_workbook('/tmp/v$a.xlsx'); print(wb.sheetnames); ws=wb.active
 rows=list(ws.iter_rows(values_only=True)); print('ROWS',len(rows))
 for r in rows[:8]: print(r)
 print('LAST',rows[-1])
