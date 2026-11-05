@@ -219,7 +219,8 @@ Future<void> _abrir(String url) async => launchUrl(Uri.parse(url));
 
 String _semTce(String uf) => uf == 'SP'
     ? 'Ainda não coletado para este município.'
-    : 'O AraraGov ainda não lê os dados do Tribunal de Contas de $uf (por enquanto só SP).';
+    : 'Nenhum contrato desta prefeitura no PNCP nos anos coletados. Pagamentos um a um só existem, '
+        'por enquanto, para SP (Tribunal de Contas).';
 
 /// Anos com arquivo publicado, do mais recente ao mais antigo.
 Future<Map<int, DocumentoMd>> _porAno(Api api, String pasta, String sufixo) async {
@@ -467,7 +468,8 @@ class _ObrasState extends State<_Obras> {
                     Linha(titulo: d['empresa'] ?? '—', subtitulo: '${d['contratacoes']} contratações · ${d['cnpj']}', valor: _reais(d['valor'])),
                 ],
               ),
-            const _Fonte('TCE-SP (contratos e despesas); faixas em docs/custo-referencia.md'),
+            _SemDados(linhas: contratos[ano]?.tabela('sem-dados') ?? const []),
+            _Fonte(widget.uf == 'SP' ? 'TCE-SP (contratos e despesas)' : 'PNCP (Portal Nacional de Contratações Públicas)'),
           ]);
         },
       );
@@ -538,7 +540,7 @@ class _Fornecedores extends StatelessWidget {
                 ],
               ),
             _SemDados(linhas: doc.tabela('sem-dados')),
-            const _Fonte('TCE-SP, CGU (CEIS e CNEP) e TSE (prestação de contas)'),
+            _Fonte('${uf == 'SP' ? 'TCE-SP' : 'PNCP'}, CGU (CEIS e CNEP) e TSE (prestação de contas)'),
           ]);
         },
       );

@@ -19,7 +19,7 @@ _Última atualização: 5 de novembro de 2026 (noite)_
 | Emendas parlamentares | ✅ |
 | Período, comparação e doação do salário | ✅ |
 | Base federal completa | ✅ · 🔄 histórico e listas curadas no PR #10 |
-| 5. Municípios | 🔄 fases 0 a 7: plano, prefeitos e vereadores, finanças, custos de referência, piloto de SP, fornecedores, emendas e telas do app |
+| 5. Municípios | 🔄 fases 0 a 8: plano, prefeitos e vereadores, finanças, custos de referência, piloto de SP, fornecedores, emendas e telas do app |
 
 ## 1. Base federal ✅
 
@@ -98,7 +98,7 @@ sem acusar ninguém.
 - 🔄 Fase 5: fornecedores com empresas punidas (CEIS/CNEP) e serviço a campanhas no município (TSE); sócios da Receita ainda faltam (servidor não responde ao GitHub)
 - 🔄 Fase 6: emendas federais recebidas em cada município, por autor e favorecido (prefeitura, entidade ou empresa)
 - 🔄 Fase 7: telas do app: busca de municípios e abas Quem governa, Dinheiro, Obras, Fornecedores e Emendas
-- ⬜ Fase 8: outros TCEs e portais Fiorilli, Betha, IPM
+- 🔄 Fase 8: contratos de todos os municípios pelo PNCP; depois outros TCEs e portais Fiorilli, Betha, IPM
 
 ## Pendências de configuração (HP)
 

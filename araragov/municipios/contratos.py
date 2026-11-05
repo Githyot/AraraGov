@@ -113,7 +113,11 @@ def _quantidade(texto: str) -> Decimal:
 
 
 def referencias_sp(saida: Path) -> Dict[Tuple[str, int], Dict[str, str]]:
-    caminho = saida / "v1" / "referencia" / "custos" / "sp.md"
+    return referencias_uf(saida, "SP")
+
+
+def referencias_uf(saida: Path, uf: str) -> Dict[Tuple[str, int], Dict[str, str]]:
+    caminho = saida / "v1" / "referencia" / "custos" / f"{uf.lower()}.md"
     if not caminho.exists():
         return {}
     doc = md.ler(caminho.read_text(encoding="utf-8"))
@@ -258,7 +262,8 @@ def comparar_com_contratos(por_mun: Dict[str, Dict[str, Any]], ano: int, unidade
     return n
 
 
-def documento(ibge: int, mun: str, ano: int, dados: Dict[str, Any], hoje: date) -> str:
+def documento(ibge: int, mun: str, ano: int, dados: Dict[str, Any], hoje: date, uf: str = "SP",
+              fonte: str = FONTE, colunas_contratos: Optional[List[str]] = None) -> str:
     obras = sorted(dados["obras"], key=lambda r: r["valor"], reverse=True)
     contratos = sorted(dados["contratos"], key=lambda r: r["valor"], reverse=True)[:TOP_CONTRATOS]
     diretas = sorted(
@@ -268,11 +273,12 @@ def documento(ibge: int, mun: str, ano: int, dados: Dict[str, Any], hoje: date) 
         key=lambda r: r["valor"], reverse=True,
     )
     return md.escrever(
-        {"tipo": "municipio-contratos", "ibge": ibge, "municipio": mun, "uf": "SP", "ano": ano,
-         "atualizado": hoje, "fonte": FONTE, "metodologia": "docs/custo-referencia.md"},
+        {"tipo": "municipio-contratos", "ibge": ibge, "municipio": mun, "uf": uf, "ano": ano,
+         "atualizado": hoje, "fonte": fonte, "metodologia": "docs/custo-referencia.md"},
         {"obras": obras, "contratos": contratos, "contratacoes-diretas": diretas},
-        colunas={"obras": COLUNAS_OBRAS, "contratos": COLUNAS_CONTRATOS, "contratacoes-diretas": COLUNAS_DIRETAS},
-        titulo=f"{mun} (SP), contratos de {ano}",
+        colunas={"obras": COLUNAS_OBRAS, "contratos": colunas_contratos or COLUNAS_CONTRATOS,
+                 "contratacoes-diretas": COLUNAS_DIRETAS},
+        titulo=f"{mun} ({uf}), contratos de {ano}",
         textos={
             "obras": "## Obras e o custo de referência\n\nValor unitário do contrato comparado com a faixa "
             "de referência do estado e do ano. Acima da faixa não quer dizer irregular: terreno, "

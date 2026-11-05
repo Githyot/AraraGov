@@ -113,8 +113,13 @@ def main(argv: list[str] | None = None) -> int:
     tsp.add_argument("--limite-linhas", type=int, help="lê só N linhas do arquivo (teste)")
     frn = sub.add_parser("fornecedores", help="fornecedores dos municípios com sanções (CEIS/CNEP) e campanhas (TSE)")
     frn.add_argument("--saida", default="site")
-    frn.add_argument("--ufs", default="SP", help="estados já coletados pelo TCE (padrão: SP)")
+    frn.add_argument("--ufs", default="SP", help="estados com contratos coletados, ex.: SP,SC ou todos")
     frn.add_argument("--eleicoes", type=_anos, default=[2016, 2020, 2024], help="eleições municipais, ex.: 2020,2024")
+    pnc = sub.add_parser("pncp", help="contratos dos municípios (fora de SP) pelo PNCP (.md)")
+    pnc.add_argument("--saida", default="site")
+    pnc.add_argument("--anos", type=_anos, default=[date.today().year - 1, date.today().year])
+    pnc.add_argument("--dias", type=int, help="só os primeiros N dias de cada ano (teste)")
+    pnc.add_argument("--limite-itens", type=int, default=3000, help="máximo de compras com itens consultados")
     eme = sub.add_parser("emendas-municipios", help="emendas federais recebidas em cada município (.md)")
     eme.add_argument("--saida", default="site")
     eme.add_argument("--anos", type=_anos, default=_anos(f"2019-{date.today().year}"), help="anos do pagamento")
@@ -168,7 +173,19 @@ def main(argv: list[str] | None = None) -> int:
         from .municipios import fornecedores
 
         ufs = [u.strip().upper() for u in args.ufs.split(",") if u.strip()]
+        if ufs == ["TODOS"]:
+            from .collectors.tse import UFS
+
+            ufs = sorted(set(UFS) | {"DF"})
         return 0 if fornecedores.gerar(HttpClient(), Path(args.saida), ufs, args.eleicoes) else 1
+
+    if args.comando == "pncp":
+        from pathlib import Path
+
+        from .municipios import pncp
+
+        return 0 if pncp.gerar(HttpClient(), Path(args.saida), args.anos, dias=args.dias,
+                               limite_itens=args.limite_itens) else 1
 
     if args.comando == "emendas-municipios":
         from pathlib import Path

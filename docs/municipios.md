@@ -142,7 +142,7 @@ disso, os arquivos de municípios vão para um repositório de dados separado.
 | 5 | Fornecedores: CNPJs, sócios (Receita), CEIS/CNEP e indícios de vínculo | 🔄 |
 | 6 | Emendas e transferências até o CNPJ que recebeu | 🔄 |
 | 7 | Telas do app (município, área, obra, fornecedor) | 🔄 |
-| 8 | Outros estados (um TCE por vez) e portais Fiorilli, Betha, IPM | ⬜ |
+| 8 | Outros estados: contratos pelo PNCP (Brasil inteiro); depois TCEs e portais Fiorilli, Betha, IPM | 🔄 |
 
 **Estado piloto: São Paulo.** O plano sugeria o Paraná, mas o portal de
 dados abertos do TCE-PR não respondeu a partir do GitHub (nem o do TCE-RS).
@@ -283,6 +283,29 @@ O botão "Municípios" no topo da tela inicial abre a busca (pelo
 
 Arquivo que não existe vira "Não há dados" com o motivo; a tabela
 `sem-dados` mostra quem deveria ter publicado.
+
+## Fase 8: outros estados
+
+Dos tribunais de contas sondados a partir do GitHub, só TCE-CE, TCE-PB e
+TCE-GO responderam; TCE-PR, TCE-MG, TCE-PE, TCE-RS, TCM-BA, TCE-SC e TCE-ES
+não. Por isso o primeiro passo é nacional: o **PNCP**, onde todo órgão que
+contrata pela Lei 14.133 publica os contratos.
+
+`araragov pncp --anos 2025-2026` grava `{ano}-contratos.md` de cada município
+fora de SP, no mesmo formato da fase 4:
+
+- `contratos`: os maiores do ano, com a emenda parlamentar quando o contrato
+  informa e o número de controle do PNCP.
+- `obras`: objeto classificado no catálogo de custos; a quantidade vem dos
+  itens da compra no PNCP (no máximo 3.000 consultas de itens por coleta).
+- `contratacoes-diretas`: empresas com 3 ou mais dispensas ou
+  inexigibilidades no ano.
+- `sem-dados`: contratos pela lei antiga e de quem não publica no PNCP ficam
+  de fora (responsável: a prefeitura; Lei 14.133, art. 94 e 174).
+
+Com isso, `fornecedores.md` passa a existir para todos os estados (sanções,
+campanhas e emendas). Pagamento a pagamento continua só em SP, até ligar
+os outros TCEs.
 
 ## Limitações conhecidas
 

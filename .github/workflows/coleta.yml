@@ -98,6 +98,19 @@ jobs:
             # Ano passado e o atual (o atual ainda muda a cada mês).
             python -m araragov tce-sp --saida site --anos $(( $(date +%Y) - 1 ))-$(date +%Y)
           fi
+      - name: Contratos dos municípios fora de SP (PNCP)
+        if: ${{ !cancelled() }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            python -m araragov pncp --saida site --anos 2025 --dias 3 --limite-itens 80
+            ls site/v1/municipios/*/*/2025-contratos.md | wc -l
+            f=site/v1/municipios/sc/4208203/2025-contratos.md; [ -f "$f" ] || f=$(ls site/v1/municipios/*/*/2025-contratos.md | head -1)
+            head -14 "$f"; grep -A6 "tabela: contratos" "$f" | cut -c1-400
+            grep -h "acima da faixa\|Dentro da faixa\|Abaixo da faixa" site/v1/municipios/*/*/2025-contratos.md | head -5 | cut -c1-400
+            grep -h "emenda" site/v1/municipios/*/*/2025-contratos.md | grep -v "^| contrato" | head -3 | cut -c1-300 || true
+          else
+            python -m araragov pncp --saida site
+          fi
       - name: Emendas recebidas pelos municípios (Portal da Transparência)
         if: ${{ !cancelled() }}
         run: |
@@ -113,7 +126,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            python -m araragov fornecedores --saida site --ufs SP --eleicoes 2024
+            python -m araragov fornecedores --saida site --ufs SP,SC --eleicoes 2024
             grep -l "Sanção no\|Fornecedora de campanha" site/v1/municipios/sp/*/fornecedores.md | wc -l
             f=$(grep -l "Fornecedora de campanha" site/v1/municipios/sp/*/fornecedores.md | head -1)
             [ -n "$f" ] && { head -30 "$f"; grep -A6 "tabela: campanha" "$f"; }
@@ -122,7 +135,7 @@ jobs:
           else
             # Os pagamentos coletados são do ano passado e do atual, do
             # governo eleito em 2024.
-            python -m araragov fornecedores --saida site --ufs SP --eleicoes 2024
+            python -m araragov fornecedores --saida site --ufs todos --eleicoes 2024
           fi
       - name: Sondar o pacote do SINAPI
         if: ${{ github.event_name == 'pull_request' && !cancelled() }}
