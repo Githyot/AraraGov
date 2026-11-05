@@ -15,10 +15,12 @@ from datetime import date
 from sqlalchemy import func, select
 
 from . import db
-from .collectors import assembleias, beneficios, camara, camara_recursos, emendas, gabinete, referencia, senado, tse
+from .collectors import assembleias, beneficios, camara, camara_recursos, emendas, gabinete, historico, referencia, senado, tse
 from .http import HttpClient
 
 ALVOS = {
+    # Primeiro, o que a coleta anterior já publicou e não muda (anos fechados).
+    "historico": lambda c, a: historico.carregar(c),
     # Legislatura anterior primeiro: a coleta atual vem depois e atualiza
     # partido e situação de quem continua no mandato.
     "camara-deputados-anteriores": lambda c, a: camara.coletar_deputados(c, camara.legislatura_atual(c) - 1),
@@ -30,7 +32,9 @@ ALVOS = {
     "senado-votacoes": lambda c, a: senado.coletar_votacoes(c, a.ano, a.limite),
     "senado-despesas": lambda c, a: senado.coletar_despesas(c, a.ano, a.limite),
     "camara-gabinetes": lambda c, a: gabinete.coletar_camara(c),
-    "camara-recursos": lambda c, a: camara_recursos.coletar_recursos(c, a.ano, a.limite),
+    "camara-recursos": lambda c, a: camara_recursos.coletar_recursos(
+        c, a.ano, a.limite, so_faltantes=a.ano < a.ano_final - 1
+    ),
     "senado-gabinetes": lambda c, a: gabinete.coletar_senado(c),
     "senado-moradia": lambda c, a: beneficios.coletar_moradia_senado(c),
     "emendas": lambda c, a: emendas.coletar_emendas(c, a.ano, a.limite),
@@ -49,7 +53,7 @@ ALVOS = {
 
 # Fontes com reserva: se falharem, o TSE já cobre o estado e a coleta segue
 # sem marcar erro (o aviso aparece no log e no resumo).
-COM_RESERVA = {"almg-deputados", "almg-despesas", "alesp-deputados", "alesp-despesas"}
+COM_RESERVA = {"historico", "almg-deputados", "almg-despesas", "alesp-deputados", "alesp-despesas"}
 
 
 POR_ANO = {
@@ -58,17 +62,8 @@ POR_ANO = {
 }
 
 
-# Alvos pesados (uma página por político e ano) ficam só com os anos mais
-# recentes do intervalo pedido.
-ANOS_RECENTES = {"camara-recursos": 2}
-
-
 def _anos_do_alvo(alvo: str, anos: list[int]) -> list[int]:
-    if alvo not in POR_ANO:
-        return anos[-1:]
-    if alvo in ANOS_RECENTES:
-        return anos[-ANOS_RECENTES[alvo]:]
-    return anos
+    return anos if alvo in POR_ANO else anos[-1:]
 
 
 def _anos(texto: str) -> list[int]:
@@ -125,6 +120,7 @@ def main(argv: list[str] | None = None) -> int:
     falhas = []
     avisos = []
     anos = args.ano
+    args.ano_final = anos[-1]
     for alvo in alvos:
         for ano in _anos_do_alvo(alvo, anos):
             args.ano = ano

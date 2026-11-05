@@ -20,5 +20,5 @@ def test_anos_por_alvo():
 
     anos = [2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026]
     assert _anos_do_alvo("camara-votacoes", anos) == anos
-    assert _anos_do_alvo("camara-recursos", anos) == [2025, 2026]
+    assert _anos_do_alvo("camara-recursos", anos) == anos
     assert _anos_do_alvo("camara-deputados", anos) == [2026]

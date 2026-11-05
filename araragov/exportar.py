@@ -187,6 +187,21 @@ def _detalhe_voto(v: Voto, votacao: Votacao, analises: Dict[Any, Any]) -> Dict[s
     return {"id": v.votacao_id, **_detalhe(votacao, analises), "voto": v.voto, "partido_na_epoca": v.partido}
 
 
+def _historico() -> Dict[str, Any]:
+    """Dados caros de coletar de novo, lidos pela próxima coleta (historico.py)."""
+    with sessao() as s:
+        recursos = [
+            [r.casa, r.codigo_politico, r.tipo, r.ano, r.mes, r.valor]
+            for r in s.execute(select(RecursoMensal).order_by(RecursoMensal.id)).scalars()
+        ]
+        beneficios = [
+            {"casa": b.casa, "codigo_politico": b.codigo_politico, "tipo": b.tipo, "descricao": b.descricao,
+             "referencia": b.referencia, "fonte": b.fonte, "ano": b.ano, "valor_ano": b.valor_ano}
+            for b in s.execute(select(Beneficio).where(Beneficio.ano.is_not(None))).scalars()
+        ]
+    return {"recursos": recursos, "beneficios": beneficios}
+
+
 def _resumo(p: Politico, doacoes: Optional[Dict[tuple, Dict[str, Any]]] = None) -> Dict[str, Any]:
     return {
         "id": f"{p.casa}-{p.codigo}",
@@ -581,6 +596,8 @@ def exportar(saida: Path) -> int:
             por_ano[votacao.data.year][vid] = _detalhe(votacao, analises)
     for ano, itens in por_ano.items():
         _gravar(base / "votacoes" / f"{ano}.json", itens)
+
+    _gravar(base / "historico" / "recursos.json", _historico())
 
     _gravar(base / "politicos.json", [_resumo(p, doacoes) for p in politicos])
     _gravar(

@@ -24,3 +24,15 @@ traz, por ano, o que a API de dados abertos não tem. O alvo
   por deputado.
 
 A coleta baixa 2 páginas por deputado e ano, com até 4 downloads ao mesmo tempo.
+
+## Histórico entre coletas
+
+Anos fechados não mudam, então não precisam ser baixados de novo. A
+exportação publica tudo em `v1/historico/recursos.json`; a coleta seguinte
+começa pelo alvo `historico`, que lê esse arquivo da API publicada. Depois:
+
+- o ano atual e o anterior são sempre coletados de novo;
+- nos anos mais antigos, só os deputados que ainda faltam, até 3.000 por
+  execução. O histórico desde 2019 se completa em poucas semanas.
+
+Se a API publicada estiver fora do ar, a coleta segue sem o histórico.
