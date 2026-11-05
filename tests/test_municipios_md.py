@@ -19,6 +19,8 @@ def test_le_exemplo():
     assert gastos[2]["subarea"] is None
     assert doc.tabelas["pagamentos"][0]["favorecido"] == "Empresa | Exemplo Ltda"
     assert doc.colunas["pagamentos"] == ["cnpj", "favorecido", "valor", "data"]
+    falta = doc.tabelas["sem-dados"][0]
+    assert falta["esfera"] == "municipal" and falta["secao"] == "salarios"
 
 
 def test_ida_e_volta():

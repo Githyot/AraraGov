@@ -50,6 +50,32 @@ Texto livre para quem lê. O app ignora tudo o que não for cabeçalho ou tabela
    linha viram espaço.
 8. Linhas fora das tabelas e do cabeçalho são texto livre e o app as ignora.
 
+## Quando não há dado
+
+Todo arquivo pode ter a tabela `sem-dados`. Cada linha diz o que falta, por
+quê e **quem deveria ter publicado**, para o app mostrar "Não há dados" com o
+responsável em vez de deixar a tela vazia ou mostrar zero.
+
+```markdown
+<!-- tabela: sem-dados -->
+| secao | esfera | responsavel | motivo | obrigacao | fonte_consultada | consultado_em |
+|---|---|---|---|---|---|---|
+| gastos-area | municipal | Prefeitura de Exemplo (PR) | Não entregou a DCA de 2024 ao Siconfi | LRF, art. 51 | https://siconfi.tesouro.gov.br | 2026-11-05 |
+| salarios | municipal | Câmara Municipal de Exemplo (PR) | Portal da transparência sem a lei do subsídio | Lei 12.527/2011 (LAI), art. 8º | https://exemplo.pr.gov.br/transparencia | 2026-11-05 |
+```
+
+- `secao`: id da tabela que ficou sem dado (ou de uma parte da tela).
+- `esfera`: `federal`, `estadual` ou `municipal`.
+- `responsavel`: o órgão que deveria publicar (prefeitura, câmara, TCE,
+  governo do estado, Tesouro, Câmara dos Deputados…).
+- `motivo`: o que foi visto, sem adjetivo ("não entregou", "portal fora do
+  ar em 3 coletas seguidas", "publica só em PDF de imagem").
+- `obrigacao`: a lei que manda publicar, quando houver.
+- Falha passageira (site fora do ar uma vez) não vira linha: a coleta tenta
+  de novo. Só entra o que continua faltando.
+- Quando a fonte não tem obrigação de publicar aquilo, `obrigacao` fica vazia
+  e o app diz "dado não publicado" em vez de apontar falha.
+
 ## Por que Markdown
 
 - Uma pessoa abre qualquer arquivo e confere os números com a fonte, sem

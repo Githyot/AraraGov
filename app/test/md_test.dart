@@ -16,6 +16,7 @@ void main() {
     expect(doc.tabela('pagamentos').single['favorecido'], 'Empresa | Exemplo Ltda');
     expect(doc.colunas['pagamentos'], ['cnpj', 'favorecido', 'valor', 'data']);
     expect(doc.tabela('nao-existe'), isEmpty);
+    expect(doc.tabela('sem-dados').single['esfera'], 'municipal');
   });
 
   test('rejeita arquivos fora do formato', () {

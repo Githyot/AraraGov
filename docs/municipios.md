@@ -95,6 +95,18 @@ geram aviso. O texto sempre diz que sobrenome igual não prova parentesco.
   empenho → CNPJ → sócios) e diz onde a trilha para.
 - Não usa pontuação de risco nem ranking de "corruptos".
 
+## Quando não há dado
+
+Em qualquer tela (municipal, estadual ou federal), se um dado não existe o app
+mostra **"Não há dados"** e quem deveria tê-lo publicado: a esfera (federal,
+estadual ou municipal), o órgão, o que faltou, a lei que manda publicar e a
+data em que a fonte foi consultada. Nunca mostra zero no lugar de "sem dado".
+O formato está em [formato-md.md](formato-md.md#quando-não-há-dado).
+
+Exemplo: "Não há dados de gastos por área em 2024. Responsável: Prefeitura de
+Exemplo (municipal), que não entregou a declaração anual ao Tesouro (Siconfi),
+como manda a Lei de Responsabilidade Fiscal, art. 51. Consultado em 5/11/2026."
+
 ## Formato dos dados
 
 Os dados municipais saem em arquivos `.md` com um formato fixo, que uma
@@ -139,7 +151,7 @@ disso, os arquivos de municípios vão para um repositório de dados separado.
 ## Limitações conhecidas
 
 - Muitos municípios atrasam ou não entregam dados ao Siconfi; o app mostra
-  "não entregue" em vez de zero.
+  "Não há dados" com o responsável, em vez de zero.
 - A ligação entre pagamento e obra nem sempre está no dado: às vezes só o
   número do contrato liga os dois.
 - Custo de referência é uma faixa, não um preço exato. Terreno, distância,

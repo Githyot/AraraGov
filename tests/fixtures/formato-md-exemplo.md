@@ -25,3 +25,8 @@ Valores inventados para testar os leitores. O app ignora este parágrafo.
 | cnpj | favorecido | valor | data |
 |---|---|---|---|
 | 00000000000191 | Empresa \| Exemplo Ltda | 4500000 | 2024-03 |
+
+<!-- tabela: sem-dados -->
+| secao | esfera | responsavel | motivo | obrigacao | fonte_consultada | consultado_em |
+|---|---|---|---|---|---|---|
+| salarios | municipal | Câmara Municipal de Exemplo (PR) | Portal sem a lei do subsídio | Lei 12.527/2011, art. 8º | https://exemplo.invalid | 2026-11-05 |
