@@ -1,8 +1,14 @@
 set +e
-ua="AraraGov/0.1 (+https://github.com/Githyot/AraraGov)"
-curl -sSL -A "$ua" --max-time 60 https://www.al.ce.gov.br/deputados -o /tmp/d
-echo "### classes"; grep -oE 'class="deputado_card[^"]*"' /tmp/d | sort | uniq -c
-python3 -c "
-import re; h=open('/tmp/d',encoding='utf-8',errors='replace').read()
-for m in re.finditer(r'class=\"deputado_card([^\"]*)\"(.*?)deputado_card--partido[^>]*>([^<]*)<', h, re.S):
-  n=re.search(r'deputados/([a-z0-9-]+)\">\s*([^<]+?)\s*</a>', m.group(2)); print(repr(m.group(1)), n.group(1) if n else None, '|', n.group(2) if n else None, '|', m.group(3).strip(), '| red' if 'red' in m.group(2) else '')" | head -60
+git fetch -q --depth 1 origin etapa-9-estados && git checkout -q FETCH_HEAD -- araragov pyproject.toml
+pip install -q -e . 2>&1 | tail -1
+echo "### coleta real"
+python -m araragov coletar estados-eleitos 2>&1 | grep -iE "erro|error" | tail -3
+python -m araragov coletar alece-deputados 2>&1 | grep -iE "alece|erro|error|Traceback" | cut -c1-600
+python -m araragov coletar alece-despesas --ano 2026 2>&1 | grep -iE "ligados" | cut -c1-900
+python3 - <<'P'
+import sqlite3,glob
+db=glob.glob('**/*.db',recursive=True)+glob.glob('**/*.sqlite*',recursive=True); print(db)
+c=sqlite3.connect(db[0])
+print(c.execute("select fonte,em_exercicio,count(*) from politico where casa='al-ce' group by 1,2").fetchall())
+print(c.execute("select nome,nome_civil,partido from politico where casa='al-ce' and fonte='assembleia'").fetchall())
+P
