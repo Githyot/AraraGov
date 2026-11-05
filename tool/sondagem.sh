@@ -1,19 +1,13 @@
 set +e
-pip install -q openpyxl 2>&1 | tail -1
 ua="AraraGov/0.1 (+https://github.com/Githyot/AraraGov)"
-get() { for t in 1 2 3 4; do curl -sSL -A "$ua" --max-time 120 -o "$2" "$1" && return 0; sleep 10; done; }
-for a in 2025 2019; do echo "### $a"; get "https://www.al.ba.gov.br/transparencia/verbas-idenizatorias-excel?ano=$a" /tmp/v$a.xlsx; python3 -c "
-import openpyxl,collections
-wb=openpyxl.load_workbook('/tmp/v$a.xlsx'); print(wb.sheetnames); ws=wb.active
-rows=list(ws.iter_rows(values_only=True)); print('ROWS',len(rows))
-for r in rows[:8]: print(r)
-print('LAST',rows[-1])
-hdr=None
-for i,r in enumerate(rows):
-  if r and any(isinstance(c,str) and 'eputad' in c for c in r): hdr=i; print('HDR',i,r); break
-if hdr is not None:
-  for j,c in enumerate(rows[hdr]):
-    vals=collections.Counter(str(x[j])[:40] for x in rows[hdr+1:] if x and len(x)>j)
-    print('COL',j,c,len(vals),vals.most_common(6))
-"; done
-cp /tmp/v2025.xlsx /tmp/alba.xlsx; base64 -w0 /tmp/alba.xlsx | head -c 0
+p() { echo "### $1"; curl -sSL -A "$ua" --connect-timeout 30 --max-time 90 -o /tmp/p -w "== HTTP %{http_code} %{content_type} %{size_download}B %{url_effective}\n" "$1"; grep -oiE 'href="[^"#]*"' /tmp/p | sort -u | grep -iE "verba|indeniz|despes|dados|csv|json|xls|api|cota|deputad" | head -25; }
+p "https://dadosabertos.alepe.pe.gov.br/"
+p "https://dadosabertos.alepe.pe.gov.br/api/v1/parlamentares"
+p "https://www.alepe.pe.gov.br/transparencia/"
+p "https://ww4.al.rs.gov.br/transparencia"
+p "https://www.al.rs.gov.br/"
+p "https://www.al.es.gov.br/Transparencia"
+p "https://www.alerj.rj.gov.br/Transparencia"
+p "https://transparencia.alerj.rj.gov.br/"
+p "https://www.cl.df.gov.br/transparencia"
+p "https://www.almg.gov.br/robots.txt"
