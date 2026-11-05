@@ -12,6 +12,9 @@ homepage: https://github.com/Githyot/AraraGov
 license: AGPL-3.0-or-later
 depends:
   - gtk3
+  # O Flutter abre estas com dlopen; o RPM não as detecta sozinho.
+  - libEGL.so.1()(64bit)
+  - libGLESv2.so.2()(64bit)
 contents:
   - src: app/build/linux/x64/release/bundle
     dst: /opt/araragov
