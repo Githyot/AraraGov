@@ -54,7 +54,9 @@ DESTAQUES = [
     ("FPM", re.compile(r"fundo de participa[çc][ãa]o dos munic[íi]pios|\bFPM\b", re.I)),
     ("ICMS (cota do município)", re.compile(r"cota-?parte do ICMS|\bICMS\b", re.I)),
     ("IPVA (cota do município)", re.compile(r"cota-?parte do IPVA|\bIPVA\b", re.I)),
-    ("Fundeb", re.compile(r"\bFUNDEB\b", re.I)),
+    # A complementação da União é só uma parte do Fundeb; a transferência
+    # principal vem do fundo estadual.
+    ("Fundeb", re.compile(r"^(?!.*complementa[çc][ãa]o).*\bFUNDEB\b", re.I)),
     ("SUS", re.compile(r"sistema [úu]nico de sa[úu]de|\bSUS\b", re.I)),
 ]
 
@@ -103,6 +105,12 @@ def entes_municipais(client, ufs: Iterable[str]) -> List[Ente]:
     return sorted(saida, key=lambda e: (e.uf, e.ibge))
 
 
+def _limpar(texto: str) -> str:
+    """O Siconfi troca o travessão por '¿' em alguns nomes de conta."""
+    texto = re.sub(r"\s*¿\s*$", "", texto)
+    return " ".join(texto.replace("¿", "–").split())
+
+
 def _dec(valor: Any) -> Decimal:
     d = n.decimal(valor)
     return d if d is not None else Decimal(0)
@@ -122,7 +130,7 @@ def receitas(itens: List[Dict[str, Any]], nivel_max: int = 6) -> List[Dict[str, 
     """Receita bruta, deduções (Fundeb, transferências…) e líquida por conta."""
     contas: Dict[str, Dict[str, Any]] = {}
     for item in itens:
-        texto = str(item.get("conta") or "")
+        texto = _limpar(str(item.get("conta") or ""))
         achado = _CONTA_RECEITA.search(str(item.get("cod_conta") or "")) or _CONTA_RECEITA.search(texto)
         if not achado:
             continue
@@ -164,7 +172,7 @@ def areas(itens: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         fase = FASES.get(str(item.get("coluna", "")).strip().lower())
         if not fase:
             continue
-        achado = _FUNCAO.search(str(item.get("conta") or ""))
+        achado = _FUNCAO.search(_limpar(str(item.get("conta") or "")))
         if not achado:
             continue
         funcao, subfuncao, nome = achado.group(1), achado.group(2), achado.group(3).strip()

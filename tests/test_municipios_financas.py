@@ -108,3 +108,15 @@ def test_limite_deixa_para_a_proxima(tmp_path):
     r = financas.gerar(lambda: Cliente({}), tmp_path, anos=[2024], ufs=["PR"], hoje=date(2026, 1, 1),
                        limite_siconfi=1, trabalhadores=2)
     assert r == {"siconfi": 1, "reaproveitados": 0, "pendentes": 1}
+
+
+def test_limpa_travessao_e_fundeb():
+    linhas = financas.receitas([
+        _i("1.7.1.5.00.0.0 Complementação da União ao FUNDEB ¿ F", "Receitas Brutas Realizadas", 5),
+        _i("1.7.5.1.50.0.0 Transferências de Recursos do FUNDEB", "Receitas Brutas Realizadas", 50),
+        _i("1.7.1.3.00.0.0 Transferências do Sistema Único de Saúde ¿ SUS", "Receitas Brutas Realizadas", 7),
+    ])
+    d = {x["destaque"]: x for x in financas.destaques(linhas)}
+    assert d["Fundeb"]["liquida"] == Decimal(50)
+    assert d["SUS"]["conta"] == "Transferências do Sistema Único de Saúde – SUS"
+    assert all("¿" not in l["conta"] for l in linhas)

@@ -67,7 +67,9 @@ jobs:
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             python -m araragov municipios --saida site --anos 2024 --ufs AC,RR --financas 2023 --limite-siconfi 6
             head -40 site/v1/municipios/indice.md
-            for f in $(ls site/v1/municipios/*/*/2023.md | head -2); do echo "== $f"; head -80 "$f"; done
+            for f in $(ls site/v1/municipios/*/*/2023.md | head -2); do
+              echo "== $f"; head -30 "$f"; grep -A25 "tabela: areas" "$f" || true; grep -A5 "tabela: sem-dados" "$f" || true
+            done
           else
             # Finanças: 2019 até o ano passado. Cada execução busca no máximo
             # 4000 pares município-ano no Siconfi; o resto vem das semanas seguintes.
