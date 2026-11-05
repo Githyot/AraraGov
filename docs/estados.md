@@ -9,6 +9,15 @@ A base é a lista de eleitos do TSE nos 27 estados (governador, vice e
 deputados estaduais). Onde a assembleia publica a própria lista (MG e SP),
 ela substitui a do TSE, porque inclui suplentes em exercício.
 
+Em SC e na BA, a lista de deputados em exercício publicada pela assembleia
+é cruzada com a do TSE:
+
+- quem está nas duas fica em exercício, com aviso de que o partido é o da
+  eleição de 2022;
+- suplente que assumiu ganha perfil próprio (código 1.000.000 + id da
+  assembleia), sem partido, porque a assembleia não o publica;
+- eleito que não aparece na lista oficial fica fora de exercício.
+
 ## Gastos por assembleia
 
 | UF | Fonte | O que vem |

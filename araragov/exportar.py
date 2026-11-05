@@ -60,6 +60,12 @@ AVISO_TSE = (
     "de partido podem não aparecer."
 )
 
+AVISOS_CADASTRO = {
+    "tse": AVISO_TSE,
+    "tse-assembleia": "Em exercício segundo a assembleia. O partido é o da eleição de 2022 (TSE) e pode ter mudado.",
+    "assembleia": "Suplente em exercício segundo a assembleia, que não publica o partido.",
+}
+
 
 def _json(valor: Any) -> Any:
     if isinstance(valor, Decimal):
@@ -600,7 +606,7 @@ def exportar(saida: Path) -> int:
             **_resumo(p, doacoes),
             "doacao_salario": _doacao(p, doacoes),
             "ideologia_declarada": _ideologia(p, declaradas),
-            "aviso_cadastro": AVISO_TSE if p.fonte == "tse" else None,
+            "aviso_cadastro": AVISOS_CADASTRO.get(p.fonte or ""),
             "nome_civil": p.nome_civil,
             "email": p.email,
             "salario": salarios[(p.cargo, p.uf)],

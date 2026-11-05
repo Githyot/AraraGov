@@ -20,13 +20,56 @@ from sqlalchemy import select
 from ..db import Politico, sessao
 from ..http import HttpClient
 from .. import normalizar as n
-from ._comum import casar_nome, data_excel, ler_xlsx, substituir_despesas
+from ._comum import casar_nome, data_excel, ler_xlsx, sincronizar_lista_oficial, substituir_despesas
 
 logger = logging.getLogger(__name__)
 
 CASA = "al-ba"
 PAGINA = "https://www.al.ba.gov.br/transparencia/verbas-idenizatorias"
 PLANILHA = PAGINA + "-excel?ano={ano}"
+SITE = "https://www.al.ba.gov.br"
+LISTA = SITE + "/deputados/deputados-estaduais"  # página "Em exercício"
+
+
+def ler_lista(html: str) -> List[Dict[str, Any]]:
+    """Deputados da página "Em exercício": id, nome e o caminho do perfil."""
+    import re
+
+    vistos = set()
+    saida = []
+    for caminho, ident, miolo in re.findall(
+        r'(?:href|value)="(/deputados/deputado[\w-]*/(\d+))/?"[^>]*>(.*?)</(?:a|option)>', html, re.S
+    ):
+        nome = " ".join(re.sub(r"<[^>]+>", " ", miolo).split())
+        if not nome or ident in vistos:
+            continue
+        vistos.add(ident)
+        saida.append({"id": int(ident), "nome": nome, "perfil": SITE + caminho})
+    return saida
+
+
+def ler_nome_civil(html: str) -> Optional[str]:
+    import re
+
+    m = re.search(r"Nome:\s*</strong>\s*<span>([^<]+)</span>", html)
+    return m.group(1).strip() if m else None
+
+
+def coletar_deputados(client: HttpClient) -> int:
+    """Deputados em exercício segundo a ALBA, com o nome civil do perfil;
+    cruza com os eleitos do TSE."""
+    oficiais = ler_lista(client.get_bytes(LISTA).decode("utf-8", "replace"))
+    if len(oficiais) < 40:
+        raise RuntimeError(f"Lista da ALBA com só {len(oficiais)} nomes; mantendo a do TSE")
+    civis: Dict[str, Optional[str]] = {}
+    for o in oficiais:
+        if o["perfil"] not in civis:
+            civis[o["perfil"]] = ler_nome_civil(client.get_bytes(o["perfil"]).decode("utf-8", "replace"))
+    oficiais = [{**o, "nome_civil": civis[o["perfil"]]} for o in oficiais]
+    with sessao() as s:
+        r = sincronizar_lista_oficial(s, CASA, "BA", oficiais)
+    logger.info("ALBA: %s em exercício, %s suplentes novos, %s eleitos fora de exercício", r["em_exercicio"], r["suplentes"], r["fora"])
+    return r["em_exercicio"]
 
 
 def _candidatos() -> Dict[int, List[str]]:

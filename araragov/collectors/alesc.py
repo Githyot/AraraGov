@@ -23,7 +23,7 @@ from sqlalchemy import select
 from ..db import Politico, sessao
 from ..http import HttpClient
 from .. import normalizar as n
-from ._comum import casar_nome, ler_csv, substituir_despesas
+from ._comum import casar_nome, ler_csv, sincronizar_lista_oficial, substituir_despesas
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +31,35 @@ CASA = "al-sc"
 PORTAL = "https://transparencia.alesc.sc.gov.br"
 GABINETES = PORTAL + "/gabinetes-parlamentares/csv/{ano}"
 PAGINA = PORTAL + "/gabinetes-parlamentares"
+DEPUTADOS = PORTAL + "/deputados"
+
+
+def ler_deputados(html: str) -> List[Dict[str, Any]]:
+    """Linhas da tabela de /deputados: nome (como a Alesc grava, às vezes o
+    civil, às vezes o de urna) e a matrícula que aparece no link de remuneração.
+    Só lemos a tabela; a tela de contracheque não é acessada (robots.txt)."""
+    import re
+
+    vistos = set()
+    saida = []
+    for nome, mat in re.findall(r'fw-semibold">\s*([^<]+?)\s*</td>.*?/deputados/contracheque/(\d+)', html, re.S):
+        if mat in vistos:
+            continue
+        vistos.add(mat)
+        saida.append({"id": int(mat), "nome": nome.strip()})
+    return saida
+
+
+def coletar_deputados(client: HttpClient) -> int:
+    """Cruza a lista de deputados da Alesc com os eleitos do TSE: suplentes
+    em exercício ganham perfil e quem se afastou fica fora de exercício."""
+    oficiais = ler_deputados(client.get_bytes(DEPUTADOS).decode("utf-8", "replace"))
+    if len(oficiais) < 30:
+        raise RuntimeError(f"Lista da Alesc com só {len(oficiais)} nomes; mantendo a do TSE")
+    with sessao() as s:
+        r = sincronizar_lista_oficial(s, CASA, "SC", oficiais)
+    logger.info("Alesc: %s em exercício, %s suplentes novos, %s eleitos fora de exercício", r["em_exercicio"], r["suplentes"], r["fora"])
+    return r["em_exercicio"]
 
 
 def _candidatos() -> Dict[int, List[str]]:

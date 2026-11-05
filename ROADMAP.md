@@ -78,6 +78,7 @@ _Última atualização: 5 de novembro de 2026 (madrugada do dia 6)_
 - ✅ São Paulo (Alesp): deputados em exercício e despesas de gabinete
 - ✅ Salário estadual mostrado como teto (75% do deputado federal)
 - 🔄 Santa Catarina (Alesc): gastos de gabinete de cada deputado, de 2011 até hoje, do CSV aberto da Alesc (PR #12)
+- 🔄 SC e BA: lista oficial de deputados em exercício; suplentes que assumiram ganham perfil e quem se afastou fica fora de exercício (PR #12)
 - 🔄 Bahia (ALBA): verbas indenizatórias de cada deputado, da planilha anual da ALBA (sem o fornecedor, que a planilha não traz) (PR #12)
 - 🔄 Salário real por estado, de uma lista com a fonte de cada valor (PR #12):
   - deputados estaduais de SC, SP e GO pela lei estadual; de PE pela imprensa (a lei não está acessível para conferir); do RJ pela página oficial da Alerj (valor atual); os outros estados seguem como teto até a lei ser conferida

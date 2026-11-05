@@ -175,3 +175,64 @@ def data_excel(valor: Any):
     if isinstance(valor, (int, float)):
         return date(1899, 12, 30) + timedelta(days=int(valor))
     return data(valor)
+
+
+# --- Lista oficial de uma assembleia -----------------------------------------
+
+DESLOCAMENTO_SUPLENTE = 1_000_000
+
+
+def sincronizar_lista_oficial(s: Session, casa: str, uf: str, oficiais: List[Dict[str, Any]]) -> Dict[str, int]:
+    """Cruza a lista de deputados em exercício publicada pela assembleia com
+    a lista de eleitos do TSE já gravada.
+
+    `oficiais`: dicionários com id (da assembleia), nome e, se houver, nome_civil.
+    - Quem está nas duas listas fica em exercício (fonte "tse-assembleia").
+    - Quem só está na da assembleia (suplente que assumiu) ganha perfil próprio,
+      com código DESLOCAMENTO_SUPLENTE + id e fonte "assembleia".
+    - Eleito do TSE que não está na lista oficial fica fora de exercício.
+    """
+    from .tse import _titulo
+
+    eleitos = {p.codigo: p for p in s.execute(select(Politico).where(Politico.casa == casa)).scalars()}
+    candidatos = {cod: [p.nome, p.nome_civil] for cod, p in eleitos.items() if cod < DESLOCAMENTO_SUPLENTE}
+    em_exercicio = set()
+    novos = 0
+    for o in oficiais:
+        cod = None
+        for nome in (o.get("nome"), o.get("nome_civil")):
+            if nome and cod is None:
+                cod = casar_nome(nome, candidatos)
+        if cod is not None:
+            p = eleitos[cod]
+            p.em_exercicio = True
+            p.fonte = "tse-assembleia"
+            if o.get("nome_civil") and not p.nome_civil:
+                p.nome_civil = _titulo(o["nome_civil"])
+            em_exercicio.add(cod)
+            continue
+        cod = DESLOCAMENTO_SUPLENTE + int(o["id"])
+        nome = o.get("nome") or o.get("nome_civil")
+        gravar_politico(s, {
+            "casa": casa,
+            "cargo": "Deputado estadual",
+            "codigo": cod,
+            "nome": _titulo(nome) if nome.isupper() else nome,
+            "nome_civil": _titulo(o["nome_civil"]) if o.get("nome_civil") else None,
+            "partido": o.get("partido"),
+            "uf": uf,
+            "sexo": None,
+            "url_foto": o.get("foto"),
+            "email": None,
+            "em_exercicio": True,
+            "legislatura": 20,
+            "fonte": "assembleia",
+        })
+        em_exercicio.add(cod)
+        novos += 1
+    fora = 0
+    for cod, p in eleitos.items():
+        if cod not in em_exercicio:
+            p.em_exercicio = False
+            fora += 1
+    return {"em_exercicio": len(em_exercicio), "suplentes": novos, "fora": fora}

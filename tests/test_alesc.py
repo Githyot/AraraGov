@@ -41,3 +41,32 @@ def test_gastos_de_gabinete_alesc(client):
         ds = s.execute(select(db.Despesa).order_by(db.Despesa.valor)).scalars().all()
     assert [(d.codigo_politico, float(d.valor), d.mes) for d in ds] == [(None, 99.9, 5), (2, 1018.8, 10), (2, 1018.8, 10), (1, 3500.0, 1)]
     assert ds[-1].fornecedor == "Imóveis Planeta Ltda" and ds[-1].categoria == "Escritório de Apoio - Aluguel"
+
+
+LISTA_ALESC = """<tbody>
+<tr><td class="fw-semibold">PAULINHA</td><td class="text-center">10/2026</td><td class="text-end">
+<a href="/deputados/contracheque/9386?ano=2026&amp;mes=10" hx-get="/deputados/contracheque/9386?ano=2026&amp;mes=10">Remuneração</a></td></tr>
+<tr><td class="fw-semibold">DR VICENTE CAROPRESO</td><td>10/2026</td><td>
+<a href="/deputados/contracheque/7726?ano=2026&amp;mes=10">Remuneração</a></td></tr>
+<tr><td class="fw-semibold">EMERSON STEIN</td><td>10/2026</td><td>
+<a href="/deputados/contracheque/12001?ano=2026&amp;mes=10">Remuneração</a></td></tr>
+</tbody>"""
+
+
+def test_lista_oficial_da_alesc_traz_suplente_e_tira_quem_saiu(client, monkeypatch):
+    with db.sessao() as s:
+        for cod, (nome, civil) in CANDIDATOS.items():
+            s.add(db.Politico(casa="al-sc", cargo="Deputado estadual", codigo=cod, nome=nome, nome_civil=civil, uf="SC", partido="X", fonte="tse", em_exercicio=True))
+    assert alesc.ler_deputados(LISTA_ALESC) == [
+        {"id": 9386, "nome": "PAULINHA"}, {"id": 7726, "nome": "DR VICENTE CAROPRESO"}, {"id": 12001, "nome": "EMERSON STEIN"}
+    ]
+    client.bytes(alesc.DEPUTADOS, LISTA_ALESC.encode())
+    monkeypatch.setattr(alesc, "ler_deputados", lambda html, f=alesc.ler_deputados: f(html) * 12)  # passa do mínimo de 30
+    assert alesc.coletar_deputados(client) == 3
+    with db.sessao() as s:
+        ps = {p.codigo: p for p in s.execute(select(db.Politico).where(db.Politico.casa == "al-sc")).scalars()}
+    assert ps[1].em_exercicio and ps[1].fonte == "tse-assembleia"
+    assert ps[2].em_exercicio
+    assert not ps[3].em_exercicio and not ps[5].em_exercicio
+    sup = ps[1_000_000 + 12001]
+    assert (sup.nome, sup.fonte, sup.em_exercicio, sup.partido) == ("Emerson Stein", "assembleia", True, None)
