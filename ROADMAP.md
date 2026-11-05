@@ -80,16 +80,16 @@ _Última atualização: 5 de novembro de 2026 (madrugada do dia 6)_
 - 🔄 Santa Catarina (Alesc): gastos de gabinete de cada deputado, de 2011 até hoje, do CSV aberto da Alesc (PR #12)
 - 🔄 Bahia (ALBA): verbas indenizatórias de cada deputado, da planilha anual da ALBA (sem o fornecedor, que a planilha não traz) (PR #12)
 - 🔄 Salário real por estado, de uma lista com a fonte de cada valor (PR #12):
-  - deputados estaduais de SC, SP e GO pela lei estadual; de PE pela imprensa (a lei não está acessível para conferir); os outros estados seguem como teto até a lei ser conferida
+  - deputados estaduais de SC, SP e GO pela lei estadual; de PE pela imprensa (a lei não está acessível para conferir); do RJ pela página oficial da Alerj (valor atual); os outros estados seguem como teto até a lei ser conferida
   - governador e vice de SP pela lei estadual
   - governadores dos outros 26 estados pelo levantamento do Valor Econômico (out/2026), marcado no app como valor da imprensa
 - 🔄 Seção sem dado mostra "Sem dados" e o órgão responsável por publicar, com a esfera (federal, estadual ou municipal); vale para todo o app (PR #12)
-- ⬜ Conferir a lei do salário de governador e deputados nos outros 24 estados
+- ⬜ Conferir o salário de governador e deputados nos outros 22 estados
 - ⬜ Outras assembleias, uma a uma, só com dados já publicados (sem pedidos ao governo):
   - ➖ PR: gastos só em telas e numa API que o robots.txt da Alep fecha; a API aberta só tem proposições
   - ➖ MT e MS: o site não publica os gastos de cada deputado (MT só traz as normas da verba; MS só explica a cota)
   - ⬜ PE, RS, ES, DF: portais não respondem fora do Brasil (tentado de novo em 05/11, sem sucesso)
-  - ⬜ RJ: o portal novo de transparência da Alerj responde; falta achar onde ficam os gastos dos deputados
+  - ➖ RJ: os gastos dos deputados ficam no sistema DOCIGP, cujo robots.txt fecha todo o site (não coletamos)
 - ⬜ Votações nominais estaduais (poucas assembleias publicam)
 - ⬜ Gabinetes estaduais
 

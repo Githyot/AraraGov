@@ -32,7 +32,7 @@ da coleta lista esses nomes.
 - **MT, MS:** o site não publica os gastos de cada deputado.
 - **PE, RS, ES, DF:** os portais não responderam a acessos de fora do Brasil
   (onde roda a coleta). Vamos tentar de novo.
-- **RJ:** o portal transparencia.alerj.rj.gov.br responde; falta achar os gastos.
+- **RJ:** os gastos ficam no sistema DOCIGP da Alerj, e o robots.txt dele fecha o site inteiro, então não coletamos.
 
 ## Salário
 
@@ -41,6 +41,7 @@ estado e cargo, com a fonte de cada valor:
 
 - `tipo=lei`: valor tirado da lei estadual (SC, SP e GO para deputados; SP
   para governador e vice).
+- `tipo=oficial`: valor publicado pelo próprio órgão, sem a lei nem a data de início (RJ).
 - `tipo=imprensa`: valor publicado pela imprensa enquanto a lei não foi
   conferida (governadores, levantamento do Valor Econômico de outubro de 2026).
   O app avisa que é valor da imprensa.

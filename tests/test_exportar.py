@@ -53,7 +53,8 @@ def test_exporta_estaduais(client, tmp_path):
         s.add(db.Politico(casa="gov-sp", cargo="Governador", codigo=100, nome="B", uf="SP", fonte="tse"))
         s.add(db.Politico(casa="gov-rn", cargo="Governador", codigo=200, nome="C", uf="RN", fonte="tse"))
         s.add(db.Politico(casa="al-sc", cargo="Deputado estadual", codigo=300, nome="D", uf="SC", fonte="tse"))
-    assert exportar(tmp_path) == 4
+        s.add(db.Politico(casa="al-rj", cargo="Deputado estadual", codigo=400, nome="E", uf="RJ", fonte="tse"))
+    assert exportar(tmp_path) == 5
     lista = {p["id"]: p for p in json.loads((tmp_path / "v1/politicos.json").read_text())}
     assert lista["al-mg-12193"]["esfera"] == "estadual"
     assert lista["al-mg-12193"]["orgao"] == "Assembleia Legislativa (MG)"
@@ -70,6 +71,8 @@ def test_exporta_estaduais(client, tmp_path):
     assert rn["atual"] == 21914.76 and rn["historico"][0]["referencia"] is True and "imprensa" in rn["observacao"]
     sc = json.loads((tmp_path / "v1/politicos/al-sc-300.json").read_text())["salario"]
     assert sc["atual"] == 34774.64 and not sc.get("teto") and len(sc["historico"]) == 4
+    rj = json.loads((tmp_path / "v1/politicos/al-rj-400.json").read_text())["salario"]
+    assert rj["historico"][0]["referencia"] is True and "próprio órgão" in rj["observacao"]
 
 
 def test_exporta_custo_do_gabinete_e_beneficios(tmp_path):

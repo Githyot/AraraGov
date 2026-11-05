@@ -49,6 +49,7 @@ OBS_ESTADUAL = (
 )
 OBS_GOVERNO = "Salário fixado por lei estadual."
 OBS_LEI = "Subsídio bruto mensal, fixado por lei estadual"
+OBS_OFICIAL = "Valor publicado pelo próprio órgão; a data de início não é informada."
 OBS_IMPRENSA = (
     "Valor publicado pela imprensa; a lei estadual com o valor ainda não foi conferida pelo AraraGov."
 )
@@ -239,14 +240,14 @@ def subsidios_estaduais(caminho: Optional[Path] = None) -> Dict[tuple, List[Dict
 
 
 def _salario_estadual(historico: List[Dict[str, Any]]) -> Dict[str, Any]:
-    imprensa = any(h["tipo"] == "imprensa" for h in historico)
+    tipos = {h["tipo"] for h in historico}
     resultado: Dict[str, Any] = {
         "atual": historico[-1]["valor"],
         "historico": [
-            {k: v for k, v in h.items() if k != "tipo"} | ({"referencia": True} if h["tipo"] == "imprensa" else {})
+            {k: v for k, v in h.items() if k != "tipo"} | ({"referencia": True} if h["tipo"] in ("imprensa", "oficial") else {})
             for h in historico
         ],
-        "observacao": OBS_IMPRENSA if imprensa else OBS_LEI,
+        "observacao": OBS_IMPRENSA if "imprensa" in tipos else OBS_OFICIAL if "oficial" in tipos else OBS_LEI,
     }
     ipca = inflacao.carregar_ipca() if len(historico) >= 2 else {}
     if ipca and historico[0]["valor"] != historico[-1]["valor"]:
