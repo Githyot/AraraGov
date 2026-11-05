@@ -1,18 +1,23 @@
 set +e
 ua="AraraGov/0.1 (+https://github.com/Githyot/AraraGov)"
-curl -sSL -A "$ua" --max-time 300 -o /tmp/r.csv "https://www2.camara.leg.br/transparencia/recursos-humanos/remuneracao/relatorios-consolidados-por-ano-e-mes/2026/setembro-de-2026-csv"
-head -c 200 /tmp/r.csv; echo
-curl -sSL -A "$ua" --max-time 300 -o /tmp/f.csv "https://dadosabertos.camara.leg.br/arquivos/funcionarios/csv/funcionarios.csv"
-python3 - <<'PY'
-import csv,io,re,collections
-vals=collections.Counter()
-for r in csv.reader(io.StringIO(open('/tmp/r.csv',encoding='latin-1').read()),delimiter=';'):
-    if r and r[0].startswith('Secretário Parlamentar') and len(r)>6 and r[2]=='Normal':
-        vals[r[6]]+=1
-print('distintos',len(vals))
-top=sorted(vals.items(), key=lambda x:-x[1])[:40]
-for v,c in sorted(top,key=lambda x: float(x[0].replace('.','').replace(',','.'))): print(v,c)
-f=list(csv.DictReader(io.StringIO(open('/tmp/f.csv',encoding='utf-8-sig').read()),delimiter=';'))
-niv=collections.Counter(x['cargo'] for x in f if x['grupo']=='Secretário Parlamentar')
-print(niv.most_common(40))
-PY
+p() { echo "### $1"; curl -sSL -A "$ua" --max-time 40 -H "Accept: application/json, text/html;q=0.8" -o /tmp/x -w "== HTTP %{http_code} %{content_type} %{size_download}B %{url_effective}\n" "$1"; head -c ${2:-500} /tmp/x | tr '\n' ' '; echo; }
+for e in parlamentares remuneracao servidores; do p "https://dadosabertos.alepe.pe.gov.br/$e" 800; done
+p "https://dadosabertos.alepe.pe.gov.br/" 1500
+p "https://dadosabertos.cl.df.gov.br/api/3/action/package_list" 1500
+p "https://dadosabertos.cl.df.gov.br/" 600
+p "https://ww4.al.rs.gov.br/dadosabertos" 600
+p "https://dadosabertos.al.rs.gov.br/" 600
+p "https://www.al.rs.gov.br/transparencia" 300
+p "https://www.assembleia.pr.leg.br/transparencia" 300
+p "https://transparencia.assembleia.pr.leg.br/" 600
+p "https://www.alesc.sc.gov.br/dados-abertos" 600
+p "https://transparencia.alesc.sc.gov.br/" 400
+p "https://www.alerj.rj.gov.br/Transparencia" 300
+p "https://dadosabertos.alerj.rj.gov.br/" 400
+p "https://www.al.ce.gov.br/dados-abertos" 400
+p "https://www.al.ba.gov.br/transparencia" 300
+p "https://portal.al.go.leg.br/dados-abertos" 400
+p "https://www.al.mt.gov.br/transparencia" 300
+p "https://www.al.ms.gov.br/transparencia" 300
+p "https://www.al.es.gov.br/Transparencia" 300
+p "https://dados.al.es.gov.br/" 400
