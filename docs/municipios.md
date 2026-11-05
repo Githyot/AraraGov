@@ -319,8 +319,15 @@ os fornecedores do Ceará passam a ter o valor pago.
 - Contam os pagamentos feitos nos meses do próprio exercício do empenho; restos
   a pagar pagos no ano seguinte ficam de fora.
 - A API dá o código da subfunção, não o nome; o app mostra "Subfunção 451".
-- Paraíba: o portal do TCE-PB mudou para `dados-abertos.tce.pb.gov.br` e os
-  arquivos do Sagres não responderam ao GitHub (sondagem de 2026-11-05).
+
+### Paraíba (TCE-PB)
+
+`araragov tce-pb --anos 2025-2026` baixa o arquivo anual de despesas de todos
+os municípios do Sagres
+(`download.tce.pb.gov.br/dados-abertos/dados-consolidados/despesas/despesas-AAAA.zip`,
+~190 MB) e grava `{ano}-pagamentos.md` como em SP. Cada linha é um empenho com
+o valor pago acumulado. O arquivo traz o CPF completo (com zeros à esquerda);
+ele é reconhecido pelo dígito verificador do CNPJ e nunca é gravado.
 - Goiás: quem fiscaliza os municípios é o TCM-GO, que não respondeu; o TCE-GO
   só tem dados do estado.
 
