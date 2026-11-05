@@ -82,3 +82,30 @@ def test_observacoes_locais_soma_e_converte(tmp_path):
     assert obs[("cbuq", "SP")].valor == Decimal("73.70")
     assert obs[("recape", "SP")].valor == Decimal("66.37")
     assert ("recape", "CE") not in obs and obs[("cbuq", "CE")].valor == Decimal("65.00")
+
+
+def test_baixar_para_no_segundo_429(tmp_path, monkeypatch):
+    import pytest
+
+    monkeypatch.setattr(locais.time, "sleep", lambda s: None)
+
+    class R:
+        status_code = 429
+        headers = {"Retry-After": "5"}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    class S:
+        n = 0
+
+        def get(self, *a, **k):
+            S.n += 1
+            return R()
+
+    with pytest.raises(RuntimeError, match="429"):
+        locais.baixar(S(), "https://exemplo/x.zip", tmp_path / "x.zip")
+    assert S.n == 2

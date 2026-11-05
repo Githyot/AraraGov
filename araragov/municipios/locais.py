@@ -56,6 +56,7 @@ def _sessao() -> requests.Session:
 def baixar(sessao: requests.Session, url: str, destino: Path, tentativas: int = 8, espera: float = 30, **kw) -> Path:
     """Download com novas tentativas para 429 e laço de redirecionamento
     (a CDN da Caixa às vezes manda a URL para ela mesma)."""
+    seguidos_429 = 0
     for t in range(1, tentativas + 1):
         try:
             with sessao.get(url, stream=True, timeout=(30, 300), **kw) as r:
@@ -67,6 +68,20 @@ def baixar(sessao: requests.Session, url: str, destino: Path, tentativas: int = 
                 logger.warning("HTTP %s em %s (tentativa %s)", r.status_code, url, t)
                 if r.status_code == 404:
                     raise FileNotFoundError(url)
+                if r.status_code == 429:
+                    # Bloqueio por excesso de pedidos: insistir só prolonga. Respeita o
+                    # Retry-After uma vez; se voltar 429, para e sugere o download manual.
+                    seguidos_429 += 1
+                    if seguidos_429 >= 2:
+                        raise RuntimeError(
+                            f"{url} respondeu 429 (excesso de pedidos) {seguidos_429} vezes seguidas. "
+                            "Espere algumas horas e baixe uma vez pelo navegador (veja dados/locais/LEIAME.md).")
+                    try:
+                        pausa = min(float(r.headers.get("Retry-After", "")), 900)
+                    except ValueError:
+                        pausa = espera * 4
+                    time.sleep(pausa)
+                    continue
         except requests.TooManyRedirects:
             # A Caixa manda cookies no meio do laço; recomeçar sem eles às vezes resolve.
             sessao.cookies.clear()
