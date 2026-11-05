@@ -49,7 +49,7 @@ _HYPERLINK = re.compile(r",\s*(\d+)\s*\)\s*$")
 def _sessao() -> requests.Session:
     s = requests.Session()
     s.headers["User-Agent"] = USER_AGENT
-    s.max_redirects = 5
+    s.max_redirects = 10
     return s
 
 
@@ -68,7 +68,9 @@ def baixar(sessao: requests.Session, url: str, destino: Path, tentativas: int = 
                 if r.status_code == 404:
                     raise FileNotFoundError(url)
         except requests.TooManyRedirects:
-            logger.warning("Redirecionamento em laço em %s (tentativa %s)", url, t)
+            # A Caixa manda cookies no meio do laço; recomeçar sem eles às vezes resolve.
+            sessao.cookies.clear()
+            logger.warning("Redirecionamento em laço em %s (tentativa %s de %s)", url, t, tentativas)
         except (requests.ConnectionError, requests.Timeout, requests.exceptions.ChunkedEncodingError) as e:
             logger.warning("Falha em %s (tentativa %s): %s", url, t, e)
         time.sleep(espera * t)
@@ -133,7 +135,15 @@ def coletar_sinapi(ano: int, mes: int, pasta: Path, sessao: Optional[requests.Se
     sessao = sessao or _sessao()
     tmp = pasta / f"sinapi-{ano}-{mes:02d}.zip"
     pasta.mkdir(parents=True, exist_ok=True)
-    baixar(sessao, SINAPI_URL.format(ano=ano, mes=mes), tmp)
+    # Baixado à mão no navegador (quando a Caixa fica em laço para o script).
+    manual = [Path.home() / "Downloads" / f"SINAPI-{ano}-{mes:02d}-formato-xlsx.zip",
+              pasta / f"SINAPI-{ano}-{mes:02d}-formato-xlsx.zip"]
+    achado = next((m for m in manual if m.exists()), None)
+    if achado:
+        logger.info("SINAPI: usando o arquivo baixado à mão em %s", achado)
+        tmp.write_bytes(achado.read_bytes())
+    else:
+        baixar(sessao, SINAPI_URL.format(ano=ano, mes=mes), tmp)
     with zipfile.ZipFile(tmp) as z:
         nome = next(n for n in z.namelist() if "Refer" in n and n.lower().endswith(".xlsx"))
         xlsx = z.read(nome)
