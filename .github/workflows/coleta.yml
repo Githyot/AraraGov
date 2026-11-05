@@ -104,12 +104,14 @@ jobs:
             code=$(curl -s -o /tmp/r -w '%{http_code} %{size_download}B %{time_total}s' -m 40 -A "AraraGov (dados publicos; github.com/Githyot/AraraGov)" "$u" || echo "falhou")
             echo "$code  $u"; head -c 300 /tmp/r 2>/dev/null; echo
           done
-          echo "== TCE-SP: links de dados abertos"
-          for p in conjunto-de-dados dados-abertos ""; do
-            curl -s -m 40 "https://transparencia.tce.sp.gov.br/$p" | grep -oE 'href="[^"]+\.(zip|csv|json)[^"]*"' | sort -u | head -40
+          B=https://transparencia.tce.sp.gov.br/sites/default/files/conjunto-dados
+          for f in despesas-2024.zip licitacoes-contratos/ajustes-2024-2o-semestre_0.zip; do
+            echo "== TCE-SP $f"; curl -sI -m 40 "$B/$f" | grep -iE "^(HTTP|content-length)"
           done
-          echo "== PNCP: uma contratação de obra (modalidade 6, pregão) em SP"
-          curl -s -m 40 "https://pncp.gov.br/api/consulta/v1/contratacoes/publicacao?dataInicial=20250301&dataFinal=20250305&codigoModalidadeContratacao=6&uf=SP&pagina=1&tamanhoPagina=10" | head -c 2500; echo
+          curl -s -m 600 -o /tmp/aj.zip "$B/licitacoes-contratos/ajustes-2024-2o-semestre_0.zip" && unzip -l /tmp/aj.zip | head
+          for m in $(unzip -Z1 /tmp/aj.zip | head -3); do echo "-- $m"; unzip -p /tmp/aj.zip "$m" | head -4 | iconv -f latin1 -t utf8 | cut -c1-1500; done
+          curl -s -m 900 -o /tmp/d.zip "$B/despesas-2024.zip" && ls -la /tmp/d.zip && unzip -l /tmp/d.zip | head
+          m=$(unzip -Z1 /tmp/d.zip | head -1); unzip -p /tmp/d.zip "$m" | head -4 | iconv -f latin1 -t utf8 | cut -c1-1500
       - name: Tamanho da API
         # O GitHub Pages aceita sites de até 1 GB.
         run: |
