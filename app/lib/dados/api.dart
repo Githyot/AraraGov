@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:http/http.dart' as http;
 
+import 'md.dart';
 import 'modelos.dart';
 
 /// Lê a API estática do AraraGov.
@@ -68,6 +69,31 @@ class Api {
         else
           VotoEmVotacao.compacto([v.id, v.data, v.voto, v.ladoSim, v.atencao == null ? 0 : 1], Map<String, dynamic>.from(detalhes[v.id]))
     ];
+  }
+
+  /// Arquivo .md da parte municipal (formato araragov-md/1). Devolve `null`
+  /// quando o arquivo não existe (município ou ano ainda sem dados).
+  Future<DocumentoMd?> md(String caminho) async {
+    final chave = 'md:$caminho';
+    if (_cache.containsKey(chave)) return _cache[chave] is DocumentoMd ? _cache[chave] as DocumentoMd : null;
+    String? texto;
+    if (amostra) {
+      try {
+        texto = await rootBundle.loadString('assets/amostra/v1/$caminho');
+      } catch (_) {
+        texto = null;
+      }
+    } else {
+      final resp = await _http.get(Uri.parse('$base/$caminho')).timeout(const Duration(seconds: 30));
+      if (resp.statusCode == 200) {
+        texto = utf8.decode(resp.bodyBytes);
+      } else if (resp.statusCode != 404) {
+        throw ApiErro('O servidor respondeu ${resp.statusCode}.');
+      }
+    }
+    final doc = texto == null ? null : lerMd(texto);
+    _cache[chave] = doc ?? false;
+    return doc;
   }
 
   Future<Perfil> perfil(String id) async {

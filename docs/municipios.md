@@ -141,7 +141,7 @@ disso, os arquivos de municípios vão para um repositório de dados separado.
 | 4 | Estado piloto (SP): pagamentos, contratos e obras pelo TCE-SP, com comparação de custo | 🔄 |
 | 5 | Fornecedores: CNPJs, sócios (Receita), CEIS/CNEP e indícios de vínculo | 🔄 |
 | 6 | Emendas e transferências até o CNPJ que recebeu | 🔄 |
-| 7 | Telas do app (município, área, obra, fornecedor) | ⬜ |
+| 7 | Telas do app (município, área, obra, fornecedor) | 🔄 |
 | 8 | Outros estados (um TCE por vez) e portais Fiorilli, Betha, IPM | ⬜ |
 
 **Estado piloto: São Paulo.** O plano sugeria o Paraná, mas o portal de
@@ -265,6 +265,23 @@ do Portal da Transparência:
 
 Em `fornecedores.md`, a empresa que recebeu emenda direto e também vendeu à
 prefeitura ganha o indício "Recebeu emenda federal direto (autor, ano)".
+
+## Fase 7: telas do app
+
+O botão "Municípios" no topo da tela inicial abre a busca (pelo
+`indice.md`). Cada município tem cinco abas, todas lidas direto dos `.md`:
+
+- **Quem governa**: prefeito, vice e vereadores por mandato.
+- **Dinheiro**: arrecadação e gastos por área do ano escolhido; cada área
+  abre as subáreas e, em SP, quem recebeu em cada uma.
+- **Obras**: contratos de obra com o valor por unidade, a faixa de
+  referência e a etiqueta "X% acima", "Na faixa", "Abaixo" ou "Sem
+  comparação"; obras pagas e contratações diretas repetidas.
+- **Fornecedores**: empresas, indícios com fonte, sanções e campanhas.
+- **Emendas**: por ano, por autor e por favorecido.
+
+Arquivo que não existe vira "Não há dados" com o motivo; a tabela
+`sem-dados` mostra quem deveria ter publicado.
 
 ## Limitações conhecidas
 
