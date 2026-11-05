@@ -45,3 +45,12 @@ estado e cargo, com a fonte de cada valor:
 
 Linhas sem link de fonte são ignoradas. Estados sem linha para deputados
 continuam mostrando o teto constitucional (75% do deputado federal).
+
+## Quando falta dado
+
+Toda seção sem dado mostra "Sem dados" e o órgão responsável por publicar
+aquele dado, com a esfera (por exemplo, "Assembleia Legislativa (MT), esfera
+estadual" ou "Câmara dos Deputados, esfera federal"). O app não diz o motivo
+da falta: pode ser que o órgão não publique, ou que o AraraGov ainda não
+colete aquela fonte. Governador e vice não têm a seção de votações, porque
+não votam em plenário.

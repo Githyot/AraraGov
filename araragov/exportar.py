@@ -47,7 +47,7 @@ OBS_ESTADUAL = (
     "Teto constitucional: 75% do subsídio de deputado federal (CF, art. 27, § 2º). "
     "O valor exato é fixado por lei de cada assembleia."
 )
-OBS_GOVERNO = "Fixado por lei estadual; ainda não coletado."
+OBS_GOVERNO = "Salário fixado por lei estadual."
 OBS_LEI = "Subsídio bruto mensal, fixado por lei estadual"
 OBS_IMPRENSA = (
     "Valor publicado pela imprensa; a lei estadual com o valor ainda não foi conferida pelo AraraGov."

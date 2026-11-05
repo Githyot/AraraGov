@@ -82,6 +82,7 @@ _Última atualização: 5 de novembro de 2026 (madrugada do dia 6)_
   - deputados estaduais de SC e SP pela lei estadual; os outros estados seguem como teto até a lei ser conferida
   - governador e vice de SP pela lei estadual
   - governadores dos outros 26 estados pelo levantamento do Valor Econômico (out/2026), marcado no app como valor da imprensa
+- 🔄 Seção sem dado mostra "Sem dados" e o órgão responsável por publicar, com a esfera (federal, estadual ou municipal); vale para todo o app (PR #12)
 - ⬜ Conferir a lei do salário de governador e deputados nos outros 25 estados
 - ⬜ Outras assembleias, uma a uma, só com dados já publicados (sem pedidos ao governo):
   - ➖ PR: gastos só em telas e numa API que o robots.txt da Alep fecha; a API aberta só tem proposições
