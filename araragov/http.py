@@ -58,3 +58,23 @@ class HttpClient:
 
     def get_bytes(self, url: str, params: Optional[Mapping[str, Any]] = None) -> bytes:
         return self._get(url, params, "*/*").content
+
+    def baixar_arquivo(self, url: str, destino, pedaco: int = 1 << 20) -> None:
+        """Baixa um arquivo grande direto para o disco, com novas tentativas."""
+        espera = self.espera_inicial
+        for tentativa in range(1, self.tentativas + 1):
+            try:
+                with self.session.get(url, stream=True, timeout=(20, HTTP_TIMEOUT)) as resp:
+                    if resp.status_code < 500 and resp.status_code != 429:
+                        resp.raise_for_status()
+                        with open(destino, "wb") as f:
+                            for parte in resp.iter_content(pedaco):
+                                f.write(parte)
+                        return
+                    logger.warning("HTTP %s em %s (tentativa %s)", resp.status_code, url, tentativa)
+            except (requests.ConnectionError, requests.Timeout, requests.exceptions.ChunkedEncodingError) as exc:
+                logger.warning("Falha ao baixar %s (tentativa %s): %s", url, tentativa, exc)
+            if tentativa < self.tentativas:
+                time.sleep(espera)
+                espera *= 2
+        raise RuntimeError(f"Não foi possível baixar {url} após {self.tentativas} tentativas")

@@ -105,6 +105,10 @@ def main(argv: list[str] | None = None) -> int:
     cus.add_argument("--saida", default="site")
     cus.add_argument("--anos", type=_anos, default=_anos(f"2016-{date.today().year}"))
     cus.add_argument("--ufs", default="", help="ex.: PR,SC (padrão: todos)")
+    tsp = sub.add_parser("tce-sp", help="pagamentos dos municípios de SP pelo TCE-SP (.md)")
+    tsp.add_argument("--saida", default="site")
+    tsp.add_argument("--anos", type=_anos, default=[date.today().year - 1])
+    tsp.add_argument("--limite-linhas", type=int, help="lê só N linhas do arquivo (teste)")
     son = sub.add_parser("sinapi-sondar", help="mostra o formato do pacote mensal do SINAPI")
     son.add_argument("--mes", default="", help="AAAA-MM (padrão: dois meses atrás)")
     exp = sub.add_parser("exportar", help="gera a API estática (JSON) que o app lê")
@@ -137,6 +141,13 @@ def main(argv: list[str] | None = None) -> int:
         ufs = [u.strip().upper() for u in args.ufs.split(",") if u.strip()] or list(UFS) + ["DF"]
         referencias.gerar(HttpClient(), Path(args.saida), sorted(set(ufs)), args.anos)
         return 0
+
+    if args.comando == "tce-sp":
+        from pathlib import Path
+
+        from .municipios import tcesp
+
+        return 0 if tcesp.gerar(HttpClient(), Path(args.saida), args.anos, args.limite_linhas) else 1
 
     if args.comando == "sinapi-sondar":
         from .municipios import sinapi

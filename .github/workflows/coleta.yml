@@ -84,6 +84,16 @@ jobs:
           else
             python -m araragov custos --saida site
           fi
+      - name: Pagamentos dos municípios de SP (TCE-SP)
+        if: ${{ !cancelled() }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            python -m araragov tce-sp --saida site --anos 2024 --limite-linhas 400000
+            f=$(ls site/v1/municipios/sp/*/2024-pagamentos.md | head -1); head -60 "$f"; grep -A8 "tabela: obras" "$f" || true
+          else
+            # Ano passado e o atual (o atual ainda muda a cada mês).
+            python -m araragov tce-sp --saida site --anos $(( $(date +%Y) - 1 ))-$(date +%Y)
+          fi
       - name: Sondar o pacote do SINAPI
         if: ${{ github.event_name == 'pull_request' && !cancelled() }}
         continue-on-error: true
@@ -104,14 +114,6 @@ jobs:
             code=$(curl -s -o /tmp/r -w '%{http_code} %{size_download}B %{time_total}s' -m 40 -A "AraraGov (dados publicos; github.com/Githyot/AraraGov)" "$u" || echo "falhou")
             echo "$code  $u"; head -c 300 /tmp/r 2>/dev/null; echo
           done
-          B=https://transparencia.tce.sp.gov.br/sites/default/files/conjunto-dados
-          for f in despesas-2024.zip licitacoes-contratos/ajustes-2024-2o-semestre_0.zip; do
-            echo "== TCE-SP $f"; curl -sI -m 40 "$B/$f" | grep -iE "^(HTTP|content-length)"
-          done
-          curl -s -m 600 -o /tmp/aj.zip "$B/licitacoes-contratos/ajustes-2024-2o-semestre_0.zip" && unzip -l /tmp/aj.zip | head
-          for m in $(unzip -Z1 /tmp/aj.zip | head -3); do echo "-- $m"; unzip -p /tmp/aj.zip "$m" | head -4 | iconv -f latin1 -t utf8 | cut -c1-1500; done
-          curl -s -m 900 -o /tmp/d.zip "$B/despesas-2024.zip" && ls -la /tmp/d.zip && unzip -l /tmp/d.zip | head
-          m=$(unzip -Z1 /tmp/d.zip | head -1); unzip -p /tmp/d.zip "$m" | head -4 | iconv -f latin1 -t utf8 | cut -c1-1500
       - name: Tamanho da API
         # O GitHub Pages aceita sites de até 1 GB.
         run: |
