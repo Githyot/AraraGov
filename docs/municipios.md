@@ -333,9 +333,10 @@ ele é reconhecido pelo dígito verificador do CNPJ e nunca é gravado.
     `{ano}-contratos.md` dos 91 municípios (a capital fica no PNCP), com CNPJ e
     valor pago por contrato. Sem quantidade, as obras não têm comparação de
     custo, e o arquivo diz isso em `sem-dados`.
-  - TCE-RN (`apidadosabertos.tce.rn.gov.br`): contratos por unidade com CNPJ;
-    os empenhos vieram vazios para Mossoró em 2024, e os pagamentos exigem uma
-    consulta por empenho.
+  - TCE-RN (`apidadosabertos.tce.rn.gov.br`): incompleto. Mossoró tem 2
+    contratos em 2024 e nenhum empenho; Acari tem empenhos (credor e valor
+    empenhado, sem elemento da despesa nem valor pago). Sem o elemento não dá
+    para separar a folha, então o RN fica no PNCP por enquanto.
   - TCE-PI: só os 10 maiores credores de cada prefeitura, sem CNPJ.
   - TCE-MT, TCE-AL e o portal do TCE-TO não resolveram no GitHub; TCE-MS e
     TCE-AM só têm páginas, sem dados abertos de despesa municipal.
