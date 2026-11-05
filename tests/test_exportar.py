@@ -34,6 +34,11 @@ def test_exporta_lista_e_perfil(client, tmp_path):
     assert perfil["votacoes"][0]["voto"] == "sim"
     assert perfil["votacoes"][0]["proposicao"] == "PL 1/2025"
     assert perfil["presenca"] == {"sim": 1}
+    vid, dia, voto, _lado, _atencao = perfil["votos"][0]
+    assert voto == "sim" and dia.startswith("2025-")
+    detalhes = json.loads((tmp_path / "v1/votacoes/2025.json").read_text())
+    assert detalhes[vid]["proposicao"] == "PL 1/2025"
+    assert json.loads((tmp_path / "v1/meta.json").read_text())["anos_votacoes"] == [2025]
     assert json.loads((tmp_path / "v1/meta.json").read_text())["total_politicos"] == 3
 
 
@@ -72,7 +77,7 @@ def test_exporta_custo_do_gabinete_e_beneficios(tmp_path):
         s.add(db.Beneficio(casa="senado", codigo_politico=475, tipo="imovel_funcional", descricao="Ocupa imóvel funcional em Brasília"))
     exportar(tmp_path)
     perfil = json.loads((tmp_path / "v1/politicos/senado-475.json").read_text())
-    assert perfil["custo_gabinete"] == {"mensal": 15000.5, "pessoas_com_valor": 2, "pessoas": 3, "referencia": "2026-09"}
+    assert perfil["custo_gabinete"] == {"mensal": 15000.5, "pessoas_com_valor": 2, "pessoas": 3, "referencia": "2026-09", "origem": "folha"}
     assert perfil["beneficios"][0]["tipo"] == "imovel_funcional"
     assert {g["nome"]: g["remuneracao"] for g in perfil["gabinete"]} == {"A": 12000.5, "B": 3000.0, "C": None}
 
@@ -95,3 +100,21 @@ def test_doacao_de_salario_declarada(tmp_path):
     perfil = json.loads((tmp_path / "v1/politicos/camara-204536.json").read_text())
     assert perfil["doacao_salario"]["fonte"].startswith("https://")
     assert json.loads((tmp_path / "v1/politicos/camara-1.json").read_text())["doacao_salario"] is None
+
+
+def test_ideologia_declarada(tmp_path):
+    from araragov import db
+    from araragov.exportar import ideologias_declaradas
+
+    partidos, _ = ideologias_declaradas()
+    assert partidos["PT"]["declaracao"] == "Socialismo democrático"
+    assert all(d["fonte"].startswith("http") and d["trecho"] for d in partidos.values())
+
+    with db.sessao() as s:
+        s.add(db.Politico(casa="camara", cargo="Deputado Federal", codigo=1, nome="A", partido="PCdoB", uf="SP"))
+        s.add(db.Politico(casa="camara", cargo="Deputado Federal", codigo=2, nome="B", partido="SEMLISTA", uf="SP"))
+    exportar(tmp_path)
+    a = json.loads((tmp_path / "v1/politicos/camara-1.json").read_text())
+    assert a["ideologia_declarada"]["partido"]["declaracao"] == "Comunismo"
+    assert a["ideologia_declarada"]["pessoal"] is None
+    assert json.loads((tmp_path / "v1/politicos/camara-2.json").read_text())["ideologia_declarada"] is None
