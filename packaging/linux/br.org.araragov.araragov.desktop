@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=AraraGov
+Comment=Dados públicos de políticos brasileiros, organizados e fáceis de entender
+Exec=araragov
+Icon=br.org.araragov.araragov
+Terminal=false
+Categories=Education;Office;
+Keywords=política;governo;transparência;votações;salário;
+StartupWMClass=br.org.araragov.araragov

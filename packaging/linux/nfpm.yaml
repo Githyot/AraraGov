@@ -1,0 +1,28 @@
+# Empacota o bundle do Flutter em /opt/araragov, com o comando `araragov`,
+# a entrada no menu e o ícone. A versão vem do pubspec (ver .github/workflows/linux.yml).
+name: ${ARARAGOV_PACOTE}
+arch: amd64
+platform: linux
+version: ${ARARAGOV_VERSAO}
+release: "1"
+section: misc
+maintainer: Githyot <117548028+Githyot@users.noreply.github.com>
+description: Dados públicos de políticos brasileiros, organizados e fáceis de entender.
+homepage: https://github.com/Githyot/AraraGov
+license: AGPL-3.0-or-later
+depends:
+  - gtk3
+contents:
+  - src: app/build/linux/x64/release/bundle
+    dst: /opt/araragov
+    type: tree
+  - src: /opt/araragov/araragov
+    dst: /usr/bin/araragov
+    type: symlink
+  - src: packaging/linux/br.org.araragov.araragov.desktop
+    dst: /usr/share/applications/br.org.araragov.araragov.desktop
+  - src: app/assets/icone/araragov-arredondado.svg
+    dst: /usr/share/icons/hicolor/scalable/apps/br.org.araragov.araragov.svg
+  - src: LICENSE
+    dst: /usr/share/licenses/araragov/LICENSE
+    type: license
