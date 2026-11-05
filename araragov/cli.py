@@ -15,7 +15,7 @@ from datetime import date
 from sqlalchemy import func, select
 
 from . import db
-from .collectors import alba, alesc, assembleias, beneficios, camara, camara_recursos, emendas, gabinete, historico, referencia, senado, tse
+from .collectors import alba, alece, alesc, assembleias, beneficios, camara, camara_recursos, emendas, gabinete, historico, referencia, senado, tse
 from .http import HttpClient
 
 ALVOS = {
@@ -51,6 +51,7 @@ ALVOS = {
     "alesc-gabinetes": lambda c, a: alesc.coletar_gabinetes(c),
     "alba-deputados": lambda c, a: alba.coletar_deputados(c),
     "alba-despesas": lambda c, a: alba.coletar_despesas(c, a.ano, a.limite),
+    "alece-despesas": lambda c, a: alece.coletar_despesas(c, a.ano, a.limite),
     "ipca": lambda c, a: referencia.coletar_ipca(c),
     "subsidios": lambda c, a: referencia.carregar_subsidios(),
 }
@@ -58,12 +59,12 @@ ALVOS = {
 
 # Fontes com reserva: se falharem, o TSE já cobre o estado e a coleta segue
 # sem marcar erro (o aviso aparece no log e no resumo).
-COM_RESERVA = {"historico", "almg-deputados", "almg-despesas", "alesp-deputados", "alesp-despesas", "alesc-deputados", "alesc-despesas", "alesc-gabinetes", "alba-deputados", "alba-despesas"}
+COM_RESERVA = {"historico", "almg-deputados", "almg-despesas", "alesp-deputados", "alesp-despesas", "alesc-deputados", "alesc-despesas", "alesc-gabinetes", "alba-deputados", "alba-despesas", "alece-despesas"}
 
 
 POR_ANO = {
     "camara-votacoes", "camara-despesas", "senado-votacoes", "senado-despesas",
-    "almg-despesas", "alesp-despesas", "alesc-despesas", "alba-despesas", "emendas", "camara-recursos",
+    "almg-despesas", "alesp-despesas", "alesc-despesas", "alba-despesas", "alece-despesas", "emendas", "camara-recursos",
 }
 
 
