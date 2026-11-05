@@ -12,3 +12,4 @@ creche;Creche (área construída);m²;edificacao;
 escola;Escola (área construída);m²;edificacao;
 ubs;Unidade Básica de Saúde (área construída);m²;edificacao;
 hospital;Hospital (área construída);m²;edificacao;
+edificacao-media;Custo médio do m² construído no estado (SINAPI, projetos residenciais padrão): referência genérica para prédios;m²;edificacao;

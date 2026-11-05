@@ -137,7 +137,7 @@ disso, os arquivos de municípios vão para um repositório de dados separado.
 | 0 | Este plano, o formato `.md` (leitor e escritor) e a metodologia de custo de referência | 🔄 |
 | 1 | Quem governa: prefeitos, vices e vereadores 2016/2020/2024 (TSE), por município e período | 🔄 |
 | 2 | Arrecadação e gastos por área (Siconfi), Brasil inteiro, com IPCA | 🔄 |
-| 3 | Banco de custos de referência (SINAPI, SICRO, índices, ANP, ANTT, artigos) | ⬜ |
+| 3 | Banco de custos de referência (SINAPI, SICRO, índices, ANP, ANTT, artigos) | 🔄 |
 | 4 | Estado piloto: pagamentos, contratos e obras pelo TCE, com comparação de custo | ⬜ |
 | 5 | Fornecedores: CNPJs, sócios (Receita), CEIS/CNEP e indícios de vínculo | ⬜ |
 | 6 | Emendas e transferências até o CNPJ que recebeu | ⬜ |

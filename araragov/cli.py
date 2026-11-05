@@ -101,6 +101,10 @@ def main(argv: list[str] | None = None) -> int:
     mun.add_argument("--financas", type=_anos, default=[], help="anos de arrecadação e gastos (Siconfi), ex.: 2019-2025")
     mun.add_argument("--limite-siconfi", type=int, help="máximo de pares município-ano buscados no Siconfi nesta execução")
     mun.add_argument("--sem-eleitos", action="store_true", help="não gera os resumos com prefeitos e vereadores")
+    cus = sub.add_parser("custos", help="gera os custos de referência por estado (.md)")
+    cus.add_argument("--saida", default="site")
+    cus.add_argument("--anos", type=_anos, default=_anos(f"2016-{date.today().year}"))
+    cus.add_argument("--ufs", default="", help="ex.: PR,SC (padrão: todos)")
     son = sub.add_parser("sinapi-sondar", help="mostra o formato do pacote mensal do SINAPI")
     son.add_argument("--mes", default="", help="AAAA-MM (padrão: dois meses atrás)")
     exp = sub.add_parser("exportar", help="gera a API estática (JSON) que o app lê")
@@ -122,6 +126,16 @@ def main(argv: list[str] | None = None) -> int:
         from .exportar import exportar
 
         exportar(Path(args.saida))
+        return 0
+
+    if args.comando == "custos":
+        from pathlib import Path
+
+        from .collectors.tse import UFS
+        from .municipios import referencias
+
+        ufs = [u.strip().upper() for u in args.ufs.split(",") if u.strip()] or list(UFS) + ["DF"]
+        referencias.gerar(HttpClient(), Path(args.saida), sorted(set(ufs)), args.anos)
         return 0
 
     if args.comando == "sinapi-sondar":

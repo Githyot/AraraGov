@@ -107,6 +107,19 @@ documentado: situação da obra (Obrasgov, TCE), refazimento em pouco tempo,
 apontamentos e auditorias dos Tribunais de Contas com link. Não há nota de
 qualidade inventada.
 
+## Fontes em uso
+
+- **SINAPI pelo IBGE** (SIDRA, tabela 2296): custo médio do m² construído
+  por estado e mês. É o índice de custo de cada estado no nível 3 e a
+  referência genérica de prédios (item `edificacao-media`).
+- **IPCA** (Banco Central): só quando não há índice do setor, com aviso.
+- **Tabelas curadas** em `araragov/referencia/`: itens, preços com link,
+  composições e períodos atípicos.
+- O pacote completo do SINAPI na Caixa (preço de cada serviço, como o m² de
+  CBUQ) recusa downloads vindos do GitHub (HTTP 429). Enquanto isso não for
+  resolvido, os preços por serviço vêm das tabelas curadas e, na fase 4, dos
+  contratos de outros municípios (PNCP e TCEs).
+
 ## Banco de referência
 
 Fica em `v1/referencia/custos/{uf}.md`, no [formato do projeto](formato-md.md),

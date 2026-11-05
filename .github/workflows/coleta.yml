@@ -75,6 +75,15 @@ jobs:
             # 4000 pares município-ano no Siconfi; o resto vem das semanas seguintes.
             python -m araragov municipios --saida site --financas 2019-$(( $(date +%Y) - 1 )) --limite-siconfi 4000
           fi
+      - name: Custos de referência (SIDRA, IPCA e tabelas curadas)
+        if: ${{ !cancelled() }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            python -m araragov custos --saida site --ufs PR,SC --anos 2019-2025
+            grep -A12 "tabela: referencias" site/v1/referencia/custos/pr.md
+          else
+            python -m araragov custos --saida site
+          fi
       - name: Sondar o pacote do SINAPI
         if: ${{ github.event_name == 'pull_request' && !cancelled() }}
         continue-on-error: true
