@@ -69,3 +69,24 @@ def test_gerar_escreve_md(tmp_path):
     doc = md.ler((tmp_path / "v1/municipios/sc/4208203/2025-contratos.md").read_text(encoding="utf-8"))
     assert doc.meta["uf"] == "SC" and doc.tabelas["contratos"][0]["empresa"] == "EMPRESA"
     assert doc.tabelas["sem-dados"][0]["responsavel"] == "Prefeitura"
+
+
+def test_pagina_menor_quando_a_api_recusa(monkeypatch):
+    import requests
+
+    from araragov.municipios import pncp
+
+    monkeypatch.setattr(pncp, "_TAMANHOS", {})
+    pedidos = []
+
+    class C:
+        def get_json(self, url, params):
+            pedidos.append(params["tamanhoPagina"])
+            if params["tamanhoPagina"] > 50:
+                r = requests.Response()
+                r.status_code = 400
+                raise requests.HTTPError(response=r)
+            return {"data": [{"x": 1}], "paginasRestantes": 0}
+
+    assert list(pncp._paginas(C(), "contratacoes/publicacao", {})) == [{"x": 1}]
+    assert pedidos == [500, 50]

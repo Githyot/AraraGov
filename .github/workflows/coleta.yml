@@ -185,6 +185,13 @@ jobs:
           du -sh site site/v1/politicos site/v1/votacoes site/v1/municipios || true
           tamanho=$(du -sm site | cut -f1)
           if [ "$tamanho" -gt 900 ]; then echo "::warning::API com ${tamanho} MB, perto do limite de 1 GB do GitHub Pages"; fi
+      - name: Lista de empresas no log (para a coleta local de sócios)
+        # O download de artefatos não passa pela rede do ambiente do mantenedor;
+        # o log passa. Cada linha sai como "CNPJ-FORNECEDOR <14 dígitos>".
+        if: ${{ always() && github.event_name == 'pull_request' }}
+        run: |
+          f=site/v1/municipios/cnpjs-fornecedores.txt
+          if [ -f "$f" ]; then wc -l "$f"; sed 's/^/CNPJ-FORNECEDOR /' "$f"; fi
       - uses: actions/upload-artifact@v4
         # Lista de CNPJs para a coleta local de sócios (araragov coleta-local).
         if: always()

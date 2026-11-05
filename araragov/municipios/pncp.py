@@ -49,10 +49,30 @@ UFS_COM_TCE = {"SP"}  # estes vêm do Tribunal de Contas, com mais detalhe
 COLUNAS_CONTRATOS_PNCP = COLUNAS_CONTRATOS + ["emenda", "pncp"]
 
 
+# O tamanho máximo da página muda de consulta para consulta (contratações
+# recusam 500 com HTTP 400); o menor aceito por cada uma fica guardado aqui.
+_TAMANHOS: Dict[str, int] = {}
+
+
+def _pedir(client, caminho: str, params: Dict[str, Any], pagina: int) -> Any:
+    import requests
+
+    tamanho = _TAMANHOS.get(caminho, TAMANHO_PAGINA)
+    while True:
+        try:
+            return client.get_json(f"{API}/{caminho}", {**params, "pagina": pagina, "tamanhoPagina": tamanho})
+        except requests.HTTPError as exc:
+            if exc.response is None or exc.response.status_code != 400 or tamanho <= 50:
+                raise
+            tamanho = 50
+            _TAMANHOS[caminho] = tamanho
+            logger.info("PNCP %s: página de %s registros", caminho, tamanho)
+
+
 def _paginas(client, caminho: str, params: Dict[str, Any]) -> Iterator[Dict[str, Any]]:
     pagina = 1
     while True:
-        dados = client.get_json(f"{API}/{caminho}", {**params, "pagina": pagina, "tamanhoPagina": TAMANHO_PAGINA})
+        dados = _pedir(client, caminho, params, pagina)
         for r in (dados or {}).get("data") or []:
             yield r
         if not dados or not dados.get("paginasRestantes"):
