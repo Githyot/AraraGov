@@ -131,7 +131,7 @@ class MunicipioTela extends StatelessWidget {
       child: Scaffold(
         appBar: AppBar(
           title: Text('$nome ($uf)'),
-          bottom: const TabBar(isScrollable: true, tabAlignment: TabAlignment.start, tabs: [for (final a in abas) Tab(text: a)]),
+          bottom: TabBar(isScrollable: true, tabAlignment: TabAlignment.start, tabs: [for (final a in abas) Tab(text: a)]),
         ),
         body: TabBarView(children: [
           _Governo(api: api, pasta: pasta),
