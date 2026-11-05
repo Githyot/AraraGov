@@ -42,17 +42,17 @@ REGRAS: List[Tuple[str, Tuple[str, ...], Tuple[str, ...]]] = [
     ("pavimento-intertravado", ("intertravad",), ()),
     ("pavimento-intertravado", ("bloquete",), ()),
     ("paralelepipedo", ("paralelep",), ()),
-    ("pavimentacao-cbuq", ("paviment", "asfalt"), ("tapa", "manutenc")),
-    ("pavimentacao-cbuq", ("cbuq",), ("tapa",)),
+    ("pavimentacao-cbuq", ("paviment", "asfalt"), (" tapa ", "manutenc")),
+    ("pavimentacao-cbuq", ("cbuq",), (" tapa ",)),
     ("drenagem-tubo-600", ("drenagem",), ()),
-    ("luminaria-led", ("lumin", "led"), ()),
-    ("poste-concreto", ("poste",), ()),
+    ("luminaria-led", ("lumin", " led "), ()),
+    ("poste-concreto", (" poste",), ("sinaliza",)),
 ]
 
 # Prédios: só obra nova ou ampliação. Reforma, pintura, piso, vidro e
 # manutenção não se comparam com o custo do m² de um prédio inteiro.
-PREDIOS = (("creche", ("creche",)), ("ubs", ("unidade basica de saude", "ubs")),
-           ("hospital", ("hospital",)), ("escola", ("escola", "unidade escolar", "predio escolar")))
+PREDIOS = (("creche", (" creche",)), ("ubs", (" unidade basica de saude", " ubs ")),
+           ("hospital", (" hospital",)), ("escola", (" escola", " unidade escolar", " predio escolar")))
 OBRA_NOVA = ("construc", "constru ", "ampliac", "edificac")
 NAO_PREDIO = ("reforma", "pintura", "piso", "vidro", "manutenc", "aquisic", "fornecimento", "locac", "limpeza",
               "aliment", "material", "uniforme", "transporte", "telhado", "cobertura", "reparo", "adequac")
@@ -85,7 +85,11 @@ def _norm(t: str) -> str:
 
 
 def classificar(objeto: str) -> Optional[str]:
-    t = _norm(objeto)
+    # Espaços nas pontas e pontuação trocada por espaço, para casar palavras
+    # inteiras: " poste" casa "postes" mas não "posterior".
+    t = " " + re.sub(r"[^a-z0-9 ]", " ", _norm(objeto)) + " "
+    if re.search(r" posterior", t):
+        t = t.replace(" posterior", " ")
     for item, precisa, exclui in REGRAS:
         if all(p in t for p in precisa) and not any(e in t for e in exclui):
             return item
@@ -144,6 +148,8 @@ def comparar(item: Optional[str], unid: Optional[str], qtd: Decimal, total: Deci
         return {**vazio, "comparacao": "Tipo de obra não identificado no objeto", "aviso": None}
     if not unid or qtd <= 0:
         return {**vazio, "comparacao": "Quantidade não informada no contrato", "aviso": None}
+    if qtd <= 1:
+        return {**vazio, "comparacao": "Contrato por preço global (quantidade 1); comparação não feita", "aviso": None}
     ref = refs.get((item, ano))
     aviso = None
     if ref is None and unidades_itens.get(item) == "m²" and item in ("creche", "escola", "ubs", "hospital"):

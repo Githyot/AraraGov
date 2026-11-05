@@ -40,11 +40,15 @@ def test_classificar_e_unidade():
     assert contratos.classificar("CONSTRUÇÃO UNIDADE ESCOLAR") == "escola"
     assert contratos.classificar("Serviços de pintura do prédio onde será a nova Creche") is None
     assert contratos.classificar("Substituição de vidro nas unidades básicas de saúde (UBS)") is None
+    assert contratos.classificar("Aquisição de medicamento, posteriormente homologado") is None
+    assert contratos.classificar("Placas de sinalização e suportes (postes)") is None
+    assert contratos.classificar("Pavimentação asfáltica, 2ª etapa") == "pavimentacao-cbuq"
 
 
 def test_quantidade_incoerente_nao_compara():
     refs = {("escola", 2024): {"minimo": "1661.31", "maximo": "2030.49", "nivel": "1", "avisos": None}}
-    r = contratos.comparar("escola", "m²", D("1"), D("13382986.70"), refs, 2024, {"escola": "m²"})
+    r = contratos.comparar("escola", "m²", D("2"), D("13382986.70"), refs, 2024, {"escola": "m²"})
+    assert contratos.comparar("escola", "m²", D("1"), D("1"), refs, 2024, {"escola": "m²"})["comparacao"].startswith("Contrato por preço global")
     assert r["comparacao"].startswith("Quantidade ou unidade incoerente") and r["ref_maximo"] is None
 
 

@@ -109,7 +109,9 @@ jobs:
             f=$(grep -l "Sanção no" site/v1/municipios/sp/*/fornecedores.md | head -1)
             [ -n "$f" ] && grep -A6 "tabela: sancoes" "$f" || true
           else
-            python -m araragov fornecedores --saida site --ufs SP
+            # Os pagamentos coletados são do ano passado e do atual, do
+            # governo eleito em 2024.
+            python -m araragov fornecedores --saida site --ufs SP --eleicoes 2024
           fi
       - name: Sondar o pacote do SINAPI
         if: ${{ github.event_name == 'pull_request' && !cancelled() }}

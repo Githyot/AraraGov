@@ -67,9 +67,23 @@ def test_documento_junta_fases(tmp_path):
                          [2024], date(2026, 11, 5), "2026-11-04")
     doc = md.ler(texto)
     linhas = doc.tabelas["fornecedores"]
-    assert [l["indicios"] for l in linhas[:2]] == ["Sanção no CEIS", "Fornecedora de campanha (2024)"]
+    assert [l["indicios"] for l in linhas[:2]] == ["Sanção no CEIS (Prefeitura de Outra Cidade, 2023-2028)", "Fornecedora de campanha (2024)"]
     assert linhas[2]["indicios"] is None and linhas[2]["empresa"] == "ENERGIA SA"
     assert doc.tabelas["campanha"][0]["eleito"] == "Sim (Prefeito 2025-2028)"
     assert doc.tabelas["sancoes"][0]["cadastro"] == "CEIS"
     assert doc.tabelas["sem-dados"][0]["responsavel"] == "Receita Federal"
     assert "superfatur" not in texto.lower()
+
+
+def test_plataformas_ficam_de_fora():
+    def camp(ibge):
+        return {("13347016000117", str(ibge)): fo.Campanha("13347016000117", "FACEBOOK", 2024, str(ibge), "X", "Prefeito", "A")}
+    por = {i: camp(i) for i in range(fo.MAX_MUNICIPIOS_CAMPANHA + 1)}
+    por[0][("55666777000188", "1")] = fo.Campanha("55666777000188", "GRAFICA", 2024, "1", "Y", "Prefeito", "B")
+    limpo = fo.remover_plataformas(por)
+    assert list(limpo[0]) == [("55666777000188", "1")] and not limpo[1]
+
+
+def test_cpf_colado_ao_nome_sai():
+    from araragov.municipios.tcesp import _resumir
+    assert _resumir("LUCIANA MACEDO14576486870") == "LUCIANA MACEDO"

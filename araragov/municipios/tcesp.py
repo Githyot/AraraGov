@@ -73,7 +73,8 @@ def formatar_cnpj(d: str) -> str:
     return f"{d[:2]}.{d[2:5]}.{d[5:8]}/{d[8:12]}-{d[12:]}" if len(d) == 14 else d
 
 
-_CPF = re.compile(r"\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b")
+# Sem \b: no nome de MEI o CPF vem colado ao nome ("FULANA12345678901").
+_CPF = re.compile(r"(?<!\d)\d{3}\.?\d{3}\.?\d{3}-?\d{2}(?!\d)")
 
 
 def _resumir(texto: Optional[str], limite: int = 220) -> str:

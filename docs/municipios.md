@@ -216,6 +216,8 @@ A comparação é feita só quando faz sentido:
   ampliação. Reforma, pintura, piso, vidro e manutenção ficam de fora, porque
   não se comparam com o custo do m² de um prédio inteiro.
 - Sem quantidade ou unidade no contrato: "Quantidade não informada".
+- Quantidade 1 (contrato por preço global, comum em iluminação): sem
+  comparação.
 - Valor por unidade mais de 10 vezes acima ou abaixo da faixa (por exemplo,
   uma escola inteira lançada como "1 m²"): "Quantidade ou unidade incoerente",
   sem comparação. Isso é quase sempre erro de cadastro, não preço.
@@ -239,6 +241,8 @@ fonte pública:
 - `campanha`: serviços que a empresa prestou a candidatos do mesmo município,
   declarados por eles ao TSE (despesas contratadas), com o valor e se o
   candidato foi eleito (pelo `resumo.md` da fase 1). Só eleições ordinárias.
+  Empresas que serviram a campanhas em mais de 15 municípios (redes sociais,
+  telefonia) ficam fora do cruzamento, porque ele não diria nada.
 - `sem-dados`: os sócios e endereços (base de CNPJ da Receita Federal) ainda
   não entram, porque o servidor não responde à coleta automática. Sem eles,
   não há cruzamento de sócio com político, nem de sobrenome.

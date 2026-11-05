@@ -23,7 +23,9 @@ import csv
 import io
 import logging
 import re
+import time
 import zipfile
+from functools import lru_cache
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import date, timedelta
@@ -45,6 +47,10 @@ CAMPANHA_PAGINA = "https://divulgacandcontas.tse.jus.br/"
 RECEITA_CNPJ = "https://dadosabertos.rfb.gov.br/CNPJ/"
 
 TOP_FORNECEDORES = 100
+# Empresa que serviu a campanhas em muitos municípios é plataforma ou
+# serviço de massa (rede social, telefonia, combustível); o cruzamento com a
+# prefeitura não diz nada e fica de fora.
+MAX_MUNICIPIOS_CAMPANHA = 15
 
 COLUNAS_FORNECEDORES = ["cnpj", "empresa", "pago", "anos_pagos", "contratos", "valor_contratos", "indicios"]
 COLUNAS_SANCOES = ["cnpj", "empresa", "cadastro", "sancao", "inicio", "fim", "orgao", "uf_orgao", "esfera",
@@ -139,11 +145,23 @@ def ler_campanhas(linhas: Iterable[Dict[str, str]], ano: int, tse_ibge, cnpjs_po
     return saida
 
 
+def remover_plataformas(campanhas: Dict[int, Dict[Tuple[str, str], Campanha]]) -> Dict[int, Dict[Tuple[str, str], Campanha]]:
+    municipios: Dict[str, Set[int]] = defaultdict(set)
+    for ibge, d in campanhas.items():
+        for c in d.values():
+            municipios[c.cnpj].add(ibge)
+    fora = {c for c, m in municipios.items() if len(m) > MAX_MUNICIPIOS_CAMPANHA}
+    if fora:
+        logger.info("Campanhas: %s empresas de serviço de massa fora do cruzamento", len(fora))
+    return {ibge: {k: c for k, c in d.items() if c.cnpj not in fora} for ibge, d in campanhas.items()}
+
+
 def tradutor_tse_ibge():
     """Função (UF, código TSE, nome) -> código IBGE, igual à da fase 1."""
     ibge = municipios_ibge()
     correcoes = correcoes_tse_ibge()
 
+    @lru_cache(maxsize=None)
     def traduz(uf, tse, nome) -> Optional[int]:
         uf = (uf or "").strip().upper()
         try:
@@ -238,9 +256,9 @@ def documento(ibge: int, mun: str, uf: str, fornecedores: Dict[str, Fornecedor],
 
     def indicios(cnpj: str) -> Optional[str]:
         partes = []
-        cads = sorted({s["cadastro"] for s in sancoes.get(cnpj, [])})
-        if cads:
-            partes.append("Sanção no " + " e ".join(cads))
+        for s in sorted(sancoes.get(cnpj, []), key=lambda s: s.get("inicio") or "", reverse=True)[:2]:
+            periodo = "-".join(x[:4] for x in (s.get("inicio"), s.get("fim")) if x)
+            partes.append(f"Sanção no {s['cadastro']} ({', '.join(x for x in (s.get('orgao'), periodo) if x)})")
         anos = sorted({c.eleicao for c in campanha_por_cnpj.get(cnpj, [])})
         if anos:
             partes.append("Fornecedora de campanha (" + ", ".join(map(str, anos)) + ")")
@@ -294,7 +312,8 @@ def documento(ibge: int, mun: str, uf: str, fornecedores: Dict[str, Fornecedor],
             "só para aquele órgão: veja a abrangência e o período.",
             "campanha": "## Empresas que também serviram a campanhas no município\n\nServiços declarados "
             "pelos próprios candidatos ao TSE. Prestar serviço a uma campanha e depois vender à "
-            "prefeitura não é proibido; o cruzamento serve para conferir.",
+            "prefeitura não é proibido; o cruzamento serve para conferir. Empresas que serviram a "
+            f"campanhas em mais de {MAX_MUNICIPIOS_CAMPANHA} municípios (redes sociais, telefonia) ficam de fora.",
             "sem-dados": "## O que ainda não há",
         },
     )
@@ -353,7 +372,9 @@ def gerar(client, saida: Path, ufs: Iterable[str] = ("SP",), eleicoes: Iterable[
     for ano in sorted(eleicoes):
         arq = pasta_tmp / f"prestacao-{ano}.zip"
         try:
+            inicio = time.monotonic()
             client.baixar_arquivo(CAMPANHA_URL.format(ano=ano), arq)
+            logger.info("TSE %s: prestação de contas baixada em %.0f s", ano, time.monotonic() - inicio)
             padrao = re.compile(r"despesas_contratadas_candidatos_%d_(%s)\.csv$" % (ano, "|".join(ufs)), re.I)
             por = ler_campanhas(_csv_do_zip(arq, lambda n: bool(padrao.search(n))), ano, traduz, cnpjs_por_mun)
         except Exception as e:  # noqa: BLE001 - segue sem o ano
@@ -366,6 +387,7 @@ def gerar(client, saida: Path, ufs: Iterable[str] = ("SP",), eleicoes: Iterable[
             campanhas[ibge].update(d)
         logger.info("TSE %s: %s municípios com fornecedor de campanha que também recebeu da prefeitura", ano, len(por))
 
+    campanhas = remover_plataformas(campanhas)
     nomes = {cod: nome for (uf, _), (cod, nome) in municipios_ibge().items()}
     n = 0
     for (uf, ibge), forn in fornecedores.items():
