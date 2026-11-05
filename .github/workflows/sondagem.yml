@@ -13,6 +13,33 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
+      - name: TCE-CE (SIM)
+        run: |
+          A="AraraGov (dados publicos)"; B="https://api-dados-abertos.tce.ce.gov.br/sim"
+          for q in "municipios?\$count=3" \
+            "notas_empenhos?codigo_municipio=049&exercicio_orcamento=202500&data_referencia_doc=202503&\$count=2" \
+            "notas_pagamentos?codigo_municipio=049&exercicio_orcamento=202500&data_referencia_doc=202503&\$count=2" \
+            "notas_liquidacoes?codigo_municipio=049&exercicio_orcamento=202500&data_referencia_doc=202503&\$count=2" \
+            "contratos?codigo_municipio=049&data_inicio=2025-01-01&data_fim=2025-03-31&\$count=2" \
+            "contratados?codigo_municipio=049&data_inicio=2025-01-01&data_fim=2025-03-31&\$count=2" \
+            "obras_municipais_servicos_engenharia?codigo_municipio=049&exercicio_orcamento=202500&data_inicio=2025-01-01&data_fim=2025-12-31&\$count=2" \
+            "itens_compoem_bens_servicos?codigo_municipio=049&data_inicio=2025-01-01&data_fim=2025-03-31&\$count=2" ; do
+            echo "== $q"; curl -sS -m 60 -A "$A" -w '\n[%{http_code} %{time_total}s]\n' "$B/$q" | head -c 3500; echo
+          done
+          echo "== contagem de empenhos de um mes (Crato)"
+          curl -sS -m 120 -A "$A" "$B/notas_empenhos?codigo_municipio=049&exercicio_orcamento=202500&data_referencia_doc=202503&\$count=1000&\$select=valor_empenhado" | python3 -c "import json,sys;print(len(json.load(sys.stdin).get('elements',[])))"
+      - name: TCE-PB (Sagres)
+        if: always()
+        run: |
+          A="AraraGov (dados publicos)"
+          for f in TCE-PB-SAGRES-Pagamentos_Esfera_Municipal.txt.gz TCE-PB-SAGRES-Empenhos_Esfera_Municipal.txt.gz; do
+            curl -sS -I -m 60 -A "$A" "https://dados.tce.pb.gov.br/$f" | head -12
+            curl -sS -m 60 -A "$A" -r 0-200000 "https://dados.tce.pb.gov.br/$f" -o /tmp/p.gz; zcat /tmp/p.gz 2>/dev/null | head -4 | cut -c1-1500
+          done
+          curl -sS -m 60 -A "$A" https://dados.tce.pb.gov.br/ -o /tmp/pb.html; cat /tmp/pb.html | head -c 1500; echo
+          for js in $(grep -o '/assets/[^"]*\.js' /tmp/pb.html | sort -u); do
+            echo "== $js"; curl -sS -m 60 -A "$A" "https://dados.tce.pb.gov.br$js" | grep -o '"[^"]*\(api\|\.gz\|\.zip\|\.csv\|download\)[^"]*"' | sort -u | head -60
+          done
       - name: PNCP (contratos, compras e itens)
         run: |
           A="AraraGov (dados publicos)"
