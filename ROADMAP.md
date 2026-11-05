@@ -82,11 +82,11 @@ _Última atualização: 5 de novembro de 2026 (madrugada do dia 6)_
 - 🔄 SC, BA e CE: lista oficial de deputados em exercício; suplentes que assumiram ganham perfil e quem se afastou fica fora de exercício (PR #12)
 - 🔄 Bahia (ALBA): verbas indenizatórias de cada deputado, da planilha anual da ALBA (sem o fornecedor, que a planilha não traz) (PR #12)
 - 🔄 Salário real por estado, de uma lista com a fonte de cada valor (PR #12):
-  - deputados estaduais de SC, SP e GO pela lei estadual; de PE, CE, PB, MG, ES, PR, RS, RN, MA, TO, MT e MS pela imprensa (lei ainda não conferida); do RJ pela página oficial da Alerj (valor atual); os outros estados seguem como teto até a lei ser conferida
+  - deputados estaduais de SC, SP, GO, MG (Lei 24.266/2022), MT (Lei 12.011/2023) e PA (Decreto Legislativo 01/2023) pela lei; de PE, CE, PB, ES, PR, RS, RN, MA, TO e MS pela imprensa (lei ainda não conferida); do RJ pela página oficial da Alerj (valor atual); os outros estados seguem como teto até a lei ser conferida
   - governador e vice de SP pela lei estadual
   - governadores dos outros 26 estados pelo levantamento do Valor Econômico (out/2026), marcado no app como valor da imprensa
 - 🔄 Seção sem dado mostra "Sem dados" e o órgão responsável por publicar, com a esfera (federal, estadual ou municipal); vale para todo o app (PR #12)
-- ⬜ Salário dos deputados de AC, AL, AM, AP, DF, PA, PI, RO, RR e SE (seguem como teto)
+- ⬜ Salário dos deputados de AC, AL, AM, AP, DF, PI, RO, RR e SE (seguem como teto)
 - ⬜ Trocar os valores da imprensa pelo texto da lei, estado por estado
 - ⬜ Outras assembleias, uma a uma, só com dados já publicados (sem pedidos ao governo):
   - ➖ PR: gastos só em telas e numa API que o robots.txt da Alep fecha; a API aberta só tem proposições

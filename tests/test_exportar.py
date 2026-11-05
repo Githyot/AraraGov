@@ -62,7 +62,7 @@ def test_exporta_estaduais(client, tmp_path):
     assert lista["gov-sp-100"]["orgao"] == "Governo do estado (SP)"
     dep = json.loads((tmp_path / "v1/politicos/al-mg-12193.json").read_text())
     assert dep["salario"]["atual"] == 34774.64
-    assert "imprensa" in dep["salario"]["observacao"]
+    assert "lei estadual" in dep["salario"]["observacao"] and dep["salario"]["historico"][-1]["ato"] == "Lei estadual 24.266/2022"
     ac = json.loads((tmp_path / "v1/politicos/al-ac-500.json").read_text())["salario"]
     assert ac["atual"] == 34774.64 and ac["teto"] is True and "75%" in ac["observacao"]
     gov = json.loads((tmp_path / "v1/politicos/gov-sp-100.json").read_text())

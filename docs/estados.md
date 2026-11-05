@@ -92,11 +92,11 @@ fecha. A Alesp publica só a presença.
 O arquivo `araragov/referencia/subsidios_estaduais.csv` guarda o salário por
 estado e cargo, com a fonte de cada valor:
 
-- `tipo=lei`: valor tirado da lei estadual (SC, SP e GO para deputados; SP
-  para governador e vice).
+- `tipo=lei`: valor tirado da lei estadual (SC, SP, GO, MG, MT e PA para
+  deputados; SP para governador e vice).
 - `tipo=oficial`: valor publicado pelo próprio órgão, sem a lei nem a data de início (RJ).
 - `tipo=imprensa`: valor publicado pela imprensa enquanto a lei não foi
-  conferida (deputados de PE, CE, PB, MG, ES, PR, RS, RN, MA, TO, MT e MS; governadores, levantamento do Valor Econômico de outubro de 2026).
+  conferida (deputados de PE, CE, PB, ES, PR, RS, RN, MA, TO e MS; governadores, levantamento do Valor Econômico de outubro de 2026).
   O app avisa que é valor da imprensa.
 
 Linhas sem link de fonte são ignoradas. Estados sem linha para deputados
