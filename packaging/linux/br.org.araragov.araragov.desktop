@@ -5,6 +5,6 @@ Comment=Dados públicos de políticos brasileiros, organizados e fáceis de ente
 Exec=araragov
 Icon=br.org.araragov.araragov
 Terminal=false
-Categories=Education;Office;
+Categories=Education;
 Keywords=política;governo;transparência;votações;salário;
 StartupWMClass=br.org.araragov.araragov
