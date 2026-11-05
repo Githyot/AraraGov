@@ -59,6 +59,8 @@ jobs:
       - name: Exportar API estática
         run: python -m araragov exportar --saida site
       - name: Municípios (prefeitos e vereadores, TSE)
+        # Independe das APIs federais: roda mesmo se a coleta acima falhar.
+        if: ${{ !cancelled() }}
         # Em PRs, só dois estados pequenos e a última eleição, para conferir o
         # formato do TSE e do IBGE sem baixar tudo.
         run: |
