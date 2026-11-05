@@ -1,45 +1,33 @@
 name: Sondagem de fontes
 
-# Temporário: confere, a partir do GitHub, o formato de fontes novas antes de
-# escrever o coletor (tentativa 3). Roda só em PR, fora da fila da coleta.
+# Temporário: confere, a partir do GitHub, fontes novas fora da fila da coleta.
+# Roda só em PR quando este arquivo muda.
 
 on:
   pull_request:
     paths: [".github/workflows/sondagem.yml"]
 
 jobs:
-  sondar-estados:
+  testar-tces:
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
-      - name: TCE-PB (novo portal)
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - name: TCE-CE (6 municípios, 3 meses)
+        run: |
+          python -m araragov tce-ce --saida site --anos 2025 --limite-municipios 6 --meses 3
+          ls site/v1/municipios/ce/
+          f=$(ls site/v1/municipios/ce/*/2025-pagamentos.md | head -1); head -45 "$f"; grep -A6 "tabela: obras" "$f" || true
+      - name: TCE-PB (300 mil linhas)
         if: always()
         run: |
-          set +e
-          A="AraraGov (dados publicos)"; H="https://dados-abertos.tce.pb.gov.br"
-          curl -sS --retry 4 --retry-all-errors --retry-delay 10 -m 60 -A "$A" "$H/" -o /tmp/pb.html -w '[%{http_code} %{size_download}B]\n'; head -c 1200 /tmp/pb.html; echo
-          for js in $(grep -o '/assets/[^"]*\.js' /tmp/pb.html | sort -u); do
-            echo "== $js"; curl -sS -m 60 -A "$A" "$H$js" | grep -o '"[^"]*\(api\|\.gz\|\.zip\|\.csv\|download\|sagres\|Sagres\)[^"]*"' | sort -u | head -80
-          done
-          js=$(grep -o '/assets/[^"]*\.js' /tmp/pb.html | head -1); curl -sS -m 60 -A "$A" "$H$js" -o /tmp/pb.js
-          echo "== ids"; grep -o 'id:"[a-z0-9_-]*"[^}]\{0,200\}' /tmp/pb.js | head -80
-          echo "== em volta de dados-consolidados"; grep -o '.\{1500\}dados-consolidados.\{300\}' /tmp/pb.js | head -c 4000; echo
-          for id in despesas receitas; do
-            for ano in 2024 2025; do
-              u="https://download.tce.pb.gov.br/dados-abertos/dados-consolidados/$id/$id-$ano.zip"
-              curl -sS -I -m 60 -A "$A" "$u" | grep -i "^HTTP\|content-length\|last-modified" | tr '\n' ' '; echo " $u"
-            done
-          done
-          u="https://download.tce.pb.gov.br/dados-abertos/dados-consolidados/despesas/despesas-2025.zip"
-          curl -sS -m 120 -A "$A" -r 0-400000 "$u" -o /tmp/p.zip; python3 - <<'PY'
-          import zlib
-          b=open('/tmp/p.zip','rb').read()
-          import struct
-          if b[:4]==b'PK\x03\x04':
-              n=struct.unpack('<H',b[26:28])[0]; e=struct.unpack('<H',b[28:30])[0]; met=struct.unpack('<H',b[8:10])[0]
-              print('arquivo:', b[30:30+n].decode('latin-1'), 'metodo', met)
-              d=zlib.decompressobj(-15).decompress(b[30+n+e:]) if met==8 else b[30+n+e:]
-              print(d[:6000].decode('latin-1'))
-          else:
-              print(b[:500])
-          PY
+          python -m araragov tce-pb --saida site --anos 2025 --limite-linhas 300000
+          ls site/v1/municipios/pb/ | wc -l
+          f=$(ls site/v1/municipios/pb/*/2025-pagamentos.md | head -1); head -45 "$f"; grep -A6 "tabela: obras" "$f" || true
+          curl -sS -m 300 -A "AraraGov (dados publicos)" https://download.tce.pb.gov.br/dados-abertos/dados-consolidados/despesas/despesas-2025.zip -o /tmp/pb.zip
+          unzip -p /tmp/pb.zip | head -200000 | cut -d';' -f11 | awk '/,/{v++} /^[0-9]+\.[0-9]+$/{p++} END{print "virgula",v,"so_ponto",p}'
+          unzip -p /tmp/pb.zip | head -200000 | cut -d';' -f11 | grep ',' | head -5
