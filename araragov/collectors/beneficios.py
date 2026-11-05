@@ -4,8 +4,9 @@ Senado: a transparência publica um CSV com quem recebe auxílio-moradia e quem
 ocupa imóvel funcional (um retrato do mês). O arquivo não traz o valor pago a
 cada senador, então só o tipo de benefício é gravado.
 
-Câmara: a lista equivalente fica em páginas HTML que mudam de endereço todo
-mês; ainda não é coletada.
+Câmara: imóvel funcional, auxílio-moradia (com o valor do ano), viagens em
+missão e passaporte diplomático vêm da página de cada deputado; ver
+camara_recursos.py.
 """
 
 from __future__ import annotations

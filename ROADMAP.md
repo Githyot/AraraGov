@@ -3,7 +3,7 @@
 Linha de progresso do projeto: o que já está pronto, o que está em revisão e
 o que falta. Este arquivo é atualizado a cada entrega.
 
-Legenda: ✅ pronto (no `main`) · ✅ em revisão (PR aberto) · ⬜ falta fazer · ⏸️ só quando pedido
+Legenda: ✅ pronto (no `main`) · 🔄 em revisão (PR aberto) · ⬜ falta fazer · ➖ não disponível na fonte · ⏸️ só quando pedido
 
 _Última atualização: 5 de novembro de 2026_
 
@@ -11,12 +11,14 @@ _Última atualização: 5 de novembro de 2026_
 
 | Etapa | Situação |
 |---|---|
-| 1. Base federal (Câmara, Senado, IPCA) | ✅ |
+| 1. Base federal (Câmara, Senado, IPCA) | ✅ · 🔄 complemento no PR #9 |
 | 2. Análises (posição política, alinhamento, votações de atenção) | ✅ |
 | 3. App multiplataforma (Flutter, visual GNOME) | ✅ primeira versão · ⏸️ builds só quando pedido |
 | 4. Estados | ✅ início (TSE nos 27 estados, MG e SP) |
 | Benefícios e custo dos gabinetes | ✅ Senado |
 | Emendas parlamentares | 🔄 PR #7 |
+| Período, comparação e doação do salário | 🔄 PR #8 |
+| Base federal completa | 🔄 PR #9 |
 | 5. Municípios | ⬜ aguardando as necessidades que HP vai trazer |
 
 ## 1. Base federal ✅
@@ -31,10 +33,15 @@ _Última atualização: 5 de novembro de 2026_
 - ✅ Coleta resiste a quedas das APIs do governo
 - ✅ Senado: salário real de cada assessor (folha mensal) e custo mensal do gabinete
 - ✅ Senado: auxílio-moradia e imóvel funcional de cada senador
-- ⬜ Câmara: salário dos assessores por nível (falta a tabela da Lei 15.349/2026)
-- ⬜ Câmara: auxílio-moradia e imóvel funcional (a página da Câmara está atrás de login)
-- ⬜ Outros penduricalhos: verba de gabinete total, passagens, plano de saúde
-- ⬜ Fotos e dados de legislaturas anteriores
+- 🔄 Câmara: verba de gabinete gasta por mês e custo mensal do gabinete (PR #9)
+- 🔄 Câmara: imóvel funcional, auxílio-moradia com o valor do ano, viagens em missão e passaporte diplomático (PR #9)
+- 🔄 Câmara: salário bruto pago a cada mês (PR #9)
+- ➖ Câmara: salário de cada assessor. O robots.txt da Câmara pede para não coletar essas páginas; o custo total vem da verba de gabinete e o nível (SP01 a SP25) aparece na equipe
+- ➖ Plano de saúde e reembolsos médicos: a Câmara e o Senado não publicam por parlamentar
+- ⬜ Guardar o histórico entre as coletas (hoje os recursos da Câmara cobrem os 2 anos mais recentes)
+- ⬜ Ampliar a lista de quem declara doar o salário (cada nome com fonte pública)
+- 🔄 Legislatura anterior (2019-2022): deputados e senadores que saíram, votos e gastos desde 2019 (PR #9)
+- 🔄 API mais leve: votos compactos nos perfis e detalhes das votações por ano, para caber no limite de 1 GB do GitHub Pages (PR #9)
 - 🔄 Emendas parlamentares: quanto cada um indicou, quanto foi pago, para onde e quem recebeu (PR #7)
 
 ## 2. Análises ✅
@@ -45,8 +52,9 @@ _Última atualização: 5 de novembro de 2026_
 - ✅ Votações de atenção: aumento do próprio salário, fundo eleitoral, emendas,
   anistia, foro e imunidade, sem acusar ninguém
 - ✅ Metodologia publicada e conferida com os dados reais de 2025
-- ⬜ Comparar a posição pelos votos com o que o político declara (autodeclaração)
-- ⬜ Mais votações do Senado (coletar 2019 em diante; o Senado vota pouco de forma nominal)
+- 🔄 Ideologia declarada pelo partido (PT, PCdoB, PDT, PL) ao lado da posição pelos votos, com a fonte (PR #9)
+- ⬜ Ampliar as declarações: outros partidos e políticos que se declaram (cada um com fonte)
+- 🔄 Votações do Senado desde 2019 (PR #9)
 
 ## 3. App ✅
 
@@ -56,8 +64,9 @@ _Última atualização: 5 de novembro de 2026_
 - ✅ Busca por nome, partido, estado e casa; perfil completo com gráficos
 - ✅ Telas de posição política, alinhamento e votações de atenção
 - ✅ Filtro Federal/Estadual e perfis estaduais
-- ⬜ Filtro por período (ano/legislatura)
-- ⬜ Comparar dois políticos lado a lado
+- 🔄 Filtro por período (ano) no perfil (PR #8)
+- 🔄 Comparar dois políticos lado a lado, com % de votos iguais (PR #8)
+- 🔄 Doação do salário: quem declara doar, com a fonte, e filtro na busca (PR #8)
 - ⏸️ Gerar os aplicativos (lojas e instaladores): só quando HP pedir
 
 ## 4. Estados (em andamento)
@@ -81,4 +90,4 @@ _Última atualização: 5 de novembro de 2026_
 
 - ⬜ Ativar o GitHub Pages com a fonte "GitHub Actions"
 - ⬜ Rodar a "Coleta de dados" manualmente uma vez, para publicar a API
-- ⬜ Apagar o ramo `sondagem-gabinete`
+- ⬜ Apagar os ramos temporários `sondagem-gabinete` e `sondagem-federal`

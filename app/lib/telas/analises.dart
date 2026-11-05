@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../dados/modelos.dart';
 import '../formatar.dart';
@@ -68,7 +69,7 @@ class SecaoPosicao extends StatelessWidget {
     final partido = p.resumo.partido;
     return Grupo(
       titulo: 'Posição nas votações',
-      descricao: 'Calculada pelos votos, não pelo que a pessoa ou o partido declaram',
+      descricao: 'Calculada pelos votos; abaixo, o que a pessoa ou o partido declaram',
       filhos: [
         Linha(titulo: 'Na prática, vota mais com', valor: rotuloFaixa(pos.faixa)),
         Padding(
@@ -81,6 +82,8 @@ class SecaoPosicao extends StatelessWidget {
             subtitulo: 'A linha escura na barra marca a média do partido',
             valor: rotuloFaixa(pos.faixaPartido),
           ),
+        if (p.ideologiaPessoal != null) _LinhaDeclaracao('Declara-se', p.ideologiaPessoal!),
+        if (p.ideologiaPartido != null && partido != null) _LinhaDeclaracao('O $partido se declara', p.ideologiaPartido!),
         ExpansionTile(
           title: const Text('Como calculamos'),
           shape: const Border(),
@@ -95,6 +98,26 @@ class SecaoPosicao extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+/// O que o partido ou a pessoa diz sobre a própria ideologia, com a fonte.
+class _LinhaDeclaracao extends StatelessWidget {
+  final String titulo;
+  final Declaracao d;
+  const _LinhaDeclaracao(this.titulo, this.d);
+
+  @override
+  Widget build(BuildContext context) {
+    final partes = [
+      if (d.trecho != null) '“${d.trecho}”',
+      if (d.documento != null) d.documento!,
+    ];
+    return Linha(
+      titulo: '$titulo: ${d.declaracao}',
+      subtitulo: partes.isEmpty ? null : partes.join('\n'),
+      aoTocar: d.fonte == null ? null : () => launchUrl(Uri.parse(d.fonte!)),
     );
   }
 }

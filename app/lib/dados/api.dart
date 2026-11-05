@@ -38,6 +38,38 @@ class Api {
     return lista;
   }
 
+  /// Detalhes das votações de um ano (proposição, ementa, resultado...).
+  Future<Map<String, dynamic>> votacoesDoAno(int ano) async {
+    final cache = _cache['votacoes:$ano'];
+    if (cache is Map<String, dynamic>) return cache;
+    final dados = Map<String, dynamic>.from(await _json('votacoes/$ano.json') as Map);
+    _cache['votacoes:$ano'] = dados;
+    return dados;
+  }
+
+  /// Completa os votos com os detalhes de cada votação, baixando um arquivo por ano.
+  Future<List<VotoEmVotacao>> completarVotos(List<VotoEmVotacao> votos) async {
+    final anos = {
+      for (final v in votos)
+        if (!v.temDetalhe && v.data != null && v.data!.length >= 4) int.parse(v.data!.substring(0, 4))
+    };
+    final detalhes = <String, dynamic>{};
+    for (final ano in anos) {
+      try {
+        detalhes.addAll(await votacoesDoAno(ano));
+      } catch (_) {
+        // sem o arquivo do ano, o voto aparece sem os detalhes
+      }
+    }
+    return [
+      for (final v in votos)
+        if (v.temDetalhe || detalhes[v.id] == null)
+          v
+        else
+          VotoEmVotacao.compacto([v.id, v.data, v.voto, v.ladoSim, v.atencao == null ? 0 : 1], Map<String, dynamic>.from(detalhes[v.id]))
+    ];
+  }
+
   Future<Perfil> perfil(String id) async {
     final cache = _cache['perfil:$id'];
     if (cache is Perfil) return cache;

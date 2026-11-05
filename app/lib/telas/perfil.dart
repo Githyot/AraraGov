@@ -9,6 +9,7 @@ import '../tema.dart';
 import '../widgets/adw.dart';
 import '../widgets/voto.dart';
 import 'analises.dart';
+import 'comparar.dart';
 
 class PerfilTela extends StatefulWidget {
   final Api api;
@@ -23,6 +24,16 @@ class PerfilTela extends StatefulWidget {
 
 class _PerfilTelaState extends State<PerfilTela> {
   late Future<Perfil> _perfil = widget.api.perfil(widget.id);
+  int? _ano;
+
+  @override
+  void didUpdateWidget(PerfilTela antigo) {
+    super.didUpdateWidget(antigo);
+    if (antigo.id != widget.id) {
+      _perfil = widget.api.perfil(widget.id);
+      _ano = null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,6 +41,33 @@ class _PerfilTelaState extends State<PerfilTela> {
       appBar: AppBar(
         automaticallyImplyLeading: !widget.embutido,
         title: Text(widget.resumo?.nome ?? ''),
+        actions: [
+          FutureBuilder<Perfil>(
+            future: _perfil,
+            builder: (context, snap) {
+              if (!snap.hasData) return const SizedBox();
+              final anos = snap.data!.anosDisponiveis;
+              return Row(mainAxisSize: MainAxisSize.min, children: [
+                if (anos.length > 1)
+                  PopupMenuButton<int>(
+                    tooltip: 'Período',
+                    icon: const Icon(Icons.calendar_month_outlined),
+                    initialValue: _ano ?? 0,
+                    onSelected: (v) => setState(() => _ano = v == 0 ? null : v),
+                    itemBuilder: (_) => [
+                      const PopupMenuItem(value: 0, child: Text('Todo o período')),
+                      for (final a in anos) PopupMenuItem(value: a, child: Text('$a')),
+                    ],
+                  ),
+                IconButton(
+                  tooltip: 'Comparar com outro político',
+                  icon: const Icon(Icons.compare_arrows),
+                  onPressed: () => abrirComparacao(context, widget.api, snap.data!),
+                ),
+              ]);
+            },
+          ),
+        ],
       ),
       body: FutureBuilder<Perfil>(
         future: _perfil,
@@ -46,24 +84,33 @@ class _PerfilTelaState extends State<PerfilTela> {
             );
           }
           if (!snap.hasData) return const Center(child: CircularProgressIndicator());
-          final p = snap.data!;
+          final p = snap.data!.noAno(_ano);
           return ListView(
             padding: const EdgeInsets.symmetric(horizontal: Adw.espaco, vertical: 24),
             children: [
               Clamp(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                   _Cabecalho(p),
+                  if (_ano != null) ...[
+                    const SizedBox(height: 12),
+                    Center(
+                      child: InputChip(
+                        label: Text('Mostrando só $_ano'),
+                        onDeleted: () => setState(() => _ano = null),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 24),
                   SecaoPosicao(p),
                   SecaoAlinhamento(p),
-                  _SecaoSalario(p.salario, beneficios: p.beneficios),
+                  _SecaoSalario(p.salario, beneficios: p.beneficios, doacao: p.doacaoSalario, pago: p.salarioPago),
                   _SecaoGastos(p.gastos, estadual: p.resumo.esfera == 'estadual'),
                   if (p.emendas != null) _SecaoEmendas(p.emendas!),
-                  _SecaoVotacoes(p),
+                  _SecaoVotacoes(p, widget.api),
                   SecaoAtencao(
                     p,
                     aoVer: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => TodasVotacoes(p, soAtencao: true)),
+                      MaterialPageRoute(builder: (_) => TodasVotacoes(p, api: widget.api, soAtencao: true)),
                     ),
                   ),
                   _SecaoGabinete(p),
@@ -138,13 +185,36 @@ class _LinhaInflacao extends StatelessWidget {
 class _SecaoSalario extends StatelessWidget {
   final Salario s;
   final List<Beneficio> beneficios;
-  const _SecaoSalario(this.s, {this.beneficios = const []});
+  final DoacaoSalario? doacao;
+  final ValoresMensais? pago;
+  const _SecaoSalario(this.s, {this.beneficios = const [], this.doacao, this.pago});
+
+  Widget? _linhaPago() {
+    final ano = pago?.ultimoAno;
+    if (ano == null) return null;
+    final doAno = pago!.anos[ano]!;
+    return ExpansionTile(
+      title: Text('Salário bruto pago em $ano'),
+      subtitle: Text('${reais(doAno.total)} em ${doAno.porMes.length} meses'),
+      shape: const Border(),
+      children: [for (final m in doAno.porMes) Linha(titulo: _nomeMes(m.mes), valor: reais(m.valor))],
+    );
+  }
+
+  Widget _linhaDoacao(DoacaoSalario d) => Linha(
+        prefixo: const Icon(Icons.volunteer_activism_outlined),
+        titulo: d.titulo,
+        subtitulo: '${d.descricao}\nDeclaração pública do próprio político; o AraraGov não confere a doação.',
+        aoTocar: () => _abrir(d.fonte),
+      );
 
   @override
   Widget build(BuildContext context) {
     if (s.atual == null) {
       return Grupo(titulo: 'Salário', filhos: [
         Linha(titulo: s.observacao ?? 'Não informado'),
+        if (doacao != null) _linhaDoacao(doacao!),
+        ?_linhaPago(),
         for (final b in beneficios) Linha(titulo: b.descricao, subtitulo: 'Benefício além do salário'),
       ]);
     }
@@ -155,11 +225,21 @@ class _SecaoSalario extends StatelessWidget {
         Linha(titulo: s.teto ? 'Teto do salário' : 'Salário atual', valor: reais(s.atual)),
         if (s.vsInflacao != null)
           _LinhaInflacao(titulo: 'Desde ${mesAno(s.vsInflacao!.desde)}', v: s.vsInflacao!),
+        if (doacao != null) _linhaDoacao(doacao!),
+        ?_linhaPago(),
         for (final b in beneficios)
           Linha(
             titulo: b.descricao,
-            subtitulo: b.referencia == null ? 'Benefício além do salário' : 'Benefício além do salário · ${b.referencia}',
-            valor: b.valorMensal == null ? null : reais(b.valorMensal),
+            subtitulo: b.valorAno != null && b.ano != null
+                ? 'Total recebido em ${b.ano}'
+                : b.referencia == null
+                    ? 'Benefício além do salário'
+                    : 'Benefício além do salário · ${b.referencia}',
+            valor: b.valorMensal != null
+                ? reais(b.valorMensal)
+                : b.valorAno != null
+                    ? reais(b.valorAno, centavos: false)
+                    : null,
             aoTocar: b.fonte == null ? null : () => _abrir(b.fonte),
           ),
         if (s.historico.isNotEmpty)
@@ -321,7 +401,8 @@ class _GraficoAnos extends StatelessWidget {
 
 class _SecaoVotacoes extends StatelessWidget {
   final Perfil p;
-  const _SecaoVotacoes(this.p);
+  final Api api;
+  const _SecaoVotacoes(this.p, this.api);
 
   @override
   Widget build(BuildContext context) {
@@ -335,7 +416,7 @@ class _SecaoVotacoes extends StatelessWidget {
       titulo: 'Votações',
       descricao: 'Votações nominais em que o voto de cada parlamentar é registrado',
       acao: TextButton(
-        onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => TodasVotacoes(p))),
+        onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => TodasVotacoes(p, api: api))),
         child: const Text('Ver todas'),
       ),
       filhos: [
@@ -362,7 +443,7 @@ class LinhaVotacao extends StatelessWidget {
     final tema = Theme.of(context);
     final lado = v.ladoDoVoto;
     return ListTile(
-      title: Text(v.proposicao ?? v.descricao ?? 'Votação'),
+      title: Text(v.proposicao ?? v.descricao ?? 'Votação de ${data(v.data)}'),
       subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text([data(v.data), if (v.resultado != null) v.resultado!, if (v.ementa != null) v.ementa!].join(' · ')),
         if (lado != null || v.atencao != null)
@@ -380,21 +461,37 @@ class LinhaVotacao extends StatelessWidget {
   }
 }
 
-class TodasVotacoes extends StatelessWidget {
+class TodasVotacoes extends StatefulWidget {
   final Perfil p;
+  final Api api;
   final bool soAtencao;
-  const TodasVotacoes(this.p, {super.key, this.soAtencao = false});
+  const TodasVotacoes(this.p, {super.key, required this.api, this.soAtencao = false});
+
+  @override
+  State<TodasVotacoes> createState() => _TodasVotacoesState();
+}
+
+class _TodasVotacoesState extends State<TodasVotacoes> {
+  late final List<VotoEmVotacao> _base =
+      widget.soAtencao ? widget.p.votacoes.where((v) => v.atencao != null).toList() : widget.p.votacoes;
+  late final Future<List<VotoEmVotacao>> _lista = widget.api.completarVotos(_base);
 
   @override
   Widget build(BuildContext context) {
-    final lista = soAtencao ? p.votacoes.where((v) => v.atencao != null).toList() : p.votacoes;
     return Scaffold(
-      appBar: AppBar(title: Text(soAtencao ? 'Votações que merecem atenção' : 'Votações de ${p.resumo.nome}')),
-      body: ListView.separated(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        itemCount: lista.length,
-        separatorBuilder: (_, _) => const Clamp(child: Divider()),
-        itemBuilder: (_, i) => Clamp(child: LinhaVotacao(lista[i])),
+      appBar: AppBar(title: Text(widget.soAtencao ? 'Votações que merecem atenção' : 'Votações de ${widget.p.resumo.nome}')),
+      body: FutureBuilder<List<VotoEmVotacao>>(
+        future: _lista,
+        builder: (context, snap) {
+          if (!snap.hasData && !snap.hasError) return const Center(child: CircularProgressIndicator());
+          final lista = snap.data ?? _base;
+          return ListView.separated(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            itemCount: lista.length,
+            separatorBuilder: (_, _) => const Clamp(child: Divider()),
+            itemBuilder: (_, i) => Clamp(child: LinhaVotacao(lista[i])),
+          );
+        },
       ),
     );
   }
@@ -406,19 +503,35 @@ class _SecaoGabinete extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (p.gabinete.isEmpty) return const SizedBox();
+    final verba = p.verbaGabinete;
+    if (p.gabinete.isEmpty && verba == null) return const SizedBox();
     final custo = p.custoGabinete;
+    final anoVerba = verba?.ultimoAno;
     return Grupo(
       titulo: 'Gabinete',
-      descricao: '${p.gabinete.length} pessoas trabalham no gabinete',
+      descricao: p.gabinete.isEmpty ? null : '${p.gabinete.length} pessoas trabalham no gabinete',
       filhos: [
         if (custo != null)
           Linha(
             titulo: 'Custo mensal com salários',
-            subtitulo: 'Soma bruta de ${custo.pessoasComValor} de ${custo.pessoas} pessoas'
-                '${custo.referencia == null ? '' : ' · folha de ${mesAno(custo.referencia)}'}',
+            subtitulo: custo.origem == 'verba_gabinete'
+                ? 'Verba de gabinete gasta em ${mesAno(custo.referencia)}'
+                : 'Soma bruta de ${custo.pessoasComValor} de ${custo.pessoas} pessoas'
+                    '${custo.referencia == null ? '' : ' · folha de ${mesAno(custo.referencia)}'}',
             valor: reais(custo.mensal),
           ),
+        if (verba != null && anoVerba != null)
+          ExpansionTile(
+            title: Text('Verba de gabinete gasta em $anoVerba'),
+            subtitle: Text(reais(verba.anos[anoVerba]!.total)),
+            shape: const Border(),
+            children: [
+              if (verba.porAno.length > 1)
+                Padding(padding: const EdgeInsets.fromLTRB(12, 16, 16, 8), child: _GraficoAnos(verba.porAno)),
+              for (final m in verba.anos[anoVerba]!.porMes) Linha(titulo: _nomeMes(m.mes), valor: reais(m.valor)),
+            ],
+          ),
+        if (p.gabinete.isNotEmpty)
         ExpansionTile(
           title: const Text('Ver equipe'),
           shape: const Border(),
@@ -435,6 +548,12 @@ class _SecaoGabinete extends StatelessWidget {
     );
   }
 }
+
+const _mesesExtenso = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+];
+String _nomeMes(int m) => m >= 1 && m <= 12 ? _mesesExtenso[m - 1] : '$m';
 
 class _Rodape extends StatelessWidget {
   final Perfil p;
