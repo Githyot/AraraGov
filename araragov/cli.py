@@ -51,6 +51,7 @@ ALVOS = {
     "alesc-gabinetes": lambda c, a: alesc.coletar_gabinetes(c),
     "alba-deputados": lambda c, a: alba.coletar_deputados(c),
     "alba-despesas": lambda c, a: alba.coletar_despesas(c, a.ano, a.limite),
+    "alece-deputados": lambda c, a: alece.coletar_deputados(c),
     "alece-despesas": lambda c, a: alece.coletar_despesas(c, a.ano, a.limite),
     "alepa-gabinetes": lambda c, a: alepa.coletar_gabinetes(c),
     "alero-gabinetes": lambda c, a: alero.coletar_gabinetes(c),
@@ -61,7 +62,7 @@ ALVOS = {
 
 # Fontes com reserva: se falharem, o TSE já cobre o estado e a coleta segue
 # sem marcar erro (o aviso aparece no log e no resumo).
-COM_RESERVA = {"historico", "almg-deputados", "almg-despesas", "alesp-deputados", "alesp-despesas", "alesc-deputados", "alesc-despesas", "alesc-gabinetes", "alba-deputados", "alba-despesas", "alece-despesas", "alepa-gabinetes", "alero-gabinetes"}
+COM_RESERVA = {"historico", "almg-deputados", "almg-despesas", "alesp-deputados", "alesp-despesas", "alesc-deputados", "alesc-despesas", "alesc-gabinetes", "alba-deputados", "alba-despesas", "alece-deputados", "alece-despesas", "alepa-gabinetes", "alero-gabinetes"}
 
 
 POR_ANO = {

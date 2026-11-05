@@ -9,6 +9,10 @@ CNPJ e nome do credor e valor. O robots.txt do portal não bloqueia nada.
 O deputado vem como "DEP NOME DE URNA"; ligamos ao deputado da lista do TSE
 pelo nome, e só quando há um único candidato.
 
+A lista de deputados em exercício vem de https://www.al.ce.gov.br/deputados
+(cartões com nome, partido e a marca "licenciado"); o nome completo vem da
+página de cada deputado. O robots.txt do site só bloqueia o banco de imagens.
+
 O portal também tem um CSV de votações nominais, mas ele só lista as
 matérias e um PDF por votação, sem o voto de cada deputado em formato aberto.
 """
@@ -16,7 +20,9 @@ matérias e um PDF por votação, sem o voto de cada deputado em formato aberto.
 from __future__ import annotations
 
 import logging
+import html as h
 import re
+import zlib
 from collections import Counter
 from datetime import date
 from typing import Any, Dict, Iterable, Iterator, List, Optional
@@ -26,7 +32,7 @@ from sqlalchemy import select
 from ..db import Politico, sessao
 from ..http import HttpClient
 from .. import normalizar as n
-from ._comum import casar_nome, ler_csv, substituir_despesas
+from ._comum import casar_nome, ler_csv, sincronizar_lista_oficial, substituir_despesas
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +40,47 @@ CASA = "al-ce"
 PORTAL = "https://transparencia.al.ce.gov.br"
 PAGINA = PORTAL + "/despesas/verba-desempenho-parlamentar"
 VERBA = PAGINA + "/csv?mes={mes:02d}&ano={ano}"
+SITE = "https://www.al.ce.gov.br"
+DEPUTADOS = SITE + "/deputados"
+
+
+def ler_deputados(pagina: str) -> List[Dict[str, Any]]:
+    """Cartões da página /deputados: em exercício e suplentes em exercício.
+    Quem tem a marca "licenciado" fica de fora."""
+    saida = []
+    for classe, corpo, partido in re.findall(
+        r'class="deputado_card([^"]*)"(.*?)deputado_card--partido[^>]*>([^<]*)<', pagina, re.S
+    ):
+        if "licenciado" in classe:
+            continue
+        m = re.search(r'/deputados/([a-z0-9-]+)"[^>]*>\s*([^<]+?)\s*</a>', corpo)
+        if not m:
+            continue
+        saida.append({
+            # A Alece não publica um número; o código sai do endereço da página.
+            "id": zlib.crc32(m.group(1).encode()) % 900_000,
+            "slug": m.group(1),
+            "nome": h.unescape(m.group(2)),
+            "partido": h.unescape(partido).strip() or None,
+        })
+    return saida
+
+
+def ler_nome_completo(pagina: str) -> Optional[str]:
+    m = re.search(r"Nome Completo\s*(?:<[^>]+>\s*)*([^<]+?)\s*<", pagina)
+    return h.unescape(m.group(1)).strip() if m else None
+
+
+def coletar_deputados(client: HttpClient) -> int:
+    oficiais = ler_deputados(client.get_bytes(DEPUTADOS).decode("utf-8", "replace"))
+    if len(oficiais) < 35:
+        raise RuntimeError(f"Lista da Alece com só {len(oficiais)} nomes; mantendo a do TSE")
+    for o in oficiais:
+        o["nome_civil"] = ler_nome_completo(client.get_bytes(f"{DEPUTADOS}/{o['slug']}").decode("utf-8", "replace"))
+    with sessao() as s:
+        r = sincronizar_lista_oficial(s, CASA, "CE", oficiais)
+    logger.info("Alece: %s em exercício, %s suplentes novos, %s eleitos fora de exercício", r["em_exercicio"], r["suplentes"], r["fora"])
+    return r["em_exercicio"]
 
 
 def _sem_titulo(nome: str) -> str:

@@ -22,3 +22,21 @@ def test_verba_de_desempenho_alece(client, monkeypatch):
     assert [(d.codigo_politico, float(d.valor), d.mes) for d in ds] == [(7, 99.96, 9), (None, 1234.5, 9), (7, 4000.0, 9)]
     assert ds[-1].fornecedor == "TICKET SERVICOS S/A" and ds[-1].cnpj_cpf == "47866934000174"
     assert ds[1].nome_politico == "FULANO DESCONHECIDO"
+
+
+CARD = """<div class="deputado_card{cls}" style="max-width: 300px"><img src="x" alt="Foto de {nome}">
+<p class="deputado_card--nome s-font-1"><a href="https://www.al.ce.gov.br/deputados/{slug}">       {nome} </a></p>
+<p class="deputado_card--partido s-font-1"> {partido} </p></div>"""
+
+
+def test_lista_de_deputados_alece():
+    pagina = "".join([
+        CARD.format(cls=" ", nome="Agenor Neto", slug="agenor-neto", partido="MDB"),
+        CARD.format(cls=" licenciado", nome="Guilherme Landim", slug="guilherme-landim", partido="PSB"),
+        CARD.format(cls="", nome="Ant&ocirc;nio Granja", slug="antonio-granja", partido="PSB"),
+    ])
+    d = alece.ler_deputados(pagina)
+    assert [(x["nome"], x["partido"], x["slug"]) for x in d] == [("Agenor Neto", "MDB", "agenor-neto"), ("Antônio Granja", "PSB", "antonio-granja")]
+    assert d[0]["id"] == alece.ler_deputados(pagina)[0]["id"] < 900_000
+    perfil = '<div><strong>Nome Completo</strong> <span>Bruno Torquato Pedrosa</span> <span class="x">'
+    assert alece.ler_nome_completo(perfil) == "Bruno Torquato Pedrosa"

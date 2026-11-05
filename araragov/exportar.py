@@ -63,7 +63,7 @@ AVISO_TSE = (
 AVISOS_CADASTRO = {
     "tse": AVISO_TSE,
     "tse-assembleia": "Em exercício segundo a assembleia. O partido é o da eleição de 2022 (TSE) e pode ter mudado.",
-    "assembleia": "Suplente em exercício segundo a assembleia, que não publica o partido.",
+    "assembleia": "Suplente em exercício segundo a assembleia. O partido aparece só quando a assembleia o publica.",
 }
 
 
