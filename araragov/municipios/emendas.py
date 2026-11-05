@@ -63,8 +63,12 @@ def ler_emendas(linhas: Iterable[Dict[str, str]]) -> Dict[str, Dict[str, Optiona
 
 
 def eh_prefeitura(nome: Optional[str], natureza: Optional[str]) -> bool:
+    """Governo municipal: a prefeitura, os fundos municipais (saúde,
+    assistência…) e outros órgãos da administração do município."""
     t = chave_nome(nome or "")
-    return "MUNICIPIO" in chave_nome(natureza or "") or t.startswith("MUNICIPIO DE ") or t.startswith("PREFEITURA ")
+    nat = chave_nome(natureza or "")
+    return ("MUNICIPIO" in nat or "MUNICIPAL" in nat or t.startswith("MUNICIPIO DE ") or t.startswith("PREFEITURA ")
+            or t.startswith("FUNDO MUNICIPAL"))
 
 
 def agregar(linhas: Iterable[Dict[str, str]], emendas: Dict[str, Dict[str, Optional[str]]],
@@ -139,8 +143,9 @@ def documento(cod: int, mun: str, uf: str, linhas: Dict[Tuple, Dict[str, Any]], 
                  "sem-dados": COLUNAS_SEM_DADOS},
         titulo=f"{mun} ({uf}), emendas parlamentares",
         textos={
-            "resumo": "## Emendas recebidas por ano\n\nValores pagos pela União a quem está no município "
-            "(prefeitura, entidades e empresas), pelo Portal da Transparência.",
+            "resumo": "## Emendas recebidas por ano\n\nValores pagos pela União a quem está no município, "
+            "pelo Portal da Transparência. \"Para a prefeitura\" inclui os fundos municipais (saúde, "
+            "assistência social…); \"para outros\" são entidades e empresas.",
             "autores": "## Quem mandou",
             "recebido": f"## Quem recebeu\n\nAs {TOP_LINHAS} maiores linhas (ano, emenda e favorecido). "
             "Receber emenda não é irregular; a lista mostra o caminho do dinheiro.",

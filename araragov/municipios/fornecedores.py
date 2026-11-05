@@ -254,13 +254,15 @@ def eleitos_do_municipio(pasta: Path) -> Dict[str, str]:
 def emendas_do_municipio(pasta: Path) -> Dict[str, List[str]]:
     """CNPJ (só dígitos) -> ["AUTOR 2025", ...], pelo emendas.md da fase 6
     (só favorecidos que não são a prefeitura)."""
+    from .emendas import eh_prefeitura
+
     caminho = pasta / "emendas.md"
     doc = _ler(caminho) if caminho.exists() else None
     saida: Dict[str, List[str]] = defaultdict(list)
     for r in (doc.tabelas.get("recebido", []) if doc else []):
         c = so_digitos(r.get("cnpj"))
         rotulo = f"{r.get('autor') or 'autor não informado'} {r.get('ano')}"
-        if len(c) == 14 and "MUNICIPIO" not in (r.get("natureza") or "").upper() and rotulo not in saida[c]:
+        if len(c) == 14 and not eh_prefeitura(r.get("favorecido"), r.get("natureza")) and rotulo not in saida[c]:
             saida[c].append(rotulo)
     return dict(saida)
 

@@ -36,3 +36,8 @@ def test_emendas_do_municipio():
     assert pf["favorecido"] == em.PESSOAS_FISICAS and pf["cnpj"] is None and "FULANO" not in str(doc.tabelas)
     assert doc.tabelas["autores"][0]["valor"] == "45500"
     assert doc.tabelas["sem-dados"][0]["esfera"] == "municipal"
+
+
+def test_fundo_municipal_conta_como_prefeitura():
+    assert em.eh_prefeitura("FUNDO MUNICIPAL DE SAUDE DE ADAMANTINA", "Fundo Público da Administração Direta Municipal")
+    assert not em.eh_prefeitura("IRMANDADE DA SANTA CASA", "Associação Privada")

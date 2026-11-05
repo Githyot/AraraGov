@@ -564,7 +564,7 @@ class _Emendas extends StatelessWidget {
                 for (final r in doc.tabela('resumo'))
                   Linha(
                     titulo: '${r['ano']}',
-                    subtitulo: '${r['emendas']} emendas de ${r['autores']} autores · prefeitura ${_reais(r['para_prefeitura'])} · outros ${_reais(r['para_outros'])}',
+                    subtitulo: '${r['emendas']} emendas de ${r['autores']} autores · governo municipal ${_reais(r['para_prefeitura'])} · outros ${_reais(r['para_outros'])}',
                     valor: _reais(r['valor']),
                   ),
               ],

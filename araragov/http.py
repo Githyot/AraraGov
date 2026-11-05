@@ -60,20 +60,28 @@ class HttpClient:
         return self._get(url, params, "*/*").content
 
     def baixar_arquivo(self, url: str, destino, pedaco: int = 1 << 20) -> None:
-        """Baixa um arquivo grande direto para o disco, com novas tentativas."""
+        """Baixa um arquivo grande direto para o disco, com novas tentativas.
+        Se a conexão cair no meio e o servidor aceitar Range, continua de onde
+        parou em vez de recomeçar."""
         espera = self.espera_inicial
+        recebido = 0
         for tentativa in range(1, self.tentativas + 1):
+            cabecalhos = {"Range": f"bytes={recebido}-"} if recebido else {}
             try:
-                with self.session.get(url, stream=True, timeout=(20, HTTP_TIMEOUT)) as resp:
+                with self.session.get(url, stream=True, timeout=(20, HTTP_TIMEOUT), headers=cabecalhos) as resp:
                     if resp.status_code < 500 and resp.status_code != 429:
                         resp.raise_for_status()
-                        with open(destino, "wb") as f:
+                        continuar = recebido > 0 and resp.status_code == 206
+                        if not continuar:
+                            recebido = 0
+                        with open(destino, "ab" if continuar else "wb") as f:
                             for parte in resp.iter_content(pedaco):
                                 f.write(parte)
+                                recebido += len(parte)
                         return
                     logger.warning("HTTP %s em %s (tentativa %s)", resp.status_code, url, tentativa)
             except (requests.ConnectionError, requests.Timeout, requests.exceptions.ChunkedEncodingError) as exc:
-                logger.warning("Falha ao baixar %s (tentativa %s): %s", url, tentativa, exc)
+                logger.warning("Falha ao baixar %s (tentativa %s, %s bytes até aqui): %s", url, tentativa, recebido, exc)
             if tentativa < self.tentativas:
                 time.sleep(espera)
                 espera *= 2

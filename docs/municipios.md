@@ -253,8 +253,9 @@ fonte pública:
 com as emendas federais pagas a quem está ali, pelo arquivo único de emendas
 do Portal da Transparência:
 
-- `resumo`: por ano, número de emendas e de autores, total, quanto foi para a
-  prefeitura e quanto para entidades e empresas.
+- `resumo`: por ano, número de emendas e de autores, total, quanto foi para o
+  governo municipal (prefeitura e fundos municipais) e quanto para entidades
+  e empresas.
 - `autores`: quem mandou, por tipo de emenda.
 - `recebido`: as 300 maiores linhas de ano, emenda, autor, função (saúde,
   cultura…), ação e favorecido com CNPJ. Pessoas físicas aparecem somadas, sem
