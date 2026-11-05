@@ -70,3 +70,46 @@ def substituir_despesas(s: Session, casa: str, ano: int, linhas: Iterable[Dict[s
         s.execute(insert(Despesa), lote)
         total += len(lote)
     return total
+
+
+# --- Nomes -------------------------------------------------------------------
+
+_TITULOS = {"dr", "dra", "doutor", "doutora", "sargento", "sgt", "cabo", "soldado", "coronel", "delegado",
+            "delegada", "pastor", "pastora", "padre", "professor", "professora", "prof", "irmao", "irma"}
+_LIGACOES = {"da", "de", "do", "das", "dos", "e"}
+
+
+def _tokens(nome: str) -> List[str]:
+    from ..normalizar import _sem_acento
+
+    t = _sem_acento(nome or "").lower().replace(".", " ").replace("-", " ")
+    return [p for p in t.split() if p and p not in _LIGACOES and p not in _TITULOS]
+
+
+def casar_nome(nome: str, candidatos: Dict[int, Iterable[str]]) -> Any:
+    """Acha o código do político cujo nome (de urna ou civil) corresponde a
+    `nome`, como as assembleias escrevem nas planilhas ("Ana Paula da Silva
+    (Paulinha)", "Dr Vicente Caropreso"). Só devolve quando há um único
+    candidato; na dúvida devolve None, para nunca atribuir gasto à pessoa errada."""
+    principal, _, apelido = (nome or "").partition("(")
+    variantes = [v for v in (principal, apelido.rstrip(") ")) if v.strip()]
+    nomes = {cod: [_tokens(x) for x in lista if x] for cod, lista in candidatos.items()}
+    # 1) igual, 2) todas as palavras de um contidas no outro, 3) primeiro e último nome.
+    regras = [
+        lambda a, b: a == b,
+        lambda a, b: len(a) >= 2 and len(b) >= 2 and (set(a) <= set(b) or set(b) <= set(a)),
+        lambda a, b: len(a) >= 2 and len(b) >= 2 and a[0] == b[0] and a[-1] == b[-1],
+    ]
+    for regra in regras:
+        achados = {
+            cod
+            for v in variantes
+            for cod, lista in nomes.items()
+            for c in lista
+            if (t := _tokens(v)) and c and regra(t, c)
+        }
+        if len(achados) == 1:
+            return achados.pop()
+        if len(achados) > 1:
+            return None
+    return None

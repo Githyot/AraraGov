@@ -1,34 +1,47 @@
 # Estados
 
-## De onde vêm os dados
+O AraraGov só usa dados que os estados já publicam. Não fazemos pedidos ao
+governo e respeitamos o robots.txt de cada portal.
 
-| O quê | Fonte | Cobertura |
+## Quem aparece
+
+A base é a lista de eleitos do TSE nos 27 estados (governador, vice e
+deputados estaduais). Onde a assembleia publica a própria lista (MG e SP),
+ela substitui a do TSE, porque inclui suplentes em exercício.
+
+## Gastos por assembleia
+
+| UF | Fonte | O que vem |
 |---|---|---|
-| Governadores, vices e deputados estaduais/distritais eleitos | [TSE, candidatos 2022](https://dadosabertos.tse.jus.br) | 27 estados |
-| Deputados em exercício (inclui suplentes que assumiram e partido atual) | [ALMG](https://dadosabertos.almg.gov.br/ws/ajuda/sobre), [Alesp](https://www.al.sp.gov.br/dados-abertos/) | MG, SP |
-| Gastos do mandato | ALMG (verbas indenizatórias), Alesp (despesas de gabinete) | MG, SP |
+| MG | API de dados abertos da ALMG | verbas indenizatórias por deputado e mês |
+| SP | XML de dados abertos da Alesp | despesas de gabinete por deputado e mês |
+| SC | CSV anual da Alesc (`/gabinetes-parlamentares/csv/{ano}`, desde 2011) | diárias, passagens, telefone, escritório de apoio, combustível etc. |
 
-Onde a assembleia tem lista própria, ela substitui a do TSE. Nos outros
-estados, o perfil mostra o aviso de que os dados são da eleição de 2022.
+Na Alesc, a planilha traz o nome do deputado como a assembleia escreve
+("Ana Paula da Silva (Paulinha)"). O coletor liga o gasto ao deputado do TSE
+pelo nome de urna ou civil, e só quando há um único candidato. Gastos de quem
+não foi ligado (suplentes, ex-deputados) ficam com o nome, sem perfil. O log
+da coleta lista esses nomes.
 
-O arquivo do TSE traz CPF, título de eleitor e data de nascimento. Esses
-campos não são lidos nem gravados.
+### Assembleias estudadas e ainda fora
+
+- **PR (Alep):** gastos de ressarcimento só aparecem em telas e numa API
+  interna que o robots.txt fecha. A API aberta (`webservices.assembleia.pr.leg.br/api/public`)
+  só tem proposições e normas.
+- **MT, MS, BA:** gastos só em telas, sem arquivo para baixar.
+- **PE, RS, ES, RJ:** os portais não responderam a acessos de fora do Brasil
+  (onde roda a coleta). Vamos tentar de novo.
 
 ## Salário
 
-A Constituição (art. 27, § 2º) limita o subsídio do deputado estadual a 75%
-do subsídio do deputado federal. O app mostra esse valor como **teto**, porque
-cada assembleia fixa o seu por lei. O salário de governadores varia por lei
-estadual e ainda não foi coletado.
+O arquivo `araragov/referencia/subsidios_estaduais.csv` guarda o salário por
+estado e cargo, com a fonte de cada valor:
 
-## Próximos estados
+- `tipo=lei`: valor tirado da lei estadual (SC e SP para deputados; SP para
+  governador e vice).
+- `tipo=imprensa`: valor publicado pela imprensa enquanto a lei não foi
+  conferida (governadores, levantamento do Valor Econômico de outubro de 2026).
+  O app avisa que é valor da imprensa.
 
-Outras assembleias publicam dados em formatos diferentes. A ALEPE (PE) tem
-API, mas estava fora do ar na sondagem de novembro de 2026. Votações nominais
-estaduais ainda não têm fonte aberta e uniforme.
-
-## Ids
-
-`al-mg-12193` = Assembleia Legislativa de MG, id da própria ALMG.
-`al-ba-13123` = Assembleia da BA, número de urna no TSE.
-`gov-mg-300` / `gov-mg-301` = governador / vice de MG (número do partido × 10, +1 para o vice).
+Linhas sem link de fonte são ignoradas. Estados sem linha para deputados
+continuam mostrando o teto constitucional (75% do deputado federal).

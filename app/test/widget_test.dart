@@ -106,6 +106,18 @@ void main() {
         'Declarou doar 30% do salário em 2020');
   });
 
+  test('salário estadual vindo da imprensa é marcado como referência', () {
+    final s = Salario.fromJson({
+      'atual': 21914.76,
+      'observacao': 'Valor publicado pela imprensa',
+      'historico': [
+        {'desde': '2026-10-04', 'valor': 21914.76, 'ato': 'Levantamento', 'fonte': 'https://example.org', 'referencia': true}
+      ],
+    });
+    expect(s.historico.single.referencia, isTrue);
+    expect(s.teto, isFalse);
+  });
+
   testWidgets('perfil troca o período e abre a comparação', (tester) async {
     final client = MockClient((req) async {
       final partes = req.url.pathSegments;

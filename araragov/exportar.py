@@ -48,6 +48,10 @@ OBS_ESTADUAL = (
     "O valor exato é fixado por lei de cada assembleia."
 )
 OBS_GOVERNO = "Fixado por lei estadual; ainda não coletado."
+OBS_LEI = "Subsídio bruto mensal, fixado por lei estadual"
+OBS_IMPRENSA = (
+    "Valor publicado pela imprensa; a lei estadual com o valor ainda não foi conferida pelo AraraGov."
+)
 
 # Cadastros que vêm da lista de eleitos do TSE (fonte="tse") recebem um aviso.
 AVISO_TSE = (
@@ -86,6 +90,7 @@ def orgao(casa: str) -> Dict[str, str]:
 
 
 DOACOES_CSV = Path(__file__).parent / "referencia" / "doacao_salario.csv"
+SUBSIDIOS_ESTADUAIS_CSV = Path(__file__).parent / "referencia" / "subsidios_estaduais.csv"
 
 
 def doacoes_salario(caminho: Path = DOACOES_CSV) -> Dict[tuple, Dict[str, Any]]:
@@ -218,7 +223,48 @@ def _resumo(p: Politico, doacoes: Optional[Dict[tuple, Dict[str, Any]]] = None) 
     }
 
 
-def _salario(cargo: str, subsidios: List[Subsidio]) -> Dict[str, Any]:
+def subsidios_estaduais(caminho: Optional[Path] = None) -> Dict[tuple, List[Dict[str, Any]]]:
+    """Salário de deputados estaduais e governadores por estado, de uma lista
+    curada com a lei (ou, enquanto a lei não foi conferida, a reportagem)."""
+    por: Dict[tuple, List[Dict[str, Any]]] = defaultdict(list)
+    for l in _ler_curado(caminho or SUBSIDIOS_ESTADUAIS_CSV):
+        por[(l["cargo"], l["uf"])].append({
+            "desde": date.fromisoformat(l["vigencia_inicio"]),
+            "valor": Decimal(l["valor"]),
+            "ato": l["ato"] or None,
+            "fonte": l["fonte"],
+            "tipo": l.get("tipo") or "lei",
+        })
+    return {k: sorted(v, key=lambda h: h["desde"]) for k, v in por.items()}
+
+
+def _salario_estadual(historico: List[Dict[str, Any]]) -> Dict[str, Any]:
+    imprensa = any(h["tipo"] == "imprensa" for h in historico)
+    resultado: Dict[str, Any] = {
+        "atual": historico[-1]["valor"],
+        "historico": [
+            {k: v for k, v in h.items() if k != "tipo"} | ({"referencia": True} if h["tipo"] == "imprensa" else {})
+            for h in historico
+        ],
+        "observacao": OBS_IMPRENSA if imprensa else OBS_LEI,
+    }
+    ipca = inflacao.carregar_ipca() if len(historico) >= 2 else {}
+    if ipca and historico[0]["valor"] != historico[-1]["valor"]:
+        comp = inflacao.comparar(ipca, historico[0]["desde"], historico[0]["valor"], historico[-1]["desde"], historico[-1]["valor"])
+        if comp:
+            resultado["vs_inflacao"] = {
+                "desde": comp.referencia,
+                "valor_inicial": comp.valor_referencia,
+                "valor_atual": comp.valor_real,
+                "corrigido_pela_inflacao": comp.valor_corrigido,
+                "acima_da_inflacao_pct": round(comp.acima_da_inflacao_pct, 2),
+            }
+    return resultado
+
+
+def _salario(cargo: str, subsidios: List[Subsidio], uf: Optional[str] = None, estaduais: Optional[Dict[tuple, List[Dict[str, Any]]]] = None) -> Dict[str, Any]:
+    if estaduais and (cargo, uf) in estaduais:
+        return _salario_estadual(estaduais[(cargo, uf)])
     if cargo in CARGOS_ESTADUAIS:
         federal = _salario("Deputado Federal", subsidios)
 
@@ -537,7 +583,8 @@ def exportar(saida: Path) -> int:
             recursos[(r.casa, r.codigo_politico)][r.tipo].append(r)
 
     analises = _analises(politicos, votos_por, votacoes)
-    salarios = {cargo: _salario(cargo, subsidios) for cargo in {p.cargo for p in politicos}}
+    estaduais = subsidios_estaduais()
+    salarios = {(c, uf): _salario(c, subsidios, uf, estaduais) for c, uf in {(p.cargo, p.uf) for p in politicos}}
     doacoes = doacoes_salario()
     declaradas = ideologias_declaradas()
 
@@ -555,7 +602,7 @@ def exportar(saida: Path) -> int:
             "aviso_cadastro": AVISO_TSE if p.fonte == "tse" else None,
             "nome_civil": p.nome_civil,
             "email": p.email,
-            "salario": salarios[p.cargo],
+            "salario": salarios[(p.cargo, p.uf)],
             "gastos": _gastos(despesas_por[(p.casa, p.codigo)], p),
             "gabinete": gabinetes[(p.casa, p.codigo)],
             "custo_gabinete": _custo_gabinete(

@@ -5,7 +5,7 @@ o que falta. Este arquivo é atualizado a cada entrega.
 
 Legenda: ✅ pronto (no `main`) · 🔄 em revisão (PR aberto) · ⬜ falta fazer · ➖ não disponível na fonte · ⏸️ só quando pedido
 
-_Última atualização: 5 de novembro de 2026 (noite)_
+_Última atualização: 5 de novembro de 2026 (madrugada do dia 6)_
 
 ## Visão geral
 
@@ -14,11 +14,11 @@ _Última atualização: 5 de novembro de 2026 (noite)_
 | 1. Base federal (Câmara, Senado, IPCA) | ✅ |
 | 2. Análises (posição política, alinhamento, votações de atenção) | ✅ |
 | 3. App multiplataforma (Flutter, visual GNOME) | ✅ primeira versão · ⏸️ builds só quando pedido |
-| 4. Estados | ✅ início (TSE nos 27 estados, MG e SP) |
+| 4. Estados | ✅ início (TSE nos 27 estados, MG e SP) · 🔄 SC e salário real por estado no PR #11 |
 | Benefícios e custo dos gabinetes | ✅ Senado |
 | Emendas parlamentares | ✅ |
 | Período, comparação e doação do salário | ✅ |
-| Base federal completa | ✅ · 🔄 histórico e listas curadas no PR #10 |
+| Base federal completa | ✅ |
 | 5. Municípios | ⬜ aguardando as necessidades que HP vai trazer |
 
 ## 1. Base federal ✅
@@ -38,8 +38,8 @@ _Última atualização: 5 de novembro de 2026 (noite)_
 - ✅ Câmara: salário bruto pago a cada mês
 - ➖ Câmara: salário de cada assessor. O robots.txt da Câmara pede para não coletar essas páginas; o custo total vem da verba de gabinete e o nível (SP01 a SP25) aparece na equipe
 - ➖ Plano de saúde e reembolsos médicos: a Câmara e o Senado não publicam por parlamentar
-- 🔄 Histórico entre as coletas: os recursos da Câmara de anos fechados ficam guardados e só o que falta é buscado (PR #10)
-- 🔄 Doação do salário: mais declarações, com o período de cada uma (PR #10)
+- ✅ Histórico entre as coletas: os recursos da Câmara de anos fechados ficam guardados e só o que falta é buscado
+- ✅ Doação do salário: mais declarações, com o período de cada uma
 - ⬜ Seguir ampliando a lista de doações (cada nome com fonte pública)
 - ✅ Legislatura anterior (2019-2022): deputados e senadores que saíram, votos e gastos desde 2019
 - ✅ API mais leve: votos compactos nos perfis e detalhes das votações por ano, para caber no limite de 1 GB do GitHub Pages
@@ -54,7 +54,7 @@ _Última atualização: 5 de novembro de 2026 (noite)_
   anistia, foro e imunidade, sem acusar ninguém
 - ✅ Metodologia publicada e conferida com os dados reais de 2025
 - ✅ Ideologia declarada pelo partido (PT, PCdoB, PDT, PL) ao lado da posição pelos votos, com a fonte
-- 🔄 Ideologia declarada também por PSB, PSOL e Republicanos (PR #10)
+- ✅ Ideologia declarada também por PSB, PSOL e Republicanos
 - ⬜ Declarações de políticos e dos partidos que faltam (cada uma com fonte)
 - ✅ Votações do Senado desde 2019 (código pronto; conferir com dados reais quando a API do Senado voltar, hoje responde erro 503)
 
@@ -77,8 +77,16 @@ _Última atualização: 5 de novembro de 2026 (noite)_
 - ✅ Minas Gerais (ALMG): deputados em exercício e verbas indenizatórias
 - ✅ São Paulo (Alesp): deputados em exercício e despesas de gabinete
 - ✅ Salário estadual mostrado como teto (75% do deputado federal)
-- ⬜ Salário real de cada assembleia e de cada governador (leis estaduais)
-- ⬜ Outras assembleias com dados abertos (RJ, RS, PR, BA, PE…), uma a uma
+- 🔄 Santa Catarina (Alesc): gastos de gabinete de cada deputado, de 2011 até hoje, do CSV aberto da Alesc (PR #11)
+- 🔄 Salário real por estado, de uma lista com a fonte de cada valor (PR #11):
+  - deputados estaduais de SC e SP pela lei estadual; os outros estados seguem como teto até a lei ser conferida
+  - governador e vice de SP pela lei estadual
+  - governadores dos outros 26 estados pelo levantamento do Valor Econômico (out/2026), marcado no app como valor da imprensa
+- ⬜ Conferir a lei do salário de governador e deputados nos outros 25 estados
+- ⬜ Outras assembleias, uma a uma, só com dados já publicados (sem pedidos ao governo):
+  - ➖ PR: gastos só em telas e numa API que o robots.txt da Alep fecha; a API aberta só tem proposições
+  - ➖ MT, MS, BA: gastos só em telas, sem arquivo aberto (a estudar a leitura das telas)
+  - ⬜ PE, RS, ES, RJ: portais não respondem fora do Brasil; tentar de novo
 - ⬜ Votações nominais estaduais (poucas assembleias publicam)
 - ⬜ Gabinetes estaduais
 
@@ -92,4 +100,4 @@ _Última atualização: 5 de novembro de 2026 (noite)_
 
 - ⬜ Ativar o GitHub Pages com a fonte "GitHub Actions"
 - ⬜ Rodar a "Coleta de dados" manualmente uma vez, para publicar a API
-- ⬜ Apagar os ramos temporários `sondagem-gabinete` e `sondagem-federal`
+- ⬜ Apagar os ramos temporários `sondagem-gabinete`, `sondagem-federal` e `sondagem-assessores`

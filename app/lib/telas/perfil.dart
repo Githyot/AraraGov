@@ -222,7 +222,12 @@ class _SecaoSalario extends StatelessWidget {
       titulo: 'Salário',
       descricao: s.observacao ?? 'Subsídio bruto mensal, fixado por decreto legislativo',
       filhos: [
-        Linha(titulo: s.teto ? 'Teto do salário' : 'Salário atual', valor: reais(s.atual)),
+        Linha(
+          titulo: s.teto ? 'Teto do salário' : 'Salário atual',
+          subtitulo: s.historico.isEmpty ? null : s.historico.last.ato,
+          valor: reais(s.atual),
+          aoTocar: s.historico.isEmpty || s.historico.last.fonte == null ? null : () => _abrir(s.historico.last.fonte),
+        ),
         if (s.vsInflacao != null)
           _LinhaInflacao(titulo: 'Desde ${mesAno(s.vsInflacao!.desde)}', v: s.vsInflacao!),
         if (doacao != null) _linhaDoacao(doacao!),
@@ -248,7 +253,7 @@ class _SecaoSalario extends StatelessWidget {
             shape: const Border(),
             children: [
               for (final h in s.historico.reversed)
-                Linha(titulo: 'Desde ${data(h.desde)}', subtitulo: h.ato, valor: reais(h.valor), aoTocar: h.fonte == null ? null : () => _abrir(h.fonte)),
+                Linha(titulo: h.referencia ? 'Valor em ${mesAno(h.desde)}' : 'Desde ${data(h.desde)}', subtitulo: h.ato, valor: reais(h.valor), aoTocar: h.fonte == null ? null : () => _abrir(h.fonte)),
             ],
           ),
       ],
