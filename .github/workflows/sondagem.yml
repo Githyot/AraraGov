@@ -16,14 +16,15 @@ jobs:
       - name: PNCP (contratos, compras e itens)
         run: |
           A="AraraGov (dados publicos)"
-          u="https://pncp.gov.br/api/consulta/v1/contratos?dataInicial=20250301&dataFinal=20250302&pagina=1&tamanhoPagina=5"
-          curl -sS -m 60 -A "$A" "$u" | head -c 4000; echo
-          u="https://pncp.gov.br/api/consulta/v1/contratacoes/publicacao?dataInicial=20250301&dataFinal=20250302&codigoModalidadeContratacao=8&pagina=1&tamanhoPagina=2"
+          u="https://pncp.gov.br/api/consulta/v1/contratos?dataInicial=20250301&dataFinal=20250302&pagina=1&tamanhoPagina=10"
+          curl -sS -m 60 -A "$A" "$u" | python3 -c "import json,sys;d=json.load(sys.stdin);print(json.dumps({k:v for k,v in d.items() if k!='data'}));print(json.dumps(d['data'][:2],ensure_ascii=False,indent=1)[:5000])"
+          u="https://pncp.gov.br/api/consulta/v1/contratacoes/publicacao?dataInicial=20250301&dataFinal=20250302&codigoModalidadeContratacao=8&pagina=1&tamanhoPagina=10"
           curl -sS -m 60 -A "$A" "$u" | head -c 3000; echo
           cnpj=$(curl -sS -m 60 -A "$A" "$u" | python3 -c "import json,sys;d=json.load(sys.stdin)['data'][0];print(d['orgaoEntidade']['cnpj'],d['anoCompra'],d['sequencialCompra'])")
           set -- $cnpj
-          curl -sS -m 60 -A "$A" "https://pncp.gov.br/api/pncp/v1/orgaos/$1/compras/$2/$3/itens?pagina=1&tamanhoPagina=3" | head -c 3000; echo
+          curl -sS -m 60 -A "$A" "https://pncp.gov.br/api/pncp/v1/orgaos/$1/compras/$2/$3/itens?pagina=1&tamanhoPagina=10" | head -c 3000; echo
       - name: Outros tribunais de contas
+        if: always()
         run: |
           for u in \
             "https://dados.tce.pr.gov.br/" "https://servicos.tce.pr.gov.br/TCEPR/Tribunal/Relacon/Dados/" \
