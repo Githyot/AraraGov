@@ -14,7 +14,7 @@ _Última atualização: 5 de novembro de 2026 (madrugada do dia 6)_
 | 1. Base federal (Câmara, Senado, IPCA) | ✅ |
 | 2. Análises (posição política, alinhamento, votações de atenção) | ✅ |
 | 3. App multiplataforma (Flutter, visual GNOME) | ✅ primeira versão · ⏸️ builds só quando pedido |
-| 4. Estados | ✅ início (TSE nos 27 estados, MG e SP) · 🔄 SC, BA e salário real por estado no PR #12 |
+| 4. Estados | ✅ início (TSE nos 27 estados, MG e SP) · 🔄 SC, BA, CE, PA, RO e salário real por estado no PR #12 |
 | Benefícios e custo dos gabinetes | ✅ Senado |
 | Emendas parlamentares | ✅ |
 | Período, comparação e doação do salário | ✅ |
@@ -78,10 +78,11 @@ _Última atualização: 5 de novembro de 2026 (madrugada do dia 6)_
 - ✅ São Paulo (Alesp): deputados em exercício e despesas de gabinete
 - ✅ Salário estadual mostrado como teto (75% do deputado federal)
 - 🔄 Santa Catarina (Alesc): gastos de gabinete de cada deputado, de 2011 até hoje, do CSV aberto da Alesc (PR #12)
-- 🔄 SC e BA: lista oficial de deputados em exercício; suplentes que assumiram ganham perfil e quem se afastou fica fora de exercício (PR #12)
+- 🔄 Ceará (Alece): verba de desempenho parlamentar de cada deputado, com fornecedor e CNPJ, do CSV mensal da Alece (PR #12)
+- 🔄 SC, BA e CE: lista oficial de deputados em exercício; suplentes que assumiram ganham perfil e quem se afastou fica fora de exercício (PR #12)
 - 🔄 Bahia (ALBA): verbas indenizatórias de cada deputado, da planilha anual da ALBA (sem o fornecedor, que a planilha não traz) (PR #12)
 - 🔄 Salário real por estado, de uma lista com a fonte de cada valor (PR #12):
-  - deputados estaduais de SC, SP e GO pela lei estadual; de PE, MG, ES, PR, RS, RN, MA, TO, MT e MS pela imprensa (lei ainda não conferida); do RJ pela página oficial da Alerj (valor atual); os outros estados seguem como teto até a lei ser conferida
+  - deputados estaduais de SC, SP e GO pela lei estadual; de PE, CE, PB, MG, ES, PR, RS, RN, MA, TO, MT e MS pela imprensa (lei ainda não conferida); do RJ pela página oficial da Alerj (valor atual); os outros estados seguem como teto até a lei ser conferida
   - governador e vice de SP pela lei estadual
   - governadores dos outros 26 estados pelo levantamento do Valor Econômico (out/2026), marcado no app como valor da imprensa
 - 🔄 Seção sem dado mostra "Sem dados" e o órgão responsável por publicar, com a esfera (federal, estadual ou municipal); vale para todo o app (PR #12)
@@ -92,8 +93,10 @@ _Última atualização: 5 de novembro de 2026 (madrugada do dia 6)_
   - ➖ MT e MS: o site não publica os gastos de cada deputado (MT só traz as normas da verba; MS só explica a cota)
   - ⬜ PE, RS, ES, DF: portais não respondem fora do Brasil (tentado de novo em 05/11, sem sucesso)
   - ➖ RJ: os gastos dos deputados ficam no sistema DOCIGP, cujo robots.txt fecha todo o site (não coletamos)
-- ➖ Votações nominais estaduais: nenhuma das assembleias que respondem publica o voto de cada deputado em arquivo aberto (a Alep tem, mas na área /api/ que o robots.txt fecha; a Alesp só publica presença)
+- ➖ Votações nominais estaduais: nenhuma das assembleias que respondem publica o voto de cada deputado em arquivo aberto (a Alep tem, mas na área /api/ que o robots.txt fecha; a Alesp só publica presença; a Alece só em PDF)
 - 🔄 Gabinetes estaduais: SC (Alesc) com a equipe de cada gabinete, nome e vínculo; o salário fica na tela de contracheque que o robots.txt fecha (PR #12)
+- 🔄 Gabinetes do Pará (Alepa): equipe de cada gabinete com o valor pago a cada pessoa no último mês (PR #12)
+- 🔄 Gabinetes de Rondônia (ALE-RO): equipe de cada gabinete pela API aberta de servidores, sem salário (PR #12)
 - ➖ BA: o portal de RH da ALBA lista só efetivos e funções de confiança, sem os secretários parlamentares dos gabinetes
 - ⬜ Gabinetes dos outros estados
 
