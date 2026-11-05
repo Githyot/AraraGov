@@ -57,6 +57,10 @@ jobs:
           ANO="${{ steps.p.outputs.ano }}"
           python -m araragov coletar tudo ${ANO:+--ano $ANO} ${{ steps.p.outputs.limite }}
       - name: Exportar API estática
+        id: exportar
+        # Uma fonte federal fora do ar (Câmara 504, Senado 503) faz "Coletar" sair com erro, mas o
+        # banco guarda o que veio das outras; publica assim mesmo, e a fonte que falhou fica sem dados.
+        if: ${{ !cancelled() }}
         run: python -m araragov exportar --saida site
       - name: Municípios (TSE e Siconfi)
         # Independe das APIs federais: roda mesmo se a coleta acima falhar.
@@ -216,14 +220,15 @@ jobs:
           path: dados/araragov.db
           retention-days: 30
       - uses: actions/upload-pages-artifact@v3
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        if: ${{ !cancelled() && steps.exportar.outcome == 'success' && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
         with:
           path: site
 
   publicar:
     # Publica a API estática no GitHub Pages: https://githyot.github.io/AraraGov/v1/
     # Só a partir do main; execuções manuais em outros ramos servem para testar.
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    # Roda mesmo se algum passo da coleta falhou, desde que o site tenha sido exportado.
+    if: ${{ !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
     needs: coleta
     runs-on: ubuntu-latest
     environment:
