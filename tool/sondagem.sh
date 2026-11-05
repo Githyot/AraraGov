@@ -1,12 +1,12 @@
 set +e
 ua="AraraGov/0.1 (+https://github.com/Githyot/AraraGov)"
-git fetch -q --depth 1 origin etapa-9-estados && git checkout -q FETCH_HEAD -- araragov pyproject.toml
-pip install -q -e . 2>&1 | tail -1
-echo "### coleta real"
-python -m araragov coletar estados-eleitos 2>&1 | grep -iE "erro|error" | tail -3
-python -m araragov coletar alece-despesas --ano 2026 2>&1 | grep -iE "ligados" | cut -c1-900
-echo "### robots al.ce"; curl -sS -A "$ua" --max-time 30 https://www.al.ce.gov.br/robots.txt | head -15
-for u in https://www.al.ce.gov.br/deputados https://www.al.ce.gov.br/paginas/deputados-estaduais; do echo "### $u"; curl -sSL -A "$ua" --max-time 60 -w "%{http_code}\n" "$u" -o /tmp/d; wc -c </tmp/d; grep -oE 'href="[^"]*deputad[^"]*"' /tmp/d | sort -u | head -8; python3 -c "
-import re,html; h=open('/tmp/d',encoding='utf-8',errors='replace').read()
-for pat in [r'class=\"[^\"]*(?:nome|name|title)[^\"]*\"[^>]*>\s*([^<]{4,60})<', r'<h[2-5][^>]*>\s*([^<]{4,60})</h']:
-  xs=re.findall(pat,h); print(len(xs), [html.unescape(x.strip()) for x in xs[:12]])"; done
+curl -sSL -A "$ua" --max-time 60 https://www.al.ce.gov.br/deputados -o /tmp/d
+echo "### trecho"; python3 -c "
+h=open('/tmp/d',encoding='utf-8',errors='replace').read()
+i=h.find('deputados/agenor-neto'); print(h[i-900:i+700])
+j=h.find('Suplentes em Exerc'); print('---SUP---'); print(h[j-200:j+1500])
+import re; print('links', len(set(re.findall(r'al.ce.gov.br/deputados/([a-z0-9-]+)\"',h))))"
+echo "### perfil"; curl -sSL -A "$ua" --max-time 60 https://www.al.ce.gov.br/deputados/bruno-pedrosa -o /tmp/p; python3 -c "
+import re; h=open('/tmp/p',encoding='utf-8',errors='replace').read()
+for k in ['Nome','nome civil','Partido','Nome Civil','Nome completo']:
+  i=h.find(k); print(k, re.sub(r'\s+',' ',re.sub(r'<[^>]+>',' ',h[i:i+250])) if i>=0 else None)"
