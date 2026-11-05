@@ -1,11 +1,13 @@
 set +e
 ua="AraraGov/0.1 (+https://github.com/Githyot/AraraGov)"
-echo "### ALBA lista"; curl -sSL -A "$ua" --max-time 60 https://www.al.ba.gov.br/deputados/legislatura-atual -o /tmp/b; python3 - <<'P'
+echo "### PERFIL"; curl -sSL -A "$ua" --max-time 60 https://www.al.ba.gov.br/deputados/deputado-legislatura-atual/910629 -o /tmp/p; python3 -c "
+h=open('/tmp/p',encoding='utf-8',errors='replace').read()
+for k in ['EXERC','Nome:']:
+  i=h.find(k); print('--',k,i); print(repr(h[max(0,i-400):i+300]))
+"
+echo "### NAO EXERCICIO?"; for id in 932169 921283 935220 936939; do curl -sSL -A "$ua" --max-time 60 https://www.al.ba.gov.br/deputados/deputado-legislatura-atual/$id | grep -oE 'EM EXERC[^<]{0,20}|LICENCIAD[^<]{0,30}|AFASTAD[^<]{0,30}|SUPLENTE[^<]{0,30}' | sort | uniq -c | tr '\n' ' '; echo " <- $id"; done
+echo "### ALESC ROW"; curl -sSL -A "$ua" --max-time 60 https://transparencia.alesc.sc.gov.br/deputados -o /tmp/d; python3 -c "
 import re
-h=open('/tmp/b',encoding='utf-8',errors='replace').read()
-i=h.find('deputado-legislatura-atual/910629'); print(re.sub(r'\s+',' ',h[i-600:i+1800]))
-P
-echo "### ALBA perfil"; curl -sSL -A "$ua" --max-time 60 https://www.al.ba.gov.br/deputados/deputado-legislatura-atual/910629 | sed 's/<script.*//' | sed 's/<[^>]*>/ /g' | tr -s ' \n' | grep -iE "partido|nome|exerc|suplent|titular" | head -15 | cut -c1-300
-echo "### ALESC deputados sem params"; curl -sSL -A "$ua" --max-time 60 https://transparencia.alesc.sc.gov.br/deputados | grep -oE 'Mês de referência|fw-semibold">[^<]+|contracheque/[0-9]+\?ano=[0-9]+&amp;mes=[0-9]+' | head -6
-echo "### ALESC site deputado"; curl -sSL -A "$ua" --max-time 60 https://www.alesc.sc.gov.br/deputado/paulinha/ | sed 's/<script.*//' | sed 's/<[^>]*>/ /g' | tr -s ' \n' | grep -iE "partido|nome civil|PODEMOS|PDT|PL |PSD|MDB|PT |exerc" | head -10 | cut -c1-300
-curl -sSL -A "$ua" --max-time 60 https://www.alesc.sc.gov.br/robots.txt | head
+h=open('/tmp/d',encoding='utf-8').read(); i=h.find('<tbody'); print(repr(h[i:i+900])); print('N',len(set(re.findall(r'contracheque/(\d+)',h))))
+print(re.findall(r'fw-semibold\">([^<]+)',h))
+"
