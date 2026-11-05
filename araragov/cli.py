@@ -111,6 +111,11 @@ def main(argv: list[str] | None = None) -> int:
     tsp.add_argument("--saida", default="site")
     tsp.add_argument("--anos", type=_anos, default=[date.today().year - 1])
     tsp.add_argument("--limite-linhas", type=int, help="lê só N linhas do arquivo (teste)")
+    tce = sub.add_parser("tce-ce", help="pagamentos dos municípios do CE pelo TCE-CE (.md)")
+    tce.add_argument("--saida", default="site")
+    tce.add_argument("--anos", type=_anos, default=[date.today().year - 1])
+    tce.add_argument("--limite-municipios", type=int, help="só os N primeiros municípios (teste)")
+    tce.add_argument("--meses", type=int, help="só os N primeiros meses de cada ano (teste)")
     frn = sub.add_parser("fornecedores", help="fornecedores dos municípios com sanções (CEIS/CNEP) e campanhas (TSE)")
     frn.add_argument("--saida", default="site")
     frn.add_argument("--ufs", default="SP", help="estados com contratos coletados, ex.: SP,SC ou todos")
@@ -172,6 +177,15 @@ def main(argv: list[str] | None = None) -> int:
         n_contratos = contratos.gerar(client, Path(args.saida), args.anos)
         n_pagamentos = tcesp.gerar(client, Path(args.saida), args.anos, args.limite_linhas)
         return 0 if n_contratos and n_pagamentos else 1
+
+    if args.comando == "tce-ce":
+        from pathlib import Path
+
+        from .municipios import tcece
+
+        n = tcece.gerar(HttpClient(), Path(args.saida), args.anos, limite_municipios=args.limite_municipios,
+                        meses=args.meses, novo_client=HttpClient)
+        return 0 if n else 1
 
     if args.comando == "fornecedores":
         from pathlib import Path

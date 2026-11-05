@@ -217,10 +217,13 @@ class _SemDados extends StatelessWidget {
 
 Future<void> _abrir(String url) async => launchUrl(Uri.parse(url));
 
-String _semTce(String uf) => uf == 'SP'
+/// Tribunais de contas cujos pagamentos, um a um, já são lidos.
+const _tribunais = {'SP': 'TCE-SP', 'CE': 'TCE-CE'};
+
+String _semTce(String uf) => _tribunais.containsKey(uf)
     ? 'Ainda não coletado para este município.'
     : 'Nenhum contrato desta prefeitura no PNCP nos anos coletados. Pagamentos um a um só existem, '
-        'por enquanto, para SP (Tribunal de Contas).';
+        'por enquanto, para ${_tribunais.keys.join(' e ')} (Tribunal de Contas).';
 
 /// Anos com arquivo publicado, do mais recente ao mais antigo.
 Future<Map<int, DocumentoMd>> _porAno(Api api, String pasta, String sufixo) async {
@@ -373,7 +376,8 @@ class _DinheiroState extends State<_Dinheiro> {
               ),
             _SemDados(linhas: doc.tabela('sem-dados')),
             if (pag == null) _SemDados(motivo: 'Quem recebeu cada pagamento: ${_semTce(widget.uf)}'),
-            const _Fonte('Siconfi (Tesouro Nacional), declaração de contas anuais; pagamentos pelo TCE-SP'),
+            _Fonte('Siconfi (Tesouro Nacional), declaração de contas anuais'
+                '${pag == null ? '' : '; pagamentos pelo ${_tribunais[widget.uf]}'}'),
           ]);
         },
       );
@@ -540,7 +544,7 @@ class _Fornecedores extends StatelessWidget {
                 ],
               ),
             _SemDados(linhas: doc.tabela('sem-dados')),
-            _Fonte('${uf == 'SP' ? 'TCE-SP' : 'PNCP'}, CGU (CEIS e CNEP) e TSE (prestação de contas)'),
+            _Fonte('${_tribunais[uf] ?? 'PNCP'}, CGU (CEIS e CNEP) e TSE (prestação de contas)'),
           ]);
         },
       );

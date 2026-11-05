@@ -98,6 +98,15 @@ jobs:
             # Ano passado e o atual (o atual ainda muda a cada mês).
             python -m araragov tce-sp --saida site --anos $(( $(date +%Y) - 1 ))-$(date +%Y)
           fi
+      - name: Pagamentos dos municípios do CE (TCE-CE)
+        if: ${{ !cancelled() }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            python -m araragov tce-ce --saida site --anos 2025 --limite-municipios 6 --meses 3
+            f=$(ls site/v1/municipios/ce/*/2025-pagamentos.md | head -1); head -50 "$f"; grep -A6 "tabela: obras" "$f" || true
+          else
+            python -m araragov tce-ce --saida site --anos $(( $(date +%Y) - 1 ))-$(date +%Y)
+          fi
       - name: Contratos dos municípios fora de SP (PNCP)
         if: ${{ !cancelled() }}
         run: |
@@ -126,7 +135,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            python -m araragov fornecedores --saida site --ufs SP,SC --eleicoes 2024
+            python -m araragov fornecedores --saida site --ufs SP,SC,CE --eleicoes 2024
             grep -l "Sanção no\|Fornecedora de campanha" site/v1/municipios/sp/*/fornecedores.md | wc -l
             f=$(grep -l "Fornecedora de campanha" site/v1/municipios/sp/*/fornecedores.md | head -1)
             [ -n "$f" ] && { head -30 "$f"; grep -A6 "tabela: campanha" "$f"; }

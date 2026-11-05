@@ -304,8 +304,25 @@ fora de SP, no mesmo formato da fase 4:
   de fora (responsável: a prefeitura; Lei 14.133, art. 94 e 174).
 
 Com isso, `fornecedores.md` passa a existir para todos os estados (sanções,
-campanhas e emendas). Pagamento a pagamento continua só em SP, até ligar
-os outros TCEs.
+campanhas e emendas).
+
+### Ceará (TCE-CE)
+
+`araragov tce-ce --anos 2025-2026` lê a API do SIM
+(`api-dados-abertos.tce.ce.gov.br/sim`) município a município: as notas de
+empenho (CNPJ, função, elemento e histórico) e as notas de pagamento, ligadas
+pelo empenho. O resultado é `{ano}-pagamentos.md` no mesmo formato de SP, e
+os fornecedores do Ceará passam a ter o valor pago.
+
+- O TCE-CE já entrega o documento de pessoa física cifrado; pessoas físicas
+  entram só no total, como em SP.
+- Contam os pagamentos feitos nos meses do próprio exercício do empenho; restos
+  a pagar pagos no ano seguinte ficam de fora.
+- A API dá o código da subfunção, não o nome; o app mostra "Subfunção 451".
+- Paraíba: o portal do TCE-PB mudou para `dados-abertos.tce.pb.gov.br` e os
+  arquivos do Sagres não responderam ao GitHub (sondagem de 2026-11-05).
+- Goiás: quem fiscaliza os municípios é o TCM-GO, que não respondeu; o TCE-GO
+  só tem dados do estado.
 
 ## Limitações conhecidas
 

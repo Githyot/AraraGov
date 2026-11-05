@@ -163,9 +163,9 @@ def agregar(linhas: Iterable[Dict[str, str]], limite: Optional[int] = None) -> D
     return municipios
 
 
-def _governo(saida: Path, ibge: int, ano: int) -> Optional[str]:
+def _governo(saida: Path, ibge: int, ano: int, uf: str = "SP") -> Optional[str]:
     """Prefeito do ano, a partir do resumo.md gerado na fase 1."""
-    caminho = saida / "v1" / "municipios" / "sp" / str(ibge) / "resumo.md"
+    caminho = saida / "v1" / "municipios" / uf.lower() / str(ibge) / "resumo.md"
     if not caminho.exists():
         return None
     try:
@@ -178,7 +178,8 @@ def _governo(saida: Path, ibge: int, ano: int) -> Optional[str]:
     return None
 
 
-def documento(ibge: int, ano: int, m: Municipio, hoje: date, governo: Optional[str]) -> str:
+def documento(ibge: int, ano: int, m: Municipio, hoje: date, governo: Optional[str],
+              uf: str = "SP", fonte: str = FONTE, tribunal: str = "TCE-SP") -> str:
     ranking = sorted(m.favorecidos.items(), key=lambda kv: kv[1].pago, reverse=True)[:TOP_FAVORECIDOS]
     total_pj = sum((f.pago for f in m.favorecidos.values()), Decimal(0))
     favorecidos = [
@@ -201,16 +202,16 @@ def documento(ibge: int, ano: int, m: Municipio, hoje: date, governo: Optional[s
         {"grupo": f"Pessoas físicas ({len(m.pf_pessoas)} pessoas, sem nome nem CPF)", "pago": m.pf_pago, "pagamentos": m.pf_pagamentos},
         {"grupo": "Pessoal, encargos e dívida (fora do ranking)", "pago": m.fora_pago, "pagamentos": m.fora_pagamentos},
     ]
-    meta = {"tipo": "municipio-pagamentos", "ibge": ibge, "municipio": m.nome.title(), "uf": "SP", "ano": ano,
-            "governo": governo, "atualizado": hoje, "fonte": FONTE}
+    meta = {"tipo": "municipio-pagamentos", "ibge": ibge, "municipio": m.nome.title(), "uf": uf, "ano": ano,
+            "governo": governo, "atualizado": hoje, "fonte": fonte}
     return md.escrever(
         {k: v for k, v in meta.items() if v is not None},
         {"resumo": resumo, "favorecidos": favorecidos, "areas-favorecidos": areas, "obras": obras},
         colunas={"resumo": COLUNAS_RESUMO, "favorecidos": COLUNAS_FAVORECIDOS,
                  "areas-favorecidos": COLUNAS_AREAS, "obras": COLUNAS_OBRAS},
-        titulo=f"{m.nome.title()} (SP), pagamentos de {ano}",
+        titulo=f"{m.nome.title()} ({uf}), pagamentos de {ano}",
         textos={
-            "resumo": "## Pagamentos do ano\n\nValores pagos (não só empenhados), segundo o TCE-SP. "
+            "resumo": f"## Pagamentos do ano\n\nValores pagos (não só empenhados), segundo o {tribunal}. "
             "Receber muito do município não é irregular: o ranking mostra para onde foi o dinheiro.",
             "favorecidos": "## Empresas que mais receberam",
             "areas-favorecidos": "## Quem recebeu em cada área",

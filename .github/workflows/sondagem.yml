@@ -9,56 +9,26 @@ on:
 
 jobs:
   sondar-estados:
-    # Sondagem rápida (só em PR) das fontes da fase 8: PNCP e outros TCEs.
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
-      - name: TCE-CE (SIM)
+      - name: TCE-CE (contratos e obras, formato da data)
         run: |
           A="AraraGov (dados publicos)"; B="https://api-dados-abertos.tce.ce.gov.br/sim"
-          for q in "municipios?\$count=3" \
-            "notas_empenhos?codigo_municipio=049&exercicio_orcamento=202500&data_referencia_doc=202503&\$count=2" \
-            "notas_pagamentos?codigo_municipio=049&exercicio_orcamento=202500&data_referencia_doc=202503&\$count=2" \
-            "notas_liquidacoes?codigo_municipio=049&exercicio_orcamento=202500&data_referencia_doc=202503&\$count=2" \
-            "contratos?codigo_municipio=049&data_inicio=2025-01-01&data_fim=2025-03-31&\$count=2" \
-            "contratados?codigo_municipio=049&data_inicio=2025-01-01&data_fim=2025-03-31&\$count=2" \
-            "obras_municipais_servicos_engenharia?codigo_municipio=049&exercicio_orcamento=202500&data_inicio=2025-01-01&data_fim=2025-12-31&\$count=2" \
-            "itens_compoem_bens_servicos?codigo_municipio=049&data_inicio=2025-01-01&data_fim=2025-03-31&\$count=2" ; do
-            echo "== $q"; curl -sS -m 60 -A "$A" -w '\n[%{http_code} %{time_total}s]\n' "$B/$q" | head -c 3500; echo
+          for d in "01/01/2025|31/03/2025" "20250101|20250331" "2025-01-01T00:00:00|2025-03-31T00:00:00" "2025-01-01 00:00:00|2025-03-31 00:00:00"; do
+            i="${d%%|*}"; f="${d##*|}"
+            echo "== datas $i"
+            curl -sS -m 60 -A "$A" -G "$B/contratos" --data-urlencode "codigo_municipio=049" --data-urlencode "data_inicio=$i" \
+              --data-urlencode "data_fim=$f" --data-urlencode '$count=2' -w '\n[%{http_code}]\n' | head -c 2500; echo
           done
-          echo "== contagem de empenhos de um mes (Crato)"
-          curl -sS -m 120 -A "$A" "$B/notas_empenhos?codigo_municipio=049&exercicio_orcamento=202500&data_referencia_doc=202503&\$count=1000&\$select=valor_empenhado" | python3 -c "import json,sys;print(len(json.load(sys.stdin).get('elements',[])))"
-      - name: TCE-PB (Sagres)
+          curl -sS -m 60 -A "$A" -G "$B/obras_municipais_servicos_engenharia" --data-urlencode "codigo_municipio=049" \
+            --data-urlencode "exercicio_orcamento=202500" --data-urlencode '$count=2' -w '\n[%{http_code}]\n' | head -c 2500; echo
+      - name: TCE-PB (novo portal)
         if: always()
         run: |
-          A="AraraGov (dados publicos)"
-          for f in TCE-PB-SAGRES-Pagamentos_Esfera_Municipal.txt.gz TCE-PB-SAGRES-Empenhos_Esfera_Municipal.txt.gz; do
-            curl -sS -I -m 60 -A "$A" "https://dados.tce.pb.gov.br/$f" | head -12
-            curl -sS -m 60 -A "$A" -r 0-200000 "https://dados.tce.pb.gov.br/$f" -o /tmp/p.gz; zcat /tmp/p.gz 2>/dev/null | head -4 | cut -c1-1500
-          done
-          curl -sS -m 60 -A "$A" https://dados.tce.pb.gov.br/ -o /tmp/pb.html; cat /tmp/pb.html | head -c 1500; echo
+          A="AraraGov (dados publicos)"; H="https://dados-abertos.tce.pb.gov.br"
+          curl -sS -m 60 -A "$A" "$H/" -o /tmp/pb.html -w '[%{http_code} %{size_download}B]\n'; head -c 1200 /tmp/pb.html; echo
           for js in $(grep -o '/assets/[^"]*\.js' /tmp/pb.html | sort -u); do
-            echo "== $js"; curl -sS -m 60 -A "$A" "https://dados.tce.pb.gov.br$js" | grep -o '"[^"]*\(api\|\.gz\|\.zip\|\.csv\|download\)[^"]*"' | sort -u | head -60
+            echo "== $js"; curl -sS -m 60 -A "$A" "$H$js" | grep -o '"[^"]*\(api\|\.gz\|\.zip\|\.csv\|download\|sagres\|Sagres\)[^"]*"' | sort -u | head -80
           done
-      - name: PNCP (contratos, compras e itens)
-        run: |
-          A="AraraGov (dados publicos)"
-          u="https://pncp.gov.br/api/consulta/v1/contratos?dataInicial=20250301&dataFinal=20250302&pagina=1&tamanhoPagina=10"
-          curl -sS -m 60 -A "$A" "$u" | python3 -c "import json,sys;d=json.load(sys.stdin);print(json.dumps({k:v for k,v in d.items() if k!='data'}));print(json.dumps(d['data'][:2],ensure_ascii=False,indent=1)[:5000])"
-          u="https://pncp.gov.br/api/consulta/v1/contratacoes/publicacao?dataInicial=20250301&dataFinal=20250302&codigoModalidadeContratacao=8&pagina=1&tamanhoPagina=10"
-          curl -sS -m 60 -A "$A" "$u" | head -c 3000; echo
-          cnpj=$(curl -sS -m 60 -A "$A" "$u" | python3 -c "import json,sys;d=json.load(sys.stdin)['data'][0];print(d['orgaoEntidade']['cnpj'],d['anoCompra'],d['sequencialCompra'])")
-          set -- $cnpj
-          curl -sS -m 60 -A "$A" "https://pncp.gov.br/api/pncp/v1/orgaos/$1/compras/$2/$3/itens?pagina=1&tamanhoPagina=10" | head -c 3000; echo
-      - name: Outros tribunais de contas
-        if: always()
-        run: |
-          for u in \
-            "https://dados.tce.pr.gov.br/" "https://servicos.tce.pr.gov.br/TCEPR/Tribunal/Relacon/Dados/" \
-            "https://dadosabertos.tce.mg.gov.br/" "https://sistemas.tce.pe.gov.br/DadosAbertos/" \
-            "https://api-dados-abertos.tce.ce.gov.br/" "https://dados.tce.pb.gov.br/" "https://dados.tce.rs.gov.br/" \
-            "https://www.tcm.ba.gov.br/portal-da-cidadania/" "https://dados.tcm.go.gov.br/" "https://dadosabertos.tce.go.gov.br/" \
-            "https://transparencia.tce.sc.gov.br/" "https://dados.tcees.tc.br/" "https://dadosabertos.tce.ro.gov.br/" ; do
-            code=$(curl -s -o /tmp/r -w '%{http_code} %{size_download}B %{time_total}s' -L -m 30 -A "AraraGov (dados publicos)" "$u" || echo "falhou")
-            echo "$code  $u"; head -c 300 /tmp/r 2>/dev/null | tr -s '\n' ' '; echo
-          done
+          curl -sS -I -m 60 -A "$A" "$H/TCE-PB-SAGRES-Pagamentos_Esfera_Municipal.txt.gz" | head -10
