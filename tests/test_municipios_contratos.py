@@ -1,0 +1,56 @@
+import csv
+import io
+import zipfile
+from datetime import date
+from decimal import Decimal as D
+
+from araragov.municipios import contratos, md
+
+CAB = ["Município", "Entidade", "Código da Licitação", "Código do Ajuste", "Modalidade de licitação",
+       "Número do processo licitatório", "Ano do processo licitatório", "Objeto da licitação",
+       "Descrição do objeto da licitação", "Valor da declaração", "Fundamento Legal - dispensa de licitação",
+       "Instrumento", "Nº do contrato", "Ano do contrato", "Valor total do contrato", "Descrição do objeto contratado",
+       "Quantidade do objeto contratado", "Unidade do objeto contratado", "Nota de Empenho/Documento Similar",
+       "Data da Nota de Empenho/Documento Similar", "Valor da Nota de Empenho/Documento Similar",
+       "CNPJ da empresa contratada", "Nome da empresa contratada", "Vigência do contrato - Data início",
+       "Vigência do contrato - Data Término", "Vigência do contrato - Data Assinatura", "Modo de fornecimento"]
+
+
+def _l(cod, modalidade, objeto, total, qtd, unid, cnpj, empresa, fund=""):
+    return ["Adamantina", "PREFEITURA MUNICIPAL DE ADAMANTINA", "1", cod, modalidade, "", "", "Obras", objeto, "",
+            fund, "Contrato", f"C{cod}", "2024", total, objeto, qtd, unid, "", "", "", cnpj, empresa, "", "", "01/07/2024", ""]
+
+
+LINHAS = [
+    _l("1", "Concorrencia", "PAVIMENTAÇÃO ASFÁLTICA EM CBUQ DA RUA A", "300000,0", "1000,0", "M2", "11.222.333/0001-81", "ASFALTO SA"),
+    _l("1", "Concorrencia", "PAVIMENTAÇÃO ASFÁLTICA EM CBUQ DA RUA A", "300000,0", "1000,0", "M2", "11.222.333/0001-81", "ASFALTO SA"),
+    _l("2", "Pregao Eletronico", "AQUISIÇÃO DE LUMINÁRIAS LED PARA ILUMINAÇÃO PÚBLICA", "50000,0", "3,0", "ITENS", "22.333.444/0001-55", "LUZ LTDA"),
+    _l("3", "Contratacao Direta - Dispensa de licitacao", "SERVIÇO DE BUFFET", "40000,0", "1,0", "UN", "33.444.555/0001-66", "FESTA LTDA", "Art. 75, II"),
+    _l("4", "Contratacao Direta - Dispensa de licitacao", "SERVIÇO DE SOM", "45000,0", "1,0", "UN", "33.444.555/0001-66", "FESTA LTDA", "Art. 75, II"),
+    _l("5", "Contratacao Direta - Inexigibilidade de licitacao", "SHOW", "90000,0", "1,0", "UN", "33.444.555/0001-66", "FESTA LTDA", "Art. 74"),
+]
+
+
+def test_classificar_e_unidade():
+    assert contratos.classificar("Recapeamento asfáltico da Av. Brasil") == "recape-cbuq"
+    assert contratos.classificar("Operação tapa-buraco com CBUQ") is None
+    assert contratos.classificar("Construção de creche Proinfância tipo 1") == "creche"
+    assert contratos.classificar("Aquisição de gêneros alimentícios para creche") is None
+    assert contratos.unidade("m²") == "m²" and contratos.unidade("ITENS") is None
+
+
+def test_agregar_compara_e_aponta_diretas(tmp_path):
+    refs = {("pavimentacao-cbuq", 2024): {"minimo": "60.00", "maximo": "100.00", "nivel": "3", "avisos": None}}
+    unid = {"pavimentacao-cbuq": "m²", "luminaria-led": "un"}
+    por = contratos.agregar([dict(zip(CAB, l)) for l in LINHAS], 2024, refs, unid)
+    m = por["Adamantina"]
+    assert len(m["contratos"]) == 5  # linha repetida conta uma vez
+    obra = next(o for o in m["obras"] if o["item"] == "pavimentacao-cbuq")
+    assert obra["valor_unitario"] == D("300.00") and obra["comparacao"] == "200.0% acima da faixa de referência"
+    led = next(o for o in m["obras"] if o["item"] == "luminaria-led")
+    assert led["comparacao"] == "Quantidade não informada no contrato"
+    texto = contratos.documento(3500105, "Adamantina", 2024, m, date(2026, 11, 5))
+    doc = md.ler(texto)
+    d = doc.tabelas["contratacoes-diretas"]
+    assert d[0]["cnpj"] == "33.444.555/0001-66" and d[0]["contratacoes"] == "3" and d[0]["valor"] == "175000"
+    assert doc.tabelas["obras"][0]["comparacao"].endswith("acima da faixa de referência")

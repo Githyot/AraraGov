@@ -145,9 +145,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.comando == "tce-sp":
         from pathlib import Path
 
-        from .municipios import tcesp
+        from .municipios import contratos, tcesp
 
-        return 0 if tcesp.gerar(HttpClient(), Path(args.saida), args.anos, args.limite_linhas) else 1
+        client = HttpClient()
+        n_contratos = contratos.gerar(client, Path(args.saida), args.anos)
+        n_pagamentos = tcesp.gerar(client, Path(args.saida), args.anos, args.limite_linhas)
+        return 0 if n_contratos and n_pagamentos else 1
 
     if args.comando == "sinapi-sondar":
         from .municipios import sinapi
