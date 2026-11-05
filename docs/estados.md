@@ -30,8 +30,9 @@ da coleta lista esses nomes.
   interna que o robots.txt fecha. A API aberta (`webservices.assembleia.pr.leg.br/api/public`)
   só tem proposições e normas.
 - **MT, MS:** o site não publica os gastos de cada deputado.
-- **PE, RS, ES, RJ:** os portais não responderam a acessos de fora do Brasil
+- **PE, RS, ES, DF:** os portais não responderam a acessos de fora do Brasil
   (onde roda a coleta). Vamos tentar de novo.
+- **RJ:** o portal transparencia.alerj.rj.gov.br responde; falta achar os gastos.
 
 ## Salário
 
