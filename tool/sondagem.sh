@@ -1,11 +1,14 @@
 set +e
 ua="AraraGov/0.1 (+https://github.com/Githyot/AraraGov)"
-echo "### ALESC deputados tabela"; curl -sSL -A "$ua" --max-time 60 "https://transparencia.alesc.sc.gov.br/deputados?ano=2025&mes=6" -o /tmp/d; python3 - <<'P'
-import re
-h=open('/tmp/d',encoding='utf-8',errors='replace').read()
-i=h.find('<table'); print(re.sub(r'\s+',' ',h[i:i+5000]))
-print('ROWS', h.count('<tr'))
+curl -sSL -A "$ua" --max-time 120 -o /tmp/c "https://transparencia.alesc.sc.gov.br/gabinetes-parlamentares/csv/2025"
+curl -sSL -A "$ua" --max-time 120 -o /tmp/c19 "https://transparencia.alesc.sc.gov.br/gabinetes-parlamentares/csv/2019"
+python3 - <<'P'
+import csv,io,collections
+for f in ['/tmp/c','/tmp/c19']:
+    r=list(csv.DictReader(io.StringIO(open(f,encoding='utf-8-sig').read()),delimiter=';'))
+    print('###',f,len(r)); print(r[0].keys())
+    for k in ['Verba','Descrição','Conta']:
+        c=collections.Counter(x[k] for x in r); print('--',k,len(c)); print(c.most_common(80))
+    print('-- amostras com favorecido/trecho', [x for x in r if x['Favorecido'] or x['Trecho']][:5])
 P
-echo "### ALEP public API"
-for p in "" deputados deputado parlamentares "deputados/legislatura" ressarcimento verbas; do echo "-- /api/public/$p"; curl -sS -A "$ua" --max-time 60 -w "  [HTTP %{http_code} %{content_type}]\n" "http://webservices.assembleia.pr.leg.br/api/public/$p" | head -c 600; echo; done
-echo "### ALEP doc paths"; curl -sSL -A "$ua" --max-time 60 https://transparencia.assembleia.pr.leg.br/servicos/dados-abertos | sed 's/<[^>]*>/\n/g' | grep -E "^\s*/[a-z]" | sort -u | head -60
+curl -sSL -A "$ua" --max-time 60 "https://transparencia.alesc.sc.gov.br/deputados?ano=2025&mes=6" | grep -oE 'fw-semibold">[^<]+|contracheque/[0-9]+' | paste - - | head -60
