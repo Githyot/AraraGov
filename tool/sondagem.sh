@@ -1,8 +1,6 @@
 set +e
 ua="AraraGov/0.1 (+https://github.com/Githyot/AraraGov)"
-B=https://transparencia.al.ce.gov.br/despesas/verba-desempenho-parlamentar
-curl -sSL -A "$ua" --max-time 60 "$B?mes=9&ano=2026" -o /tmp/p
-echo "### detalhe"; python3 -c "
-import re; h=open('/tmp/p',encoding='utf-8',errors='replace').read(); i=h.find('<tbody'); print(h[i:i+1800])"
-echo "### opcoes"; grep -oE '<select name="(ano|mes)"[^>]*>|<option[^>]*value="[^"]*"' /tmp/p | head -30 | tr '\n' ' '
-for q in "nome=AGENOR&mes=9&ano=2026" "mes=09&ano=2026" "mes=6&ano=2025&nome=DEP%20AGENOR%20NETO"; do echo; echo "### csv $q"; curl -sSL -A "$ua" --max-time 120 -o /tmp/c "$B/csv?$q"; wc -l /tmp/c; sed -n '2,6p' /tmp/c; done
+links() { curl -sSL -A "$ua" --max-time 60 "$1" -o /tmp/p; echo "  bytes: $(wc -c </tmp/p)"; grep -oiE '(href|action|src)="[^"#]*"' /tmp/p | grep -iE "csv|xls|json|ods|export|download|api|verba|indeniz|deput|ano=|exerc" | sort -u | head -25; }
+for r in https://alepa.pa.gov.br https://transparencia.al.rn.leg.br https://transparencia.al.ro.leg.br https://al.se.leg.br https://al.pb.leg.br https://www.al.to.leg.br; do echo "### robots $r"; curl -sS -A "$ua" --max-time 30 $r/robots.txt | head -12; done
+for u in https://alepa.pa.gov.br/Transparencia/Page/VerbaIndenizatoria https://alepa.pa.gov.br/Transparencia/Page/VerbadeGabinete https://transparencia.al.ro.leg.br/Deputados/ https://transparencia.al.ro.leg.br/ReceitasDespesas/ https://al.se.leg.br/portal-da-transparencia/despesas https://al.pb.leg.br/despesas https://al.pb.leg.br/transparencia/deputados/viap-v2 https://www.al.to.leg.br/transparencia; do echo "### $u"; links "$u"; done
+echo "### RN js"; curl -sSL -A "$ua" --max-time 60 https://transparencia.al.rn.leg.br/ -o /tmp/r; grep -oE 'src="[^"]*\.js"' /tmp/r | head; for js in $(grep -oE 'src="[^"]*main[^"]*\.js"' /tmp/r | cut -d'"' -f2); do curl -sSL -A "$ua" --max-time 60 "https://transparencia.al.rn.leg.br/$js" | grep -oE '"(https?:)?//[^"]*api[^"]*"|"/api/[^"]*"|apiUrl[^,]*' | sort -u | head -20; done
