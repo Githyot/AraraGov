@@ -81,11 +81,12 @@ _Última atualização: 5 de novembro de 2026 (madrugada do dia 6)_
 - 🔄 SC e BA: lista oficial de deputados em exercício; suplentes que assumiram ganham perfil e quem se afastou fica fora de exercício (PR #12)
 - 🔄 Bahia (ALBA): verbas indenizatórias de cada deputado, da planilha anual da ALBA (sem o fornecedor, que a planilha não traz) (PR #12)
 - 🔄 Salário real por estado, de uma lista com a fonte de cada valor (PR #12):
-  - deputados estaduais de SC, SP e GO pela lei estadual; de PE pela imprensa (a lei não está acessível para conferir); do RJ pela página oficial da Alerj (valor atual); os outros estados seguem como teto até a lei ser conferida
+  - deputados estaduais de SC, SP e GO pela lei estadual; de PE, MG, ES, PR, RS, RN, MA, TO, MT e MS pela imprensa (lei ainda não conferida); do RJ pela página oficial da Alerj (valor atual); os outros estados seguem como teto até a lei ser conferida
   - governador e vice de SP pela lei estadual
   - governadores dos outros 26 estados pelo levantamento do Valor Econômico (out/2026), marcado no app como valor da imprensa
 - 🔄 Seção sem dado mostra "Sem dados" e o órgão responsável por publicar, com a esfera (federal, estadual ou municipal); vale para todo o app (PR #12)
-- ⬜ Conferir o salário de governador e deputados nos outros 22 estados
+- ⬜ Salário dos deputados de AC, AL, AM, AP, CE, DF, PA, PB, PI, RO, RR e SE (seguem como teto)
+- ⬜ Trocar os valores da imprensa pelo texto da lei, estado por estado
 - ⬜ Outras assembleias, uma a uma, só com dados já publicados (sem pedidos ao governo):
   - ➖ PR: gastos só em telas e numa API que o robots.txt da Alep fecha; a API aberta só tem proposições
   - ➖ MT e MS: o site não publica os gastos de cada deputado (MT só traz as normas da verba; MS só explica a cota)
