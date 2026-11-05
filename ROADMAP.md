@@ -90,4 +90,4 @@ _Última atualização: 5 de novembro de 2026_
 
 - ⬜ Ativar o GitHub Pages com a fonte "GitHub Actions"
 - ⬜ Rodar a "Coleta de dados" manualmente uma vez, para publicar a API
-- ⬜ Apagar o ramo `sondagem-gabinete`
+- ⬜ Apagar os ramos temporários `sondagem-gabinete` e `sondagem-federal`
