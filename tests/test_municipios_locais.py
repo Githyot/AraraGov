@@ -31,6 +31,26 @@ def test_composicoes_da_aba_csd():
     assert (104658, "PISO PODOTÁTIL", "M2", "AC", 254.31) in linhas and (104658, "PISO PODOTÁTIL", "M2", "SP", 300.5) in linhas
 
 
+def test_candidatos_com_descricoes_reais(tmp_path):
+    descricoes = {
+        95995: "EXECUÇÃO DE PAVIMENTO COM APLICAÇÃO DE CONCRETO ASFÁLTICO, CAMADA DE ROLAMENTO - EXCLUSIVE CARGA E TRANSPORTE. AF_11/2019",
+        92811: "ASSENTAMENTO DE TUBO DE CONCRETO PARA REDES COLETORAS DE ÁGUAS PLUVIAIS, DIÂMETRO DE 600 MM, JUNTA RÍGIDA, INSTALADO EM LOCAL COM BAIXO NÍVEL DE INTERFERÊNCIAS (NÃO INCLUI FORNECIMENTO). AF_12/2015",
+        101658: "LUMINÁRIA DE LED PARA ILUMINAÇÃO PÚBLICA, DE 138 W ATÉ 180 W - FORNECIMENTO E INSTALAÇÃO. AF_02/2025_PS",
+        100604: "ASSENTAMENTO DE POSTE DE CONCRETO COM COMPRIMENTO NOMINAL DE 10 M, CARGA NOMINAL DE 300 DAN (NÃO INCLUI FORNECIMENTO). AF_11/2019",
+        97599: "LUMINÁRIA DE EMERGÊNCIA, COM 30 LÂMPADAS LED DE 2 W, SEM REATOR - FORNECIMENTO E INSTALAÇÃO. AF_09/2024",
+        101501: "ENTRADA DE ENERGIA ELÉTRICA, AÉREA, BIFÁSICA, COM CAIXA DE EMBUTIR (NÃO INCLUSO O POSTE DE CONCRETO). AF_07/2020_PS",
+    }
+    arq = tmp_path / "2025-09.csv.gz"
+    with gzip.open(arq, "wt", encoding="utf-8", newline="") as f:
+        f.write("codigo;descricao;unidade;uf;custo\n")
+        for codigo, descricao in descricoes.items():
+            f.write(f"{codigo};{descricao};UN;SP;10.00\n")
+    destino = locais.candidatos_sinapi(arq, tmp_path / "candidatos.csv")
+    achados = {l.split(";")[0]: l.split(";")[1] for l in destino.read_text(encoding="utf-8").splitlines()[1:]}
+    assert achados == {"pavimentacao-cbuq": "95995", "drenagem-tubo-600": "92811",
+                       "luminaria-led": "101658", "poste-concreto": "100604"}
+
+
 def test_filtrar_socios(tmp_path):
     texto = ('"10448277";"2";"LUCIENE FERNANDES NOGUEIRA";"***428156**";"22";"20081103";"";"***000000**";"";"00";"5"\n'
              '"99999999";"2";"OUTRA PESSOA";"***111111**";"22";"20081103";"";"***000000**";"";"00";"5"\n')

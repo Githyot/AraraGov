@@ -242,17 +242,18 @@ def coletar_socios(pasta: Path, cnpjs: Set[str], cache: Path, sessao: Optional[r
 # Palavras para sugerir códigos SINAPI de cada item do catálogo (a escolha
 # final é feita à mão em referencia/custos_itens.csv).
 PALAVRAS_ITENS = {
-    "pavimentacao-cbuq": ("CBUQ", "CONCRETO BETUMINOSO"),
-    "recape-cbuq": ("FRESAGEM",),
-    "pavimento-intertravado": ("INTERTRAVADO",),
+    # O SINAPI chama o CBUQ de "concreto asfáltico".
+    "pavimentacao-cbuq": ("CONCRETO ASFALTICO",),
+    "recape-cbuq": ("FRESAGEM DE PAVIMENTO",),
+    "pavimento-intertravado": ("EXECUCAO", "INTERTRAVADO"),
     "paralelepipedo": ("PARALELEP",),
-    "drenagem-tubo-600": ("TUBO DE CONCRETO", "DN 600"),
-    "luminaria-led": ("LUMINARIA", "LED"),
-    "poste-concreto": ("POSTE",),
+    "drenagem-tubo-600": ("TUBO DE CONCRETO", "AGUAS PLUVIAIS", "DIAMETRO DE 600 MM"),
+    "luminaria-led": ("LUMINARIA", "LED", "ILUMINACAO PUBLICA"),
+    "poste-concreto": ("ASSENTAMENTO DE POSTE DE CONCRETO",),
 }
 
 
-def candidatos_sinapi(arquivo: Path, destino: Path, uf: str = "SP", por_item: int = 25) -> Path:
+def candidatos_sinapi(arquivo: Path, destino: Path, uf: str = "SP", por_item: int = 60) -> Path:
     """Lista composições cujas descrições lembram cada item do catálogo."""
     with gzip.open(arquivo, "rt", encoding="utf-8", newline="") as f:
         linhas = [r for r in csv.DictReader(f, delimiter=";") if r["uf"] == uf]
