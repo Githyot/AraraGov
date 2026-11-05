@@ -1,16 +1,5 @@
 set +e
 ua="AraraGov/0.1 (+https://github.com/Githyot/AraraGov)"
-links() { echo "### $1"; curl -sSL -A "$ua" --max-time 60 -o /tmp/x -w "== HTTP %{http_code} %{content_type} %{size_download}B\n" "$1"; grep -oiE '(href|src|data-url|action)="[^"#]*"' /tmp/x | sort -u | grep -iE "${2:-csv|json|xls|api|download|dados|ods|xml|arquivo|export}" | head -40; }
-raw() { echo "### RAW $1"; curl -sSL -A "$ua" --max-time 60 "$1" | head -c ${2:-1500}; echo; }
-for h in transparencia.assembleia.pr.leg.br transparencia.alesc.sc.gov.br www.al.mt.gov.br www.al.ba.gov.br al.ms.gov.br; do raw "https://$h/robots.txt" 600; done
-links "https://transparencia.assembleia.pr.leg.br/servicos/dados-abertos"
-links "https://transparencia.assembleia.pr.leg.br/receitas-e-despesas/verbas-de-ressarcimento"
-links "https://transparencia.assembleia.pr.leg.br/pessoal/parlamentares"
-links "https://transparencia.alesc.sc.gov.br/gabinetes-parlamentares/dados-abertos"
-links "https://transparencia.alesc.sc.gov.br/despesas/dados-abertos"
-links "https://transparencia.alesc.sc.gov.br/deputados"
-raw "https://api.al.mt.gov.br/" 1500
-links "https://www.al.mt.gov.br/parlamento/verba-indenizatoria"
-links "https://www.al.mt.gov.br/parlamento/subsidio/"
-links "https://www.al.ba.gov.br/transparencia/verbas-idenizatorias"
-links "https://al.ms.gov.br/Paginas/202406/ceap-cota-do-exercicio-da-atividade-parlamentar"
+for p in gabinetes-parlamentares/csv/2025 despesas/csv/2025; do echo "### $p"; curl -sSL -A "$ua" --max-time 120 -D /tmp/h -o /tmp/c "https://transparencia.alesc.sc.gov.br/$p"; grep -iE "^(HTTP|content-)" /tmp/h; wc -lc /tmp/c; file /tmp/c; head -c 1500 /tmp/c | iconv -f latin1 -t utf8; echo; echo "--- col counts"; awk -F';' '{print NF}' /tmp/c | sort | uniq -c | head; done
+echo "### ALEP dados-abertos texto"; curl -sSL -A "$ua" --max-time 60 https://transparencia.assembleia.pr.leg.br/servicos/dados-abertos | sed 's/<[^>]*>/ /g' | tr -s ' \n' | grep -iE "api|json|csv|deput|verba|ressarc" | head -40 | cut -c1-300
+echo "### ALEP robots completo"; curl -sSL -A "$ua" https://transparencia.assembleia.pr.leg.br/robots.txt | tail -n +18
