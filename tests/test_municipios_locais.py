@@ -22,7 +22,7 @@ def test_composicoes_da_aba_csd():
         ws.append([None])
     ws.append([None, None, None, None, "AC", None, "SP", None] + [f"U{i}" for i in range(0)] +
               [x for uf in ["AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA", "MG", "MS", "MT", "PA", "PB", "PE", "PI", "PR", "RJ"] for x in (uf, None)])
-    ws.append(["Grupo", "Código da Composição", "Descrição", "Unidade", "Custo (R$)", "%AS", "Custo (R$)", "%AS"])
+    ws.append(["Grupo", "Código da\nComposição", "Descrição", "Unidade", "Custo (R$)", "%AS", "Custo (R$)", "%AS"])
     ws.append(["Pavimentação", '=HYPERLINK("#",104658)', "PISO PODOTÁTIL", "M2", 254.31, 0, 300.5, 0])
     ws.append([None, None, None, None])
     buf = io.BytesIO()

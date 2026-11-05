@@ -23,6 +23,7 @@ import gzip
 import io
 import logging
 import re
+import unicodedata
 import time
 import xml.etree.ElementTree as ET
 import zipfile
@@ -92,6 +93,13 @@ def codigo_da_celula(valor) -> Optional[int]:
     return None
 
 
+def _sem_acento(texto: str) -> str:
+    """Maiúsculas, sem acento e com espaços simples (a planilha da Caixa
+    quebra linhas dentro dos cabeçalhos)."""
+    t = unicodedata.normalize("NFKD", texto)
+    return " ".join("".join(c for c in t if not unicodedata.combining(c)).upper().split())
+
+
 def composicoes(xlsx: bytes, aba: str = "CSD") -> Iterator[Tuple[int, str, str, str, float]]:
     """(código, descrição, unidade, UF, custo) de cada composição e estado."""
     from openpyxl import load_workbook
@@ -106,7 +114,7 @@ def composicoes(xlsx: bytes, aba: str = "CSD") -> Iterator[Tuple[int, str, str, 
             siglas = {i: str(c).strip() for i, c in enumerate(linha) if isinstance(c, str) and re.fullmatch(r"[A-Z]{2}", c.strip())}
             if len(siglas) >= 20:
                 ufs = siglas
-            if linha and any(isinstance(c, str) and "Código da Composição" in c for c in linha if c):
+            if linha and any(isinstance(c, str) and "CODIGO DA COMPOSICAO" in _sem_acento(c) for c in linha if c):
                 cabecalho_visto = True
             continue
         codigo = codigo_da_celula(linha[1] if len(linha) > 1 else None)
@@ -239,7 +247,7 @@ PALAVRAS_ITENS = {
     "pavimento-intertravado": ("INTERTRAVADO",),
     "paralelepipedo": ("PARALELEP",),
     "drenagem-tubo-600": ("TUBO DE CONCRETO", "DN 600"),
-    "luminaria-led": ("LUMINÁRIA", "LED"),
+    "luminaria-led": ("LUMINARIA", "LED"),
     "poste-concreto": ("POSTE",),
 }
 
@@ -252,7 +260,7 @@ def candidatos_sinapi(arquivo: Path, destino: Path, uf: str = "SP", por_item: in
         w = csv.writer(f, delimiter=";")
         w.writerow(["item", "codigo", "descricao", "unidade", f"custo_{uf.lower()}"])
         for item, palavras in PALAVRAS_ITENS.items():
-            achados = [r for r in linhas if all(p in r["descricao"].upper() for p in palavras)]
+            achados = [r for r in linhas if all(p in _sem_acento(r["descricao"]) for p in palavras)]
             for r in achados[:por_item]:
                 w.writerow([item, r["codigo"], r["descricao"], r["unidade"], r["custo"]])
     return destino
