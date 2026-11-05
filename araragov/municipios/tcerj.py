@@ -52,7 +52,7 @@ def agregar(linhas: Iterable[Dict[str, Any]]) -> Dict[str, Any]:
         valor = _decimal(r.get("ValorContrato")) or Decimal(0)
         direta = bool(r.get("ProcessoDispensa")) and not r.get("ProcessoLicitatorio")
         modalidade = r.get("Modalidade") or ("Dispensa ou inexigibilidade" if direta else None)
-        empresa = _resumir(r.get("Contratado"), 120) if pj else "Pessoa física (sem nome)"
+        empresa = _resumir(r.get("Contratado"), 120) if pj else "Documento mascarado pelo TCE-RJ (nome omitido)"
         base = {
             "contrato": r.get("NumeroContrato"),
             "cnpj": formatar_cnpj(doc) if pj else None,
