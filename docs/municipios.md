@@ -328,6 +328,16 @@ os municípios do Sagres
 ~190 MB) e grava `{ano}-pagamentos.md` como em SP. Cada linha é um empenho com
 o valor pago acumulado. O arquivo traz o CPF completo (com zeros à esquerda);
 ele é reconhecido pelo dígito verificador do CNPJ e nunca é gravado.
+- Outros tribunais sondados em 2026-11-05:
+  - TCE-RJ (`dados.tcerj.tc.br/api/v1`): contratos e compras diretas dos 91
+    municípios, com CNPJ e valor pago por contrato (CPF mascarado). Candidato
+    para os contratos do RJ.
+  - TCE-RN (`apidadosabertos.tce.rn.gov.br`): contratos por unidade com CNPJ;
+    os empenhos vieram vazios para Mossoró em 2024, e os pagamentos exigem uma
+    consulta por empenho.
+  - TCE-PI: só os 10 maiores credores de cada prefeitura, sem CNPJ.
+  - TCE-MT, TCE-AL e o portal do TCE-TO não resolveram no GitHub; TCE-MS e
+    TCE-AM só têm páginas, sem dados abertos de despesa municipal.
 - Goiás: quem fiscaliza os municípios é o TCM-GO, que não respondeu; o TCE-GO
   só tem dados do estado.
 
