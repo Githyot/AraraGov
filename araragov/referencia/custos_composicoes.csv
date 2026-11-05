@@ -1,0 +1,5 @@
+# Nível 2: um item montado pelas partes, com a quantidade de cada parte por
+# unidade do item. Cada parte é outro item com preço de nível 1 (insumo,
+# frete, hora de equipamento ou mão de obra). Ex.: 1 m² de capa de 5 cm de
+# CBUQ usa cerca de 0,12 t de massa asfáltica.
+item;componente;quantidade
