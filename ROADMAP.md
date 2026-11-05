@@ -19,7 +19,7 @@ _Última atualização: 5 de novembro de 2026 (noite)_
 | Emendas parlamentares | ✅ |
 | Período, comparação e doação do salário | ✅ |
 | Base federal completa | ✅ · 🔄 histórico e listas curadas no PR #10 |
-| 5. Municípios | ⬜ aguardando as necessidades que HP vai trazer |
+| 5. Municípios | 🔄 fases 0 a 8: plano, prefeitos e vereadores, finanças, custos de referência, piloto de SP, fornecedores, emendas e telas do app |
 
 ## 1. Base federal ✅
 
@@ -82,11 +82,23 @@ _Última atualização: 5 de novembro de 2026 (noite)_
 - ⬜ Votações nominais estaduais (poucas assembleias publicam)
 - ⬜ Gabinetes estaduais
 
-## 5. Municípios ⬜
+## 5. Municípios (em andamento)
 
-- ⬜ Levantar as necessidades com HP (foco em correção e desvio de dinheiro)
-- ⬜ Portais padrão: Fiorilli, Betha, IPM
-- ⬜ Prefeitos, vereadores, salários, gastos e contratos
+Plano completo em [docs/municipios.md](docs/municipios.md). Foco: arrecadação,
+gastos por área, obras comparadas com o custo de referência e fornecedores,
+sem acusar ninguém.
+
+- ✅ Necessidades levantadas com HP
+- 🔄 Fase 0: plano, formato `.md` que o app lê e metodologia de custo de referência em 3 níveis
+- 🔄 Fase 1: prefeitos, vices e vereadores 2016/2020/2024 (TSE), um arquivo por município
+- 🔄 Fase 2: arrecadação (IPTU, ISS, FPM…) e gastos por área e subárea, Brasil inteiro (Siconfi), com IPCA e aviso de quem não entregou
+- 🔄 Fase 3: custo de referência em 3 níveis, com índice de custo por estado (SINAPI/IBGE) e períodos atípicos
+- ⬜ Preço de cada serviço do SINAPI (o site da Caixa recusa downloads do GitHub) e preços de artigos com fonte
+- 🔄 Fase 4: estado piloto (SP, pelo TCE-SP, porque o TCE-PR não responde ao GitHub): pagamentos por empresa e área, obras e contratos com comparação de custo
+- 🔄 Fase 5: fornecedores com empresas punidas (CEIS/CNEP) e serviço a campanhas no município (TSE); sócios da Receita ainda faltam (servidor não responde ao GitHub)
+- 🔄 Fase 6: emendas federais recebidas em cada município, por autor e favorecido (prefeitura, entidade ou empresa)
+- 🔄 Fase 7: telas do app: busca de municípios e abas Quem governa, Dinheiro, Obras, Fornecedores e Emendas
+- 🔄 Fase 8: contratos de todos os municípios pelo PNCP; depois outros TCEs e portais Fiorilli, Betha, IPM
 
 ## Pendências de configuração (HP)
 

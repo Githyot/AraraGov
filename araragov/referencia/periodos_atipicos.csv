@@ -1,0 +1,5 @@
+# Períodos em que os preços fugiram do normal. Na faixa de referência desses
+# anos, o app alarga a faixa e mostra o aviso. ufs e tipos vazios = todos.
+inicio;fim;ufs;tipos;descricao;fonte
+2020-03;2022-05;;;Pandemia de covid-19: compras emergenciais sem licitação e alta de materiais (aço, PVC, cobre, asfalto) acima do IPCA;Lei 13.979/2020 (https://www.planalto.gov.br/ccivil_03/_ato2019-2022/2020/lei/l13979.htm)
+2024-05;2024-12;RS;;Calamidade pública pelas enchentes no Rio Grande do Sul: obras e compras emergenciais;Decreto Legislativo 36/2024, do Congresso Nacional
