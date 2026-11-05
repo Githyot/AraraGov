@@ -17,3 +17,8 @@ Passo a passo:
     python -m venv .venv && . .venv/bin/activate && pip install -e .
     python -m araragov coleta-local --mes 2025-09
     git add dados/locais && git commit -m "Coleta local de AAAA-MM" && git push
+
+Se a Caixa ficar em "redirecionamento em laço" nas 8 tentativas, baixe o zip
+pelo navegador em
+`https://www.caixa.gov.br/Downloads/sinapi-relatorios-mensais/SINAPI-AAAA-MM-formato-xlsx.zip`
+e deixe em `~/Downloads/` com o mesmo nome; o coletor usa esse arquivo.
