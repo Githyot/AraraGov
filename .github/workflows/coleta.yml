@@ -58,12 +58,157 @@ jobs:
           python -m araragov coletar tudo ${ANO:+--ano $ANO} ${{ steps.p.outputs.limite }}
       - name: Exportar API estática
         run: python -m araragov exportar --saida site
+      - name: Municípios (TSE e Siconfi)
+        # Independe das APIs federais: roda mesmo se a coleta acima falhar.
+        if: ${{ !cancelled() }}
+        # Em PRs, dois estados pequenos e SP (piloto do TCE) na última eleição, para conferir o
+        # formato do TSE e do IBGE sem baixar tudo.
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            python -m araragov municipios --saida site --anos 2024 --ufs AC,RR,SP --financas 2023 --limite-siconfi 6
+            head -40 site/v1/municipios/indice.md
+            for f in $(ls site/v1/municipios/*/*/2023.md | head -2); do
+              echo "== $f"; head -30 "$f"; grep -A25 "tabela: areas" "$f" || true; grep -A5 "tabela: sem-dados" "$f" || true
+            done
+          else
+            # Finanças: 2019 até o ano passado. Cada execução busca no máximo
+            # 4000 pares município-ano no Siconfi; o resto vem das semanas seguintes.
+            python -m araragov municipios --saida site --financas 2019-$(( $(date +%Y) - 1 )) --limite-siconfi 4000
+          fi
+      - name: Custos de referência (SIDRA, IPCA e tabelas curadas)
+        if: ${{ !cancelled() }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            python -m araragov custos --saida site --ufs PR,SC,SP --anos 2019-2025
+            grep -A12 "tabela: referencias" site/v1/referencia/custos/pr.md
+          else
+            python -m araragov custos --saida site
+          fi
+      - name: Pagamentos dos municípios de SP (TCE-SP)
+        if: ${{ !cancelled() }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            python -m araragov tce-sp --saida site --anos 2024 --limite-linhas 400000
+            f=$(ls site/v1/municipios/sp/*/2024-pagamentos.md | head -1); head -60 "$f"; grep -A8 "tabela: obras" "$f" || true
+            echo "== contratos com comparação de custo"
+            grep -h -A1 "tabela: obras" site/v1/municipios/sp/*/2024-contratos.md | head -3
+            grep -h "acima da faixa\|Dentro da faixa\|Abaixo da faixa" site/v1/municipios/sp/*/2024-contratos.md | head -15
+            grep -h -c "Quantidade não informada" site/v1/municipios/sp/*/2024-contratos.md | paste -sd+ | bc
+          else
+            # Ano passado e o atual (o atual ainda muda a cada mês).
+            python -m araragov tce-sp --saida site --anos $(( $(date +%Y) - 1 ))-$(date +%Y)
+          fi
+      - name: Pagamentos dos municípios do CE (TCE-CE)
+        if: ${{ !cancelled() }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            python -m araragov tce-ce --saida site --anos 2025 --limite-municipios 6 --meses 3
+            f=$(ls site/v1/municipios/ce/*/2025-pagamentos.md | head -1); head -50 "$f"; grep -A6 "tabela: obras" "$f" || true
+          else
+            python -m araragov tce-ce --saida site --anos $(( $(date +%Y) - 1 ))-$(date +%Y)
+          fi
+      - name: Pagamentos dos municípios da PB (TCE-PB)
+        if: ${{ !cancelled() }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            python -m araragov tce-pb --saida site --anos 2025 --limite-linhas 300000
+            echo "== valores pagos com vírgula, só com ponto, e exemplos"
+            curl -sS -m 300 -A "AraraGov (dados publicos)" https://download.tce.pb.gov.br/dados-abertos/dados-consolidados/despesas/despesas-2025.zip -o /tmp/pb.zip
+            unzip -p /tmp/pb.zip | head -200000 | cut -d';' -f11 | awk '/,/{v++} /^[0-9]+\.[0-9]+$/{p++} END{print "virgula",v,"so_ponto",p}'
+            unzip -p /tmp/pb.zip | head -200000 | cut -d';' -f11 | grep ',' | head -5; rm -f /tmp/pb.zip
+            f=$(ls site/v1/municipios/pb/*/2025-pagamentos.md | head -1); head -50 "$f"
+          else
+            python -m araragov tce-pb --saida site --anos $(( $(date +%Y) - 1 ))-$(date +%Y)
+          fi
+      - name: Contratos dos municípios do RJ (TCE-RJ)
+        if: ${{ !cancelled() }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            python -m araragov tce-rj --saida site --anos 2024 --limite-municipios 5
+            f=$(ls site/v1/municipios/rj/*/2024-contratos.md | head -1); head -40 "$f"
+          else
+            python -m araragov tce-rj --saida site --anos $(( $(date +%Y) - 1 ))-$(date +%Y)
+          fi
+      - name: Contratos dos municípios fora de SP (PNCP)
+        if: ${{ !cancelled() }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            python -m araragov pncp --saida site --anos 2025 --dias 3 --limite-itens 80
+            ls site/v1/municipios/*/*/2025-contratos.md | wc -l
+            f=site/v1/municipios/sc/4208203/2025-contratos.md; [ -f "$f" ] || f=$(ls site/v1/municipios/*/*/2025-contratos.md | head -1)
+            head -14 "$f"; grep -A6 "tabela: contratos" "$f" | cut -c1-400
+            grep -h "acima da faixa\|Dentro da faixa\|Abaixo da faixa" site/v1/municipios/*/*/2025-contratos.md | head -5 | cut -c1-400
+            grep -h "emenda" site/v1/municipios/*/*/2025-contratos.md | grep -v "^| contrato" | head -3 | cut -c1-300 || true
+          else
+            python -m araragov pncp --saida site
+          fi
+      - name: Emendas recebidas pelos municípios (Portal da Transparência)
+        if: ${{ !cancelled() }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            python -m araragov emendas-municipios --saida site --ufs AC,SP --anos 2024-2025
+            ls site/v1/municipios/*/*/emendas.md | wc -l
+            f=site/v1/municipios/sp/3500105/emendas.md; [ -f "$f" ] || f=$(ls site/v1/municipios/ac/*/emendas.md | head -1)
+            head -45 "$f"; grep -A12 "tabela: recebido" "$f"
+          else
+            python -m araragov emendas-municipios --saida site
+          fi
+      - name: Fornecedores dos municípios (CEIS/CNEP e campanhas no TSE)
+        if: ${{ !cancelled() }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            python -m araragov fornecedores --saida site --ufs SP,SC,CE,PB,RJ --eleicoes 2024
+            grep -l "Sanção no\|Fornecedora de campanha" site/v1/municipios/sp/*/fornecedores.md | wc -l
+            f=$(grep -l "Fornecedora de campanha" site/v1/municipios/sp/*/fornecedores.md | head -1)
+            [ -n "$f" ] && { head -30 "$f"; grep -A6 "tabela: campanha" "$f"; }
+            f=$(grep -l "Sanção no" site/v1/municipios/sp/*/fornecedores.md | head -1)
+            [ -n "$f" ] && grep -A6 "tabela: sancoes" "$f" || true
+          else
+            # Os pagamentos coletados são do ano passado e do atual, do
+            # governo eleito em 2024.
+            python -m araragov fornecedores --saida site --ufs todos --eleicoes 2024
+          fi
+      - name: Sondar o pacote do SINAPI
+        if: ${{ github.event_name == 'pull_request' && !cancelled() }}
+        continue-on-error: true
+        run: python -m araragov sinapi-sondar --mes 2025-06 | head -400
+      - name: Sondar fontes municipais (alcance a partir do GitHub)
+        if: ${{ github.event_name == 'pull_request' && !cancelled() }}
+        continue-on-error: true
+        run: |
+          for u in \
+            "https://pncp.gov.br/api/consulta/v1/contratacoes/publicacao?dataInicial=20250101&dataFinal=20250102&codigoModalidadeContratacao=6&uf=AC&pagina=1" \
+            "https://apisidra.ibge.gov.br/values/t/2296/n3/41/v/48/p/202501" \
+            "https://dadosabertos.tce.pr.gov.br/" \
+            "https://transparencia.tce.sp.gov.br/" \
+            "https://dados.tce.rs.gov.br/" \
+            "https://api.obrasgov.gestao.gov.br/obrasgov/api/projeto-investimento?pagina=1&tamanhoDaPagina=1" \
+            "https://arquivos.receitafederal.gov.br/" \
+            "https://portaldatransparencia.gov.br/download-de-dados/ceis" ; do
+            code=$(curl -s -o /tmp/r -w '%{http_code} %{size_download}B %{time_total}s' -m 40 -A "AraraGov (dados publicos; github.com/Githyot/AraraGov)" "$u" || echo "falhou")
+            echo "$code  $u"; head -c 300 /tmp/r 2>/dev/null; echo
+          done
       - name: Tamanho da API
         # O GitHub Pages aceita sites de até 1 GB.
         run: |
-          du -sh site site/v1/politicos site/v1/votacoes || true
+          du -sh site site/v1/politicos site/v1/votacoes site/v1/municipios || true
           tamanho=$(du -sm site | cut -f1)
           if [ "$tamanho" -gt 900 ]; then echo "::warning::API com ${tamanho} MB, perto do limite de 1 GB do GitHub Pages"; fi
+      - name: Lista de empresas no log (para a coleta local de sócios)
+        # O download de artefatos não passa pela rede do ambiente do mantenedor;
+        # o log passa. Cada linha sai como "CNPJ-FORNECEDOR <14 dígitos>".
+        if: ${{ always() && github.event_name == 'pull_request' }}
+        run: |
+          f=site/v1/municipios/cnpjs-fornecedores.txt
+          if [ -f "$f" ]; then wc -l "$f"; sed 's/^/CNPJ-FORNECEDOR /' "$f"; fi
+      - uses: actions/upload-artifact@v4
+        # Lista de CNPJs para a coleta local de sócios (araragov coleta-local).
+        if: always()
+        with:
+          name: cnpjs-fornecedores
+          path: site/v1/municipios/cnpjs-fornecedores.txt
+          if-no-files-found: ignore
+          retention-days: 30
       - uses: actions/upload-artifact@v4
         if: always()
         with:

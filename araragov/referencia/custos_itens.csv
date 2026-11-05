@@ -1,0 +1,20 @@
+# Itens comparados com o custo de referência (docs/custo-referencia.md).
+# sinapi = referências do SINAPI separadas por vírgula. Cada uma soma
+# composições convertidas para a unidade do item: cod*fator+cod.
+# Só entra código conferido na planilha real e que cubra o serviço inteiro
+# (material e execução); senão a obra pareceria cara sem ser.
+# Pendentes (2026-11-05): CBUQ 95995 é por m³ e exclui transporte; recape
+# 96001 é só a fresagem; tubo 92811 e poste 100604 são só assentamento.
+id;descricao;unidade;tipo;sinapi
+pavimentacao-cbuq;Pavimentação asfáltica com CBUQ, capa de 5 cm (sem base);m²;pavimentacao;
+recape-cbuq;Recapeamento asfáltico com fresagem e capa de CBUQ de 4 cm;m²;pavimentacao;
+pavimento-intertravado;Pavimento intertravado (paver, lajota de concreto);m²;pavimentacao;92402
+paralelepipedo;Calçamento com paralelepípedo;m²;pavimentacao;101167
+drenagem-tubo-600;Rede de drenagem com tubo de concreto de 600 mm;m;saneamento;
+luminaria-led;Luminária pública LED instalada;un;iluminacao;
+poste-concreto;Poste de concreto para iluminação pública, instalado;un;iluminacao;
+creche;Creche (área construída);m²;edificacao;
+escola;Escola (área construída);m²;edificacao;
+ubs;Unidade Básica de Saúde (área construída);m²;edificacao;
+hospital;Hospital (área construída);m²;edificacao;
+edificacao-media;Custo médio do m² construído no estado (SINAPI, projetos residenciais padrão): referência genérica para prédios;m²;edificacao;

@@ -1,0 +1,5 @@
+# Preços publicados (nível 1). Uma linha por item, estado e mês.
+# origem: sinapi | tabela-oficial | contratos | artigo | empresa
+# Toda linha precisa de link (http) para a fonte; sem link, é ignorada.
+# Os preços do SINAPI são lidos do pacote mensal da Caixa e não ficam aqui.
+item;uf;competencia;valor;origem;fonte;link

@@ -5,6 +5,7 @@ import '../dados/modelos.dart';
 import '../formatar.dart';
 import '../tema.dart';
 import '../widgets/adw.dart';
+import 'municipios.dart';
 import 'perfil.dart';
 import 'sobre.dart';
 
@@ -88,6 +89,11 @@ class _InicioState extends State<Inicio> {
       appBar: AppBar(
         title: const Text('AraraGov'),
         actions: [
+          IconButton(
+            tooltip: 'Municípios',
+            icon: const Icon(Icons.location_city_outlined),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MunicipiosTela(api: widget.api))),
+          ),
           IconButton(
             tooltip: 'Sobre',
             icon: const Icon(Icons.info_outline),

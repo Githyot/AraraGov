@@ -60,6 +60,10 @@ cada API) veio do [Mamute Político](https://github.com/correiosabia/mamute-poli
 do Correio Sabiá, também AGPL. Os dados de exemplo de cota parlamentar em
 `tests/fixtures` vêm dos testes desse projeto.
 
+A lista de municípios com o código do IBGE
+(`araragov/referencia/municipios_ibge.csv`) vem do
+[kelvins/municipios-brasileiros](https://github.com/kelvins/municipios-brasileiros), licença MIT.
+
 ## Licença
 
 [AGPL-3.0](LICENSE). O código é aberto e qualquer serviço derivado também
