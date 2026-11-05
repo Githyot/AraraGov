@@ -113,6 +113,50 @@ def doacoes_salario(caminho: Path = DOACOES_CSV) -> Dict[tuple, Dict[str, Any]]:
     }
 
 
+IDEOLOGIA_PARTIDOS_CSV = Path(__file__).parent / "referencia" / "ideologia_partidos.csv"
+IDEOLOGIA_POLITICOS_CSV = Path(__file__).parent / "referencia" / "ideologia_politicos.csv"
+
+
+def _ler_curado(caminho: Path) -> List[Dict[str, str]]:
+    """Lê uma lista curada (CSV com ;); linhas sem link de fonte são ignoradas."""
+    import csv
+
+    if not caminho.exists():
+        return []
+    with caminho.open(encoding="utf-8", newline="") as f:
+        return [
+            {k: (v or "").strip() for k, v in l.items()}
+            for l in csv.DictReader(f, delimiter=";")
+            if (l.get("fonte") or "").strip().startswith("http")
+        ]
+
+
+def ideologias_declaradas() -> Tuple[Dict[str, Dict[str, str]], Dict[tuple, Dict[str, str]]]:
+    """O que partidos e políticos declaram sobre a própria ideologia, nas
+    palavras deles (estatuto, programa, carta, entrevista), com a fonte.
+    Serve para comparar com a posição medida pelos votos, sem julgamento."""
+    from .collectors.gabinete import _chave_nome
+
+    campos = ("declaracao", "trecho", "documento", "fonte")
+    partidos = {l["partido"].upper(): {k: l[k] or None for k in campos} for l in _ler_curado(IDEOLOGIA_PARTIDOS_CSV)}
+    politicos = {
+        (l["casa"], _chave_nome(l["nome"])): {k: l[k] or None for k in campos}
+        for l in _ler_curado(IDEOLOGIA_POLITICOS_CSV)
+    }
+    return partidos, politicos
+
+
+def _ideologia(p: Politico, declaradas) -> Optional[Dict[str, Any]]:
+    from .collectors.gabinete import _chave_nome
+
+    partidos, politicos = declaradas
+    partido = partidos.get((p.partido or "").upper())
+    pessoal = politicos.get((p.casa, _chave_nome(p.nome or "")))
+    if not partido and not pessoal:
+        return None
+    return {"partido": partido, "pessoal": pessoal}
+
+
 def _doacao(p: Politico, doacoes: Dict[tuple, Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     from .collectors.gabinete import _chave_nome
 
@@ -479,6 +523,7 @@ def exportar(saida: Path) -> int:
     analises = _analises(politicos, votos_por, votacoes)
     salarios = {cargo: _salario(cargo, subsidios) for cargo in {p.cargo for p in politicos}}
     doacoes = doacoes_salario()
+    declaradas = ideologias_declaradas()
 
     for p in politicos:
         ben_atuais, ben_anos = _beneficios_por_ano(beneficios[(p.casa, p.codigo)])
@@ -490,6 +535,7 @@ def exportar(saida: Path) -> int:
         perfil = {
             **_resumo(p, doacoes),
             "doacao_salario": _doacao(p, doacoes),
+            "ideologia_declarada": _ideologia(p, declaradas),
             "aviso_cadastro": AVISO_TSE if p.fonte == "tse" else None,
             "nome_civil": p.nome_civil,
             "email": p.email,

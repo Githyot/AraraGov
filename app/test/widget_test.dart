@@ -76,6 +76,7 @@ void main() {
     await tester.pumpWidget(MaterialApp(home: PerfilTela(api: Api(client: client), id: 'camara-9001')));
     await tester.pumpAndSettle();
     expect(find.text('Posição nas votações'), findsOneWidget);
+    expect(find.textContaining('se declara: Ideologia de exemplo'), findsOneWidget);
     expect(find.text('Com quem vota junto'), findsOneWidget);
     expect(find.text('Votações que merecem atenção'), findsOneWidget);
     expect(find.textContaining('Votou com o lado da'), findsWidgets);

@@ -100,3 +100,21 @@ def test_doacao_de_salario_declarada(tmp_path):
     perfil = json.loads((tmp_path / "v1/politicos/camara-204536.json").read_text())
     assert perfil["doacao_salario"]["fonte"].startswith("https://")
     assert json.loads((tmp_path / "v1/politicos/camara-1.json").read_text())["doacao_salario"] is None
+
+
+def test_ideologia_declarada(tmp_path):
+    from araragov import db
+    from araragov.exportar import ideologias_declaradas
+
+    partidos, _ = ideologias_declaradas()
+    assert partidos["PT"]["declaracao"] == "Socialismo democrático"
+    assert all(d["fonte"].startswith("http") and d["trecho"] for d in partidos.values())
+
+    with db.sessao() as s:
+        s.add(db.Politico(casa="camara", cargo="Deputado Federal", codigo=1, nome="A", partido="PCdoB", uf="SP"))
+        s.add(db.Politico(casa="camara", cargo="Deputado Federal", codigo=2, nome="B", partido="SEMLISTA", uf="SP"))
+    exportar(tmp_path)
+    a = json.loads((tmp_path / "v1/politicos/camara-1.json").read_text())
+    assert a["ideologia_declarada"]["partido"]["declaracao"] == "Comunismo"
+    assert a["ideologia_declarada"]["pessoal"] is None
+    assert json.loads((tmp_path / "v1/politicos/camara-2.json").read_text())["ideologia_declarada"] is None

@@ -261,6 +261,18 @@ List<VotoEmVotacao> _lerVotos(Map<String, dynamic> j) {
   return [for (final c in votos) VotoEmVotacao.compacto(c as List, inline[c[0]])];
 }
 
+/// Ideologia nas palavras do próprio partido ou político, com a fonte.
+class Declaracao {
+  final String declaracao;
+  final String? trecho, documento, fonte;
+
+  Declaracao.fromJson(Map<String, dynamic> j)
+      : declaracao = j['declaracao'] ?? '',
+        trecho = j['trecho'],
+        documento = j['documento'],
+        fonte = j['fonte'];
+}
+
 class Perfil {
   final PoliticoResumo resumo;
   final String? nomeCivil, email, avisoCadastro;
@@ -274,6 +286,7 @@ class Perfil {
   final List<Beneficio> beneficios;
   final Emendas? emendas;
   final DoacaoSalario? doacaoSalario;
+  final Declaracao? ideologiaPartido, ideologiaPessoal;
   final Posicao? posicao;
   final Alinhamento? alinhamento;
   final ({int votacoes, int votouSim, int votouNao})? atencao;
@@ -299,6 +312,8 @@ class Perfil {
         beneficios = [for (final b in (j['beneficios'] as List? ?? [])) Beneficio.fromJson(b)],
         emendas = j['emendas'] == null ? null : Emendas.fromJson(j['emendas']),
         doacaoSalario = j['doacao_salario'] == null ? null : DoacaoSalario.fromJson(j['doacao_salario']),
+        ideologiaPartido = j['ideologia_declarada']?['partido'] == null ? null : Declaracao.fromJson(j['ideologia_declarada']['partido']),
+        ideologiaPessoal = j['ideologia_declarada']?['pessoal'] == null ? null : Declaracao.fromJson(j['ideologia_declarada']['pessoal']),
         posicao = j['posicao'] == null ? null : Posicao.fromJson(j['posicao']),
         alinhamento = j['alinhamento'] == null ? null : Alinhamento.fromJson(j['alinhamento']),
         atencao = j['atencao'] == null

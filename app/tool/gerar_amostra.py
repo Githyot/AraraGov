@@ -86,6 +86,7 @@ def perfil(i, nome):
         "salario_pago": None if casa == "senado" else {
             "total": 44008.52 + 11 * 46366.19, "por_ano": [{"ano": 2025, "valor": 44008.52 + 11 * 46366.19}],
             "anos": {"2025": {"total": 44008.52 + 11 * 46366.19, "por_mes": [{"mes": m, "valor": 44008.52 if m == 1 else 46366.19} for m in range(1, 13)]}}},
+        "ideologia_declarada": {"partido": {"declaracao": "Ideologia de exemplo", "trecho": "Trecho do estatuto do partido (exemplo).", "documento": "Estatuto, art. 1º", "fonte": "https://example.org/estatuto"}, "pessoal": None},
         "doacao_salario": {"parte": "20%", "descricao": "Declara doar parte do salário a instituições (exemplo).", "fonte": "https://example.org/declaracao", "data": "2025-01-10"} if i == 1 else None,
         "beneficios": [{"tipo": "imovel_funcional", "descricao": "Ocupa imóvel funcional em Brasília", "valor_mensal": None, "referencia": "04/11/2026", "fonte": None}]
                       + ([] if casa == "senado" else [{"tipo": "auxilio_moradia", "descricao": "Recebeu auxílio-moradia", "valor_mensal": None, "valor_ano": 29771.0, "ano": 2025, "referencia": "2025", "fonte": None}]),
