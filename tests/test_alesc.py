@@ -70,3 +70,30 @@ def test_lista_oficial_da_alesc_traz_suplente_e_tira_quem_saiu(client, monkeypat
     assert not ps[3].em_exercicio and not ps[5].em_exercicio
     sup = ps[1_000_000 + 12001]
     assert (sup.nome, sup.fonte, sup.em_exercicio, sup.partido) == ("Emerson Stein", "assembleia", True, None)
+
+
+SERVIDORES_P1 = """<select id="setor-id" name="setor_id"><option value="">Todos</option>
+<option value="2227">COP - GERENCIA DO SISTEMA DE CONTROLE DO ORCAMENTO DE GABINETE</option>
+<option value="9386">GAB DEP PAULINHA</option>
+<option value="7">GAB DEP NINGUEM CONHECIDO</option></select>
+<table><tr><td class="fw-semibold">ABEL VEIGA</td> <td>Comissionado</td> <td class="small">DG - DIRETORIA</td></tr></table>
+Página 1 de 133, exibindo 20 de 2.641 registros."""
+GAB_P1 = """<tr><td class="fw-semibold">MARIA DA SILVA</td>
+<td>Comissionado</td>
+<td class="small">GAB DEP PAULINHA</td></tr> Página 1 de 2, exibindo 20"""
+GAB_P2 = """<tr><td class="fw-semibold">JOSE SOUZA</td><td>Efetivo</td><td class="small">GAB DEP PAULINHA</td></tr> Página 2 de 2"""
+
+
+def test_gabinetes_alesc(client):
+    with db.sessao() as s:
+        s.add(db.Politico(casa="al-sc", cargo="Deputado estadual", codigo=1, nome="Paulinha", nome_civil="Ana Paula da Silva", uf="SC"))
+    assert alesc.ler_setores_gabinete(SERVIDORES_P1) == {9386: "PAULINHA", 7: "NINGUEM CONHECIDO"}
+    client.bytes(alesc.SERVIDORES, SERVIDORES_P1.encode())
+    client.bytes(f"{alesc.SERVIDORES}?setor_id=9386&page=1", GAB_P1.encode())
+    client.bytes(f"{alesc.SERVIDORES}?setor_id=9386&page=2", GAB_P2.encode())
+    assert alesc.coletar_gabinetes(client) == 2
+    with db.sessao() as s:
+        equipe = s.execute(select(db.Assessor).order_by(db.Assessor.nome)).scalars().all()
+    assert [(a.codigo_politico, a.nome, a.cargo, a.remuneracao) for a in equipe] == [
+        (1, "Jose Souza", "Efetivo", None), (1, "Maria da Silva", "Comissionado", None)
+    ]

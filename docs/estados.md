@@ -43,6 +43,19 @@ da coleta lista esses nomes.
   (onde roda a coleta). Vamos tentar de novo.
 - **RJ:** os gastos ficam no sistema DOCIGP da Alerj, e o robots.txt dele fecha o site inteiro, então não coletamos.
 
+## Gabinetes
+
+- **SC:** a página de servidores da Alesc filtra por lotação ("GAB DEP X").
+  Coletamos nome e vínculo de cada pessoa. A remuneração só aparece na tela de
+  contracheque, que o robots.txt fecha, então o app mostra "Sem dados" para o
+  salário da equipe, com a Alesc como responsável.
+
+## Votações
+
+Nenhuma assembleia que responde publica o voto de cada deputado em arquivo
+aberto. A Alep tem uma rota de votações, mas dentro de /api/, que o robots.txt
+fecha. A Alesp publica só a presença.
+
 ## Salário
 
 O arquivo `araragov/referencia/subsidios_estaduais.csv` guarda o salário por

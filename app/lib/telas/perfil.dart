@@ -529,6 +529,7 @@ class _SecaoGabinete extends StatelessWidget {
                     '${custo.referencia == null ? '' : ' · folha de ${mesAno(custo.referencia)}'}',
             valor: reais(custo.mensal),
           ),
+        if (custo == null && p.gabinete.isNotEmpty) SemDados(p.resumo, detalhe: 'Salário de cada pessoa do gabinete'),
         if (verba != null && anoVerba != null)
           ExpansionTile(
             title: Text('Verba de gabinete gasta em $anoVerba'),

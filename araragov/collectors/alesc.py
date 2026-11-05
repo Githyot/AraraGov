@@ -16,11 +16,13 @@ from __future__ import annotations
 
 import logging
 from collections import Counter
-from typing import Any, Dict, Iterator, List, Optional
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 from sqlalchemy import select
 
-from ..db import Politico, sessao
+from sqlalchemy import delete, insert
+
+from ..db import Assessor, Politico, sessao
 from ..http import HttpClient
 from .. import normalizar as n
 from ._comum import casar_nome, ler_csv, sincronizar_lista_oficial, substituir_despesas
@@ -114,3 +116,69 @@ def coletar_despesas(client: HttpClient, ano: int, limite: Optional[int] = None)
         total = substituir_despesas(s, CASA, ano, linhas_gabinetes(conteudo, ano, candidatos, limite))
     logger.info("Alesc: %s gastos de gabinete gravados em %s", total, ano)
     return total
+
+
+# --- Gabinetes ----------------------------------------------------------------
+
+SERVIDORES = PORTAL + "/servidores"
+
+
+def ler_setores_gabinete(html: str) -> Dict[int, str]:
+    """Opções do filtro de lotação que são gabinete de deputado ("GAB DEP X")."""
+    import re
+
+    return {
+        int(v): " ".join(nome.split())[len("GAB DEP "):]
+        for v, nome in re.findall(r'<option value="(\d+)">\s*(GAB DEP [^<]+?)\s*</option>', html + "</option>")
+    }
+
+
+def ler_servidores(html: str) -> Tuple[List[Dict[str, str]], int]:
+    """Linhas (nome, vínculo, lotação) e o total de páginas da listagem."""
+    import re
+
+    linhas = [
+        {"nome": " ".join(nome.split()), "vinculo": " ".join(vinc.split()), "lotacao": " ".join(lot.split())}
+        for nome, vinc, lot in re.findall(
+            r'<td class="fw-semibold">([^<]+)</td>\s*<td>([^<]*)</td>\s*<td class="small">([^<]*)</td>', html
+        )
+    ]
+    m = re.search(r"P[aá]gina \d+ de (\d+)", html)
+    return linhas, int(m.group(1)) if m else 1
+
+
+def coletar_gabinetes(client: HttpClient) -> int:
+    """Quem está lotado no gabinete de cada deputado (nome e vínculo).
+
+    A Alesc mostra a remuneração só na tela de contracheque, que o robots.txt
+    pede para não acessar; por isso a equipe vem sem salário."""
+    from .tse import _titulo
+
+    inicial = client.get_bytes(SERVIDORES).decode("utf-8", "replace")
+    setores = ler_setores_gabinete(inicial)
+    if not setores:
+        raise RuntimeError("Filtro de gabinetes não encontrado na página de servidores da Alesc")
+    candidatos = _candidatos()
+    linhas: List[Dict[str, Any]] = []
+    sem_dono = []
+    for setor, nome_dep in setores.items():
+        cod = casar_nome(nome_dep, candidatos)
+        if cod is None:
+            sem_dono.append(nome_dep)
+            continue
+        pagina, total = 1, 1
+        while pagina <= total:
+            html = client.get_bytes(f"{SERVIDORES}?setor_id={setor}&page={pagina}").decode("utf-8", "replace")
+            pessoas, total = ler_servidores(html)
+            for pessoa in pessoas:
+                linhas.append({
+                    "casa": CASA, "codigo_politico": cod, "nome": _titulo(pessoa["nome"]),
+                    "cargo": pessoa["vinculo"] or None, "funcao": None, "lotacao": pessoa["lotacao"] or None,
+                })
+            pagina += 1
+    with sessao() as s:
+        s.execute(delete(Assessor).where(Assessor.casa == CASA))
+        if linhas:
+            s.execute(insert(Assessor), linhas)
+    logger.info("Alesc: %s pessoas em %s gabinetes; gabinetes sem deputado ligado: %s", len(linhas), len(setores) - len(sem_dono), ", ".join(sem_dono) or "nenhum")
+    return len(linhas)
