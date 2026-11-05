@@ -1,17 +1,8 @@
 set +e
 ua="AraraGov/0.1 (+https://github.com/Githyot/AraraGov)"
-B=https://www.al.pb.leg.br/transparencia/deputados/viap-v2
-curl -sSL -A "$ua" --max-time 40 "$B" -o /tmp/v
-echo "### PB selects"; python3 -c "
-import re; h=open('/tmp/v',encoding='utf-8',errors='replace').read()
-for nome in ['ano_viap','mes_viap','deputado']:
-  i=h.find('name=\"'+nome+'\"'); s=h[i:h.find('</select>',i)]; print(nome, re.findall(r'<option[^>]*value=[\"\\']?([^\"\\' >]*)',s)[:8], len(re.findall('<option',s)))
-" 
-dep=$(python3 -c "
-import re; h=open('/tmp/v',encoding='utf-8',errors='replace').read(); i=h.find('name=\"deputado\"'); s=h[i:h.find('</select>',i)]; v=[x for x in re.findall(r'<option[^>]*value=[\"\\']?([^\"\\' >]*)',s) if x not in ('0','')]; print(v[0] if v else '')")
-echo "### PB dep=$dep"; curl -sSL -A "$ua" --max-time 60 "$B?tipo_viap=deputados&ano_viap=2025&mes_viap=09&deputado=$dep" -o /tmp/q; python3 -c "
-import re; h=open('/tmp/q',encoding='utf-8',errors='replace').read()
-print(sorted(set(re.findall(r'href=\"([^\"]*(?:pdf|xls|csv|uploads|download)[^\"]*)\"',h,re.I)))[:10])
-i=h.find('<table'); print(re.sub(r'\s+',' ',re.sub(r'<(?!/?t[rdh]\b)[^>]+>',' ',h[i:i+2000])) if i>=0 else 'sem tabela')
-j=h.find('Delegado Wallber'); print(re.sub(r'\s+',' ',re.sub(r'<[^>]+>',' ',h[j:j+1500])))"
-echo "### RR arquivos"; curl -sSL -A "$ua" --max-time 40 https://transparencia.al.rr.leg.br/execucao-orcamentaria-e-financeira/verbas-indenizatorias-a-partir-de-set25/ | grep -oE 'data-(name|path)="[^"]*\.[a-zA-Z]{2,4}"' | head -8
+U=https://transparencia.al.rr.leg.br/execucao-orcamentaria-e-financeira/verbas-indenizatorias-a-partir-de-set25/
+curl -sSL -A "$ua" --max-time 40 -c /tmp/ck $U -o /tmp/r
+n=$(grep -oE '"wpdf_nonce":"[^"]*' /tmp/r | cut -d'"' -f4); id=$(grep -oE 'wpdf-[0-9]+' /tmp/r | head -1 | cut -d- -f2)
+echo "### RR ajax nonce=$n id=$id"; curl -sS -A "$ua" -b /tmp/ck --max-time 40 https://transparencia.al.rr.leg.br/wp-content/plugins/wp-display-files/assets/js/wpdf-custom.js | grep -oE "action\s*:\s*['\"][a-z_]+['\"][^}]{0,200}" | head -5
+for a in wpdf_get_folder_listing get_listing wpdf_listing; do curl -sS -A "$ua" -b /tmp/ck --max-time 40 -d "action=$a&path=Ano 2026/&folder=Ano 2026&nonce=$n&security=$n&id=$id" https://transparencia.al.rr.leg.br/wp-admin/admin-ajax.php | head -c 400; echo " <- $a"; done
+echo "### PB remuneracoes"; curl -sSL -A "$ua" --max-time 40 https://www.al.pb.leg.br/transparencia/recursos-humanos/remuneracoes -o /tmp/p; grep -oiE '(href|src)="[^"#]*"' /tmp/p | grep -iE "pdf|xls|csv|ods|json|uploads/20|sagres|tce" | sort -u | head -12
