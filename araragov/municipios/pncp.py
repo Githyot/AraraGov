@@ -44,7 +44,8 @@ API_ITENS = "https://pncp.gov.br/api/pncp/v1/orgaos/{cnpj}/compras/{ano}/{seq}/i
 FONTE = "https://pncp.gov.br/app/contratos"
 TAMANHO_PAGINA = 500
 MODALIDADES_DIRETAS = {8: "Dispensa", 9: "Inexigibilidade"}
-UFS_COM_TCE = {"SP"}  # estes vêm do Tribunal de Contas, com mais detalhe
+UFS_COM_TCE = {"SP", "RJ"}  # estes vêm do Tribunal de Contas, com mais detalhe
+FORA_DO_TCE = {3304557}  # capital do RJ: fiscalizada pelo TCM-Rio, fica no PNCP
 
 COLUNAS_CONTRATOS_PNCP = COLUNAS_CONTRATOS + ["emenda", "pncp"]
 
@@ -128,7 +129,7 @@ def agregar(linhas: Iterable[Dict[str, Any]], ano: int, diretas: Dict[str, str],
         except ValueError:
             continue
         controle = r.get("numeroControlePNCP")
-        if not ibge or uf in fora or controle in vistos or int(r.get("anoContrato") or 0) != ano:
+        if not ibge or (uf in fora and ibge not in FORA_DO_TCE) or controle in vistos or int(r.get("anoContrato") or 0) != ano:
             continue
         vistos.add(controle)
         m = por.setdefault(ibge, {"uf": uf, "municipio": un.get("municipioNome") or str(ibge), "contratos": [],

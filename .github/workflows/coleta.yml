@@ -120,6 +120,15 @@ jobs:
           else
             python -m araragov tce-pb --saida site --anos $(( $(date +%Y) - 1 ))-$(date +%Y)
           fi
+      - name: Contratos dos municípios do RJ (TCE-RJ)
+        if: ${{ !cancelled() }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            python -m araragov tce-rj --saida site --anos 2024 --limite-municipios 5
+            f=$(ls site/v1/municipios/rj/*/2024-contratos.md | head -1); head -40 "$f"
+          else
+            python -m araragov tce-rj --saida site --anos $(( $(date +%Y) - 1 ))-$(date +%Y)
+          fi
       - name: Contratos dos municípios fora de SP (PNCP)
         if: ${{ !cancelled() }}
         run: |
@@ -148,7 +157,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            python -m araragov fornecedores --saida site --ufs SP,SC,CE,PB --eleicoes 2024
+            python -m araragov fornecedores --saida site --ufs SP,SC,CE,PB,RJ --eleicoes 2024
             grep -l "Sanção no\|Fornecedora de campanha" site/v1/municipios/sp/*/fornecedores.md | wc -l
             f=$(grep -l "Fornecedora de campanha" site/v1/municipios/sp/*/fornecedores.md | head -1)
             [ -n "$f" ] && { head -30 "$f"; grep -A6 "tabela: campanha" "$f"; }

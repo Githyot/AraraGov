@@ -17,27 +17,11 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -e .
-      - name: TCE-RN (empenhos) e TCE-RJ (contratos)
+      - name: TCE-RJ (5 municípios)
         run: |
-          set +e
-          A="AraraGov (dados publicos)"; R="https://apidadosabertos.tce.rn.gov.br/api"
-          curl -sS -m 90 -A "$A" "$R/InformacoesBasicasApi/JurisdicionadosTCE/Json" -o /tmp/j.json
-          python3 - <<'PY'
-          import json
-          d=json.load(open('/tmp/j.json'))
-          print(len(d),'unidades')
-          pm=[u for u in d if 'PREFEITURA' in (u['nomeOrgao'] or '').upper()]
-          print(len(pm),'prefeituras'); print(pm[:3])
-          import collections
-          print(collections.Counter((u['nomeOrgao'] or '').split(' DE ')[0] for u in d).most_common(15))
-          open('/tmp/pm','w').write(str([u for u in pm if 'MOSSOR' in u['nomeOrgao'].upper()][0]['identificadorUnidade']))
-          PY
-          id=$(cat /tmp/pm); echo "Mossoro=$id"
-          curl -sS -m 180 -A "$A" "$R/EmpenhosLiquidacoesPagamentosApi/Empenhos/Json/2024/$id" -o /tmp/e.json -w '[%{http_code} %{size_download}B %{time_total}s]\n'
-          python3 -c "import json;d=json.load(open('/tmp/e.json'));print(type(d), len(d));print(json.dumps(d[:2],ensure_ascii=False,indent=1)[:3000])"
-          curl -sS -m 180 -A "$A" "$R/ContratosApi/Contratos/Json/$id/false" | head -c 2000; echo
-          echo "== RJ contratos"
-          curl -sS -m 240 -A "$A" "https://dados.tcerj.tc.br/api/v1/contratos_municipio?ano=2024&municipio=MACAE&limite=2" -w '\n[%{http_code} %{time_total}s]\n' | head -c 3000; echo
+          python -m araragov tce-rj --saida site --anos 2024 --limite-municipios 5
+          ls site/v1/municipios/rj/
+          f=$(ls site/v1/municipios/rj/*/2024-contratos.md | head -1); head -60 "$f"; grep -A8 "tabela: contratacoes-diretas" "$f"
       - name: TCE-CE (6 municípios, 3 meses)
         if: false
         run: |

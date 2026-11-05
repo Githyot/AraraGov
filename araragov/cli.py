@@ -120,6 +120,10 @@ def main(argv: list[str] | None = None) -> int:
     tpb.add_argument("--saida", default="site")
     tpb.add_argument("--anos", type=_anos, default=[date.today().year - 1])
     tpb.add_argument("--limite-linhas", type=int, help="lê só N linhas do arquivo (teste)")
+    trj = sub.add_parser("tce-rj", help="contratos dos municípios do RJ pelo TCE-RJ (.md)")
+    trj.add_argument("--saida", default="site")
+    trj.add_argument("--anos", type=_anos, default=[date.today().year - 1, date.today().year])
+    trj.add_argument("--limite-municipios", type=int, help="só os N primeiros municípios (teste)")
     frn = sub.add_parser("fornecedores", help="fornecedores dos municípios com sanções (CEIS/CNEP) e campanhas (TSE)")
     frn.add_argument("--saida", default="site")
     frn.add_argument("--ufs", default="SP", help="estados com contratos coletados, ex.: SP,SC ou todos")
@@ -197,6 +201,13 @@ def main(argv: list[str] | None = None) -> int:
         from .municipios import tcepb
 
         return 0 if tcepb.gerar(HttpClient(), Path(args.saida), args.anos, args.limite_linhas) else 1
+
+    if args.comando == "tce-rj":
+        from pathlib import Path
+
+        from .municipios import tcerj
+
+        return 0 if tcerj.gerar(HttpClient(), Path(args.saida), args.anos, limite_municipios=args.limite_municipios) else 1
 
     if args.comando == "fornecedores":
         from pathlib import Path
