@@ -152,7 +152,7 @@ jobs:
             "https://transparencia.tce.sp.gov.br/" \
             "https://dados.tce.rs.gov.br/" \
             "https://api.obrasgov.gestao.gov.br/obrasgov/api/projeto-investimento?pagina=1&tamanhoDaPagina=1" \
-            "https://dadosabertos.rfb.gov.br/CNPJ/" \
+            "https://arquivos.receitafederal.gov.br/" \
             "https://portaldatransparencia.gov.br/download-de-dados/ceis" ; do
             code=$(curl -s -o /tmp/r -w '%{http_code} %{size_download}B %{time_total}s' -m 40 -A "AraraGov (dados publicos; github.com/Githyot/AraraGov)" "$u" || echo "falhou")
             echo "$code  $u"; head -c 300 /tmp/r 2>/dev/null; echo
@@ -163,6 +163,14 @@ jobs:
           du -sh site site/v1/politicos site/v1/votacoes site/v1/municipios || true
           tamanho=$(du -sm site | cut -f1)
           if [ "$tamanho" -gt 900 ]; then echo "::warning::API com ${tamanho} MB, perto do limite de 1 GB do GitHub Pages"; fi
+      - uses: actions/upload-artifact@v4
+        # Lista de CNPJs para a coleta local de sócios (araragov coleta-local).
+        if: always()
+        with:
+          name: cnpjs-fornecedores
+          path: site/v1/municipios/cnpjs-fornecedores.txt
+          if-no-files-found: ignore
+          retention-days: 30
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -16,6 +16,7 @@ from __future__ import annotations
 import io
 import logging
 import zipfile
+from pathlib import Path
 from typing import Any, Dict, Iterator, List
 
 logger = logging.getLogger(__name__)
@@ -56,4 +57,36 @@ def sondar(conteudo: bytes, linhas: int = 12) -> List[Dict[str, Any]]:
                 amostra.append([c for c in linha[:14]])
             saida.append({"arquivo": nome, "aba": aba, "dimensao": ws.max_row, "amostra": amostra})
         wb.close()
+    return saida
+
+
+LOCAIS = Path(__file__).resolve().parents[2] / "dados" / "locais" / "sinapi"
+PAGINA = "https://www.caixa.gov.br/poder-publico/modernizacao-gestao/sinapi/Paginas/default.aspx"
+
+
+def observacoes_locais(itens, pasta: Path = LOCAIS) -> List[Any]:
+    """Preços das composições do SINAPI gravados pela coleta local
+    (dados/locais/sinapi/AAAA-MM.csv.gz), para os itens com código SINAPI
+    no catálogo. Vários códigos para um item viram várias observações."""
+    import csv
+    import gzip
+    from decimal import Decimal
+
+    from .custos import Observacao
+
+    por_codigo: Dict[str, List[str]] = {}
+    for item in itens.values():
+        for cod in item.sinapi:
+            por_codigo.setdefault(str(cod), []).append(item.id)
+    saida: List[Any] = []
+    if not por_codigo or not pasta.exists():
+        return saida
+    for arq in sorted(pasta.glob("*.csv.gz")):
+        competencia = arq.name[:7]
+        with gzip.open(arq, "rt", encoding="utf-8", newline="") as f:
+            for r in csv.DictReader(f, delimiter=";"):
+                for item in por_codigo.get(r["codigo"], []):
+                    saida.append(Observacao(item, r["uf"], competencia, Decimal(r["custo"]), "sinapi",
+                                            f"SINAPI {competencia}, composição {r['codigo']} (sem desoneração)", PAGINA))
+    logger.info("SINAPI (coleta local): %s preços para %s códigos", len(saida), len(por_codigo))
     return saida

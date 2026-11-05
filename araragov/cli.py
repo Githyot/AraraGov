@@ -115,6 +115,12 @@ def main(argv: list[str] | None = None) -> int:
     frn.add_argument("--saida", default="site")
     frn.add_argument("--ufs", default="SP", help="estados com contratos coletados, ex.: SP,SC ou todos")
     frn.add_argument("--eleicoes", type=_anos, default=[2016, 2020, 2024], help="eleições municipais, ex.: 2020,2024")
+    loc = sub.add_parser("coleta-local", help="coleta mensal no computador do mantenedor (SINAPI e sócios da Receita)")
+    loc.add_argument("--saida", default="dados/locais", help="pasta dos arquivos (padrão: dados/locais)")
+    loc.add_argument("--mes", default="", help="mês do SINAPI, AAAA-MM (padrão: dois meses atrás)")
+    loc.add_argument("--cnpjs", default="", help="lista de CNPJs dos fornecedores (arquivo ou URL)")
+    loc.add_argument("--so", choices=["sinapi", "socios"], help="só uma das fontes")
+    loc.add_argument("--cache", default="", help="pasta para os zips da Receita (padrão: ~/.cache/araragov)")
     pnc = sub.add_parser("pncp", help="contratos dos municípios (fora de SP) pelo PNCP (.md)")
     pnc.add_argument("--saida", default="site")
     pnc.add_argument("--anos", type=_anos, default=[date.today().year - 1, date.today().year])
@@ -178,6 +184,39 @@ def main(argv: list[str] | None = None) -> int:
 
             ufs = sorted(set(UFS) | {"DF"})
         return 0 if fornecedores.gerar(HttpClient(), Path(args.saida), ufs, args.eleicoes) else 1
+
+    if args.comando == "coleta-local":
+        from pathlib import Path
+
+        from .municipios import locais
+
+        saida = Path(args.saida)
+        if args.mes:
+            ano, mes = (int(x) for x in args.mes.split("-"))
+        else:
+            hoje = date.today()
+            ano, mes = (hoje.year, hoje.month - 2) if hoje.month > 2 else (hoje.year - 1, hoje.month + 10)
+        ok = True
+        if args.so in (None, "sinapi"):
+            try:
+                arq = locais.coletar_sinapi(ano, mes, saida)
+                locais.candidatos_sinapi(arq, saida / "sinapi" / "candidatos-catalogo.csv")
+            except Exception as e:  # noqa: BLE001
+                logging.error("SINAPI: %s", e)
+                ok = False
+        if args.so in (None, "socios"):
+            sessao = locais._sessao()
+            padrao = saida / "cnpjs-fornecedores.txt"
+            origem = args.cnpjs or (str(padrao) if padrao.exists() else locais.CNPJS_URL)
+            cnpjs = locais.ler_cnpjs(origem, sessao)
+            logging.info("Sócios: %s empresas na lista (%s)", len(cnpjs), origem)
+            cache = Path(args.cache) if args.cache else Path.home() / ".cache" / "araragov"
+            try:
+                locais.coletar_socios(saida, cnpjs, cache, sessao)
+            except Exception as e:  # noqa: BLE001
+                logging.error("Sócios: %s", e)
+                ok = False
+        return 0 if ok else 1
 
     if args.comando == "pncp":
         from pathlib import Path

@@ -20,6 +20,7 @@ tabela `sem-dados`.
 from __future__ import annotations
 
 import csv
+import gzip
 import io
 import logging
 import re
@@ -44,7 +45,8 @@ SANCOES_PAGINA = "https://portaldatransparencia.gov.br/sancoes/{cadastro}"
 CAMPANHA_URL = ("https://cdn.tse.jus.br/estatistica/sead/odsele/prestacao_contas/"
                 "prestacao_de_contas_eleitorais_candidatos_{ano}.zip")
 CAMPANHA_PAGINA = "https://divulgacandcontas.tse.jus.br/"
-RECEITA_CNPJ = "https://dadosabertos.rfb.gov.br/CNPJ/"
+RECEITA_CNPJ = "https://arquivos.receitafederal.gov.br/"
+SOCIOS_LOCAIS = Path(__file__).resolve().parents[2] / "dados" / "locais" / "socios.csv.gz"
 
 TOP_FORNECEDORES = 100
 # Empresa que serviu a campanhas em muitos municípios é plataforma ou
@@ -55,6 +57,12 @@ MAX_MUNICIPIOS_CAMPANHA = 15
 COLUNAS_FORNECEDORES = ["cnpj", "empresa", "pago", "anos_pagos", "contratos", "valor_contratos", "indicios"]
 COLUNAS_SANCOES = ["cnpj", "empresa", "cadastro", "sancao", "inicio", "fim", "orgao", "uf_orgao", "esfera",
                    "abrangencia", "processo", "fundamento", "fonte"]
+COLUNAS_SOCIOS = ["cnpj", "empresa", "socio", "tipo", "qualificacao", "desde"]
+# Códigos de qualificação mais comuns da Receita (tabela Qualificacoes).
+QUALIFICACOES = {"05": "Administrador", "08": "Conselheiro de administração", "10": "Diretor", "16": "Presidente",
+                 "17": "Procurador", "22": "Sócio", "28": "Sócio-gerente", "37": "Sócio pessoa jurídica",
+                 "49": "Sócio-administrador", "54": "Fundador", "65": "Titular (pessoa física)",
+                 "66": "Titular (pessoa física, incapaz)", "78": "Titular (pessoa física)"}
 COLUNAS_CAMPANHA = ["cnpj", "empresa", "eleicao", "candidato", "cargo", "partido", "eleito", "valor", "servico", "fonte"]
 
 
@@ -267,14 +275,51 @@ def emendas_do_municipio(pasta: Path) -> Dict[str, List[str]]:
     return dict(saida)
 
 
+def politicos_do_municipio(pasta: Path) -> Dict[str, str]:
+    """Nome civil normalizado -> "vereador eleito em 2020" (todos os mandatos do resumo.md)."""
+    caminho = pasta / "resumo.md"
+    doc = _ler(caminho) if caminho.exists() else None
+    saida: Dict[str, str] = {}
+    for r in (doc.tabelas.get("mandatos", []) if doc else []):
+        for nome in (r.get("nome_civil"), r.get("nome")):
+            if nome and len(nome.split()) >= 3:  # nome curto demais gera homônimo demais
+                saida.setdefault(chave_nome(nome), f"{(r.get('cargo') or 'político').lower()} eleito em {r.get('eleicao')}")
+    return saida
+
+
+def ler_socios(caminho: Path, cnpjs: Set[str]) -> Optional[Dict[str, List[Dict[str, str]]]]:
+    """CNPJ básico -> sócios, do arquivo da coleta local. None se não houver arquivo."""
+    if not caminho.exists():
+        return None
+    basicos = {c[:8] for c in cnpjs}
+    saida: Dict[str, List[Dict[str, str]]] = defaultdict(list)
+    with gzip.open(caminho, "rt", encoding="utf-8", newline="") as f:
+        for r in csv.DictReader(f, delimiter=";"):
+            if r["cnpj_basico"] in basicos:
+                saida[r["cnpj_basico"]].append(r)
+    logger.info("Sócios (coleta local): %s empresas", len(saida))
+    return dict(saida)
+
+
 # --- documento -----------------------------------------------------------------------------
 
 
 def documento(ibge: int, mun: str, uf: str, fornecedores: Dict[str, Fornecedor],
               sancoes: Dict[str, List[Dict[str, Any]]], campanhas: Dict[Tuple[str, str], Campanha],
               eleitos: Dict[str, str], eleicoes: Iterable[int], hoje: date, data_sancoes: Optional[str],
-              emendas: Optional[Dict[str, List[str]]] = None) -> str:
+              emendas: Optional[Dict[str, List[str]]] = None,
+              socios: Optional[Dict[str, List[Dict[str, str]]]] = None,
+              politicos: Optional[Dict[str, str]] = None) -> str:
     emendas = emendas or {}
+    politicos = politicos or {}
+    tem_socios = socios is not None
+    socios = {c: socios.get(c[:8], []) for c in fornecedores} if socios is not None else {}
+    # Sócio pessoa física identificado por nome + CPF mascarado (a Receita mostra 6 dígitos).
+    empresas_do_socio: Dict[Tuple[str, str], Set[str]] = defaultdict(set)
+    for c, lista in socios.items():
+        for sc in lista:
+            if sc["tipo"] == "PF":
+                empresas_do_socio[(chave_nome(sc["nome"]), sc["cpf_cnpj"])].add(c)
     campanha_por_cnpj: Dict[str, List[Campanha]] = defaultdict(list)
     for c in campanhas.values():
         campanha_por_cnpj[c.cnpj].append(c)
@@ -289,7 +334,17 @@ def documento(ibge: int, mun: str, uf: str, fornecedores: Dict[str, Fornecedor],
             partes.append("Fornecedora de campanha (" + ", ".join(map(str, anos)) + ")")
         if cnpj in emendas:
             partes.append("Recebeu emenda federal direto (" + ", ".join(emendas[cnpj][:3]) + ")")
-        return "; ".join(partes) or None
+        for sc in socios.get(cnpj, []):
+            if sc["tipo"] != "PF":
+                continue
+            cargo = politicos.get(chave_nome(sc["nome"]))
+            if cargo:
+                partes.append(f"Sócio com o mesmo nome de {cargo} (pode ser homônimo)")
+            outras = empresas_do_socio[(chave_nome(sc["nome"]), sc["cpf_cnpj"])] - {cnpj}
+            if outras:
+                nomes_outras = ", ".join(sorted(fornecedores[o].empresa or formatar_cnpj(o) for o in outras)[:2])
+                partes.append(f"Sócio em comum com outra fornecedora ({nomes_outras})")
+        return "; ".join(dict.fromkeys(partes)) or None
 
     ordem = sorted(fornecedores.items(), key=lambda kv: (kv[1].pago + kv[1].valor_contratos), reverse=True)
     destaque = [c for c, _ in ordem if indicios(c)]
@@ -310,7 +365,11 @@ def documento(ibge: int, mun: str, uf: str, fornecedores: Dict[str, Fornecedor],
         "valor": c.valor, "servico": ", ".join(sorted(c.servicos)) or None, "fonte": CAMPANHA_PAGINA,
     } for c in campanhas.values()), key=lambda r: (r["eleito"] == "Não", -r["valor"]))
 
-    sem = [{
+    tab_socios = [{
+        "cnpj": formatar_cnpj(c), "empresa": fornecedores[c].empresa, "socio": sc["nome"], "tipo": sc["tipo"],
+        "qualificacao": QUALIFICACOES.get(sc["qualificacao"], sc["qualificacao"]), "desde": sc["desde"] or None,
+    } for c in escolhidos for sc in socios.get(c, [])]
+    sem = [] if tem_socios else [{
         "secao": "socios", "esfera": "federal", "responsavel": "Receita Federal",
         "motivo": "A base pública de CNPJ (sócios e endereços) não respondeu à coleta automática; "
                   "vínculos por sócio ou endereço em comum ainda não foram verificados.",
@@ -326,9 +385,10 @@ def documento(ibge: int, mun: str, uf: str, fornecedores: Dict[str, Fornecedor],
             "fonte": "TCE-SP, Portal da Transparência (CEIS/CNEP) e TSE (prestação de contas)"}
     return md.escrever(
         {k: v for k, v in meta.items() if v is not None},
-        {"fornecedores": linhas, "sancoes": tab_sancoes, "campanha": tab_campanha, "sem-dados": sem},
+        {"fornecedores": linhas, "sancoes": tab_sancoes, "campanha": tab_campanha, "socios": tab_socios,
+         "sem-dados": sem},
         colunas={"fornecedores": COLUNAS_FORNECEDORES, "sancoes": COLUNAS_SANCOES,
-                 "campanha": COLUNAS_CAMPANHA, "sem-dados": COLUNAS_SEM_DADOS},
+                 "campanha": COLUNAS_CAMPANHA, "socios": COLUNAS_SOCIOS, "sem-dados": COLUNAS_SEM_DADOS},
         titulo=f"{mun} ({uf}), fornecedores",
         textos={
             "fornecedores": "## Empresas que receberam ou foram contratadas\n\nSoma dos pagamentos e dos "
@@ -341,6 +401,8 @@ def documento(ibge: int, mun: str, uf: str, fornecedores: Dict[str, Fornecedor],
             "pelos próprios candidatos ao TSE. Prestar serviço a uma campanha e depois vender à "
             "prefeitura não é proibido; o cruzamento serve para conferir. Empresas que serviram a "
             f"campanhas em mais de {MAX_MUNICIPIOS_CAMPANHA} municípios (redes sociais, telefonia) ficam de fora.",
+            "socios": "## Sócios das empresas\n\nQuadro de sócios publicado pela Receita Federal. Nome igual "
+            "ao de um político pode ser só homônimo: a Receita não mostra o CPF inteiro.",
             "sem-dados": "## O que ainda não há",
         },
     )
@@ -376,7 +438,7 @@ def baixar_sancoes(client, pasta: Path, hoje: date) -> Tuple[Dict[str, List[Dict
 
 
 def gerar(client, saida: Path, ufs: Iterable[str] = ("SP",), eleicoes: Iterable[int] = (2016, 2020, 2024),
-          hoje: Optional[date] = None, pasta_tmp: Optional[Path] = None) -> int:
+          hoje: Optional[date] = None, pasta_tmp: Optional[Path] = None, socios_arquivo: Path = SOCIOS_LOCAIS) -> int:
     hoje = hoje or date.today()
     pasta_tmp = pasta_tmp or saida.parent / "tmp"
     pasta_tmp.mkdir(parents=True, exist_ok=True)
@@ -389,6 +451,9 @@ def gerar(client, saida: Path, ufs: Iterable[str] = ("SP",), eleicoes: Iterable[
         logger.warning("Nenhum fornecedor encontrado em %s (rode antes a coleta do TCE)", ufs)
         return 0
     todos = {c for f in fornecedores.values() for c in f}
+    lista = saida / "v1" / "municipios" / "cnpjs-fornecedores.txt"
+    lista.write_text("\n".join(sorted(todos)) + "\n", encoding="utf-8")
+    socios = ler_socios(socios_arquivo, todos)
     sancoes, data_sancoes = baixar_sancoes(client, pasta_tmp, hoje)
     sancoes = {c: s for c, s in sancoes.items() if c in todos}
 
@@ -421,7 +486,8 @@ def gerar(client, saida: Path, ufs: Iterable[str] = ("SP",), eleicoes: Iterable[
     for (uf, ibge), forn in fornecedores.items():
         texto = documento(ibge, nomes.get(ibge, str(ibge)), uf, forn, sancoes, campanhas.get(ibge, {}),
                           eleitos_do_municipio(pastas[(uf, ibge)]), lidas, hoje, data_sancoes,
-                          emendas_do_municipio(pastas[(uf, ibge)]))
+                          emendas_do_municipio(pastas[(uf, ibge)]), socios,
+                          politicos_do_municipio(pastas[(uf, ibge)]))
         (pastas[(uf, ibge)] / "fornecedores.md").write_text(texto, encoding="utf-8")
         n += 1
     logger.info("Fornecedores: %s municípios, %s empresas com sanção, %s com serviço de campanha",

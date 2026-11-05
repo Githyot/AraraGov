@@ -97,3 +97,27 @@ def test_alcance_conta_todos_os_municipios():
     por = fo.ler_campanhas(linhas, 2024, lambda *a: 3500105, {3500105: {"13347016000117"}}, alcance)
     assert len(alcance["13347016000117"]) == 20
     assert not fo.remover_plataformas(por, alcance)[3500105]
+
+
+def test_socios_nome_de_politico_e_socio_em_comum(tmp_path):
+    import csv
+    import gzip
+
+    arq = tmp_path / "socios.csv.gz"
+    with gzip.open(arq, "wt", encoding="utf-8", newline="") as f:
+        w = csv.writer(f, delimiter=";")
+        w.writerow(["cnpj_basico", "tipo", "nome", "cpf_cnpj", "qualificacao", "desde", "faixa_etaria"])
+        w.writerow(["11222333", "PF", "JOAO DA SILVA PEREIRA", "***123456**", "49", "2010-01-01", "5"])
+        w.writerow(["55666777", "PF", "JOAO DA SILVA PEREIRA", "***123456**", "22", "2015-01-01", "5"])
+        w.writerow(["00111222", "PF", "MARIA SOUZA LIMA", "***999999**", "49", "2012-01-01", "5"])
+    forn = {"11222333000144": fo.Fornecedor("OBRAS BOAS LTDA", D("10")), "55666777000188": fo.Fornecedor("OUTRA LTDA", D("5")),
+            "00111222000133": fo.Fornecedor("TERCEIRA LTDA", D("1"))}
+    socios = fo.ler_socios(arq, set(forn))
+    texto = fo.documento(1, "X", "SC", forn, {}, {}, {}, [], date(2026, 11, 5), "2026-11-04", {}, socios,
+                         {fo.chave_nome("Maria Souza Lima"): "vereador eleito em 2020"})
+    doc = md.ler(texto)
+    ind = {l["empresa"]: l["indicios"] for l in doc.tabelas["fornecedores"]}
+    assert ind["OBRAS BOAS LTDA"] == "Sócio em comum com outra fornecedora (OUTRA LTDA)"
+    assert ind["TERCEIRA LTDA"] == "Sócio com o mesmo nome de vereador eleito em 2020 (pode ser homônimo)"
+    assert doc.tabelas["socios"][0]["qualificacao"] == "Sócio-administrador"
+    assert "123456" not in texto and not doc.tabelas["sem-dados"]

@@ -44,7 +44,10 @@ def gerar(client, saida: Path, ufs: Iterable[str], anos: Iterable[int], hoje: Op
     except Exception as erro:
         logger.warning("IPCA indisponível: %s", erro)
         ipca = {}
-    calc = custos.calculadora_padrao(sidra.observacoes(mensal), sidra.indices_anuais(mensal), ipca)
+    from . import sinapi
+
+    extras = sidra.observacoes(mensal) + sinapi.observacoes_locais(custos.carregar_itens())
+    calc = custos.calculadora_padrao(extras, sidra.indices_anuais(mensal), ipca)
     pasta = saida / "v1" / "referencia" / "custos"
     pasta.mkdir(parents=True, exist_ok=True)
     for uf in ufs:
