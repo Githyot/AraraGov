@@ -27,6 +27,15 @@ Para desenvolver sem internet, com dados fictícios de `assets/amostra`:
 flutter run --dart-define=ARARAGOV_AMOSTRA=true
 ```
 
+## Pacote para Linux
+
+O workflow `Linux (RPM)` gera o `.rpm`. Uma etiqueta `v*` igual à versão do
+`pubspec.yaml` publica o pacote como pré-lançamento. Para instalar:
+
+```bash
+sudo dnf install ./AraraGov-linux-x86_64.rpm
+```
+
 ## Ícone
 
 A cabeça da Arara (mascote do Reelhouse, mesmo criador) no centro da

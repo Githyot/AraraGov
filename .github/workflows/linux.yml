@@ -1,0 +1,84 @@
+name: Linux (RPM)
+
+# Gera o .rpm para Fedora e afins. Compila no Ubuntu 22.04 para o pacote rodar
+# em sistemas mais antigos (glibc 2.35). Uma etiqueta v* anexa o pacote à Release
+# como pré-lançamento. O pacote com dados de exemplo (políticos fictícios) serve
+# só para testar as telas: fica nos artefatos e nunca vai para a Release.
+
+on:
+  push:
+    tags: ["v*"]
+  pull_request:
+    paths: ["packaging/**", "app/linux/**", ".github/workflows/linux.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  NFPM_VERSAO: v2.48.0
+
+jobs:
+  rpm:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libstdc++-12-dev
+      - name: nfpm
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "$NFPM_VERSAO" -R goreleaser/nfpm -p 'nfpm_*_Linux_x86_64.tar.gz' -D "$RUNNER_TEMP/nfpm"
+          tar -xzf "$RUNNER_TEMP"/nfpm/nfpm_*_Linux_x86_64.tar.gz -C "$RUNNER_TEMP/nfpm" nfpm
+          echo "$RUNNER_TEMP/nfpm" >> "$GITHUB_PATH"
+      - name: Versão
+        run: |
+          versao="$(sed -n 's/^version: \([^+]*\).*/\1/p' app/pubspec.yaml)"
+          if [[ "$GITHUB_REF" == refs/tags/v* && "$GITHUB_REF_NAME" != "v$versao" ]]; then
+            echo "::error::A etiqueta $GITHUB_REF_NAME não bate com a versão $versao do pubspec"; exit 1
+          fi
+          echo "ARARAGOV_VERSAO=$versao" >> "$GITHUB_ENV"
+      - name: Pacote com os dados reais
+        env:
+          ARARAGOV_PACOTE: araragov
+        run: |
+          (cd app && flutter build linux --release)
+          mkdir -p dist
+          nfpm package -f packaging/linux/nfpm.yaml -p rpm -t dist/AraraGov-linux-x86_64.rpm
+      - name: Pacote com dados de exemplo
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        env:
+          ARARAGOV_PACOTE: araragov
+        run: |
+          (cd app && flutter build linux --release --dart-define=ARARAGOV_AMOSTRA=true)
+          mkdir -p exemplo
+          nfpm package -f packaging/linux/nfpm.yaml -p rpm -t exemplo/AraraGov-EXEMPLO-linux-x86_64.rpm
+      - uses: actions/upload-artifact@v4
+        with:
+          name: araragov-rpm
+          path: dist/AraraGov-linux-x86_64.rpm
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        with:
+          name: araragov-rpm-exemplo
+          path: exemplo/AraraGov-EXEMPLO-linux-x86_64.rpm
+          if-no-files-found: error
+
+  release:
+    needs: rpm
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: araragov-rpm
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" AraraGov-linux-x86_64.rpm -R "$GITHUB_REPOSITORY" --prerelease --title "AraraGov $GITHUB_REF_NAME" --generate-notes
