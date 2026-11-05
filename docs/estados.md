@@ -15,6 +15,7 @@ ela substitui a do TSE, porque inclui suplentes em exercício.
 |---|---|---|
 | MG | API de dados abertos da ALMG | verbas indenizatórias por deputado e mês |
 | SP | XML de dados abertos da Alesp | despesas de gabinete por deputado e mês |
+| BA | planilha anual da ALBA (`/transparencia/verbas-idenizatorias-excel?ano=`) | verbas indenizatórias por deputado: processo, nota, data, categoria e valor (sem fornecedor) |
 | SC | CSV anual da Alesc (`/gabinetes-parlamentares/csv/{ano}`, desde 2011) | diárias, passagens, telefone, escritório de apoio, combustível etc. |
 
 Na Alesc, a planilha traz o nome do deputado como a assembleia escreve
@@ -28,7 +29,7 @@ da coleta lista esses nomes.
 - **PR (Alep):** gastos de ressarcimento só aparecem em telas e numa API
   interna que o robots.txt fecha. A API aberta (`webservices.assembleia.pr.leg.br/api/public`)
   só tem proposições e normas.
-- **MT, MS, BA:** gastos só em telas, sem arquivo para baixar.
+- **MT, MS:** o site não publica os gastos de cada deputado.
 - **PE, RS, ES, RJ:** os portais não responderam a acessos de fora do Brasil
   (onde roda a coleta). Vamos tentar de novo.
 
@@ -37,8 +38,8 @@ da coleta lista esses nomes.
 O arquivo `araragov/referencia/subsidios_estaduais.csv` guarda o salário por
 estado e cargo, com a fonte de cada valor:
 
-- `tipo=lei`: valor tirado da lei estadual (SC e SP para deputados; SP para
-  governador e vice).
+- `tipo=lei`: valor tirado da lei estadual (SC, SP e GO para deputados; SP
+  para governador e vice).
 - `tipo=imprensa`: valor publicado pela imprensa enquanto a lei não foi
   conferida (governadores, levantamento do Valor Econômico de outubro de 2026).
   O app avisa que é valor da imprensa.

@@ -14,7 +14,7 @@ _Última atualização: 5 de novembro de 2026 (madrugada do dia 6)_
 | 1. Base federal (Câmara, Senado, IPCA) | ✅ |
 | 2. Análises (posição política, alinhamento, votações de atenção) | ✅ |
 | 3. App multiplataforma (Flutter, visual GNOME) | ✅ primeira versão · ⏸️ builds só quando pedido |
-| 4. Estados | ✅ início (TSE nos 27 estados, MG e SP) · 🔄 SC e salário real por estado no PR #12 |
+| 4. Estados | ✅ início (TSE nos 27 estados, MG e SP) · 🔄 SC, BA e salário real por estado no PR #12 |
 | Benefícios e custo dos gabinetes | ✅ Senado |
 | Emendas parlamentares | ✅ |
 | Período, comparação e doação do salário | ✅ |
@@ -78,15 +78,16 @@ _Última atualização: 5 de novembro de 2026 (madrugada do dia 6)_
 - ✅ São Paulo (Alesp): deputados em exercício e despesas de gabinete
 - ✅ Salário estadual mostrado como teto (75% do deputado federal)
 - 🔄 Santa Catarina (Alesc): gastos de gabinete de cada deputado, de 2011 até hoje, do CSV aberto da Alesc (PR #12)
+- 🔄 Bahia (ALBA): verbas indenizatórias de cada deputado, da planilha anual da ALBA (sem o fornecedor, que a planilha não traz) (PR #12)
 - 🔄 Salário real por estado, de uma lista com a fonte de cada valor (PR #12):
-  - deputados estaduais de SC e SP pela lei estadual; os outros estados seguem como teto até a lei ser conferida
+  - deputados estaduais de SC, SP e GO pela lei estadual; os outros estados seguem como teto até a lei ser conferida
   - governador e vice de SP pela lei estadual
   - governadores dos outros 26 estados pelo levantamento do Valor Econômico (out/2026), marcado no app como valor da imprensa
 - 🔄 Seção sem dado mostra "Sem dados" e o órgão responsável por publicar, com a esfera (federal, estadual ou municipal); vale para todo o app (PR #12)
-- ⬜ Conferir a lei do salário de governador e deputados nos outros 25 estados
+- ⬜ Conferir a lei do salário de governador e deputados nos outros 24 estados
 - ⬜ Outras assembleias, uma a uma, só com dados já publicados (sem pedidos ao governo):
   - ➖ PR: gastos só em telas e numa API que o robots.txt da Alep fecha; a API aberta só tem proposições
-  - ➖ MT, MS, BA: gastos só em telas, sem arquivo aberto (a estudar a leitura das telas)
+  - ➖ MT e MS: o site não publica os gastos de cada deputado (MT só traz as normas da verba; MS só explica a cota)
   - ⬜ PE, RS, ES, RJ: portais não respondem fora do Brasil; tentar de novo
 - ⬜ Votações nominais estaduais (poucas assembleias publicam)
 - ⬜ Gabinetes estaduais

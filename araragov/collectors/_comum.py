@@ -113,3 +113,65 @@ def casar_nome(nome: str, candidatos: Dict[int, Iterable[str]]) -> Any:
         if len(achados) > 1:
             return None
     return None
+
+
+# --- Planilhas --------------------------------------------------------------
+
+def ler_xlsx(conteudo: bytes) -> List[List[Any]]:
+    """Lê a primeira aba de um .xlsx só com a biblioteca padrão.
+
+    Devolve as linhas como listas (células vazias = None). Números saem como
+    float; datas do Excel saem como número de dias (ver `data_excel`)."""
+    import re
+    import zipfile
+    import xml.etree.ElementTree as ET
+
+    ns = {"m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+    with zipfile.ZipFile(io.BytesIO(conteudo)) as z:
+        nomes = z.namelist()
+        compartilhadas: List[str] = []
+        if "xl/sharedStrings.xml" in nomes:
+            raiz = ET.fromstring(z.read("xl/sharedStrings.xml"))
+            compartilhadas = ["".join(t.text or "" for t in si.iter(f"{{{ns['m']}}}t")) for si in raiz.findall("m:si", ns)]
+        abas = sorted(n for n in nomes if re.fullmatch(r"xl/worksheets/sheet\d+\.xml", n))
+        raiz = ET.fromstring(z.read(abas[0]))
+    linhas: List[List[Any]] = []
+    for row in raiz.iter(f"{{{ns['m']}}}row"):
+        linha: List[Any] = []
+        for c in row.findall("m:c", ns):
+            ref = c.get("r", "")
+            letras = "".join(ch for ch in ref if ch.isalpha())
+            if letras:
+                col = 0
+                for ch in letras:
+                    col = col * 26 + ord(ch.upper()) - 64
+                while len(linha) < col - 1:
+                    linha.append(None)
+            tipo = c.get("t")
+            v = c.find("m:v", ns)
+            if tipo == "inlineStr":
+                valor: Any = "".join(t.text or "" for t in c.iter(f"{{{ns['m']}}}t"))
+            elif v is None or v.text is None:
+                valor = None
+            elif tipo == "s":
+                valor = compartilhadas[int(v.text)]
+            elif tipo in ("str", "e"):
+                valor = v.text
+            elif tipo == "b":
+                valor = v.text == "1"
+            else:
+                valor = float(v.text)
+            linha.append(valor)
+        linhas.append(linha)
+    return linhas
+
+
+def data_excel(valor: Any):
+    """Converte o número de dias do Excel (ou um texto de data) em date."""
+    from datetime import date, timedelta
+
+    from ..normalizar import data
+
+    if isinstance(valor, (int, float)):
+        return date(1899, 12, 30) + timedelta(days=int(valor))
+    return data(valor)
