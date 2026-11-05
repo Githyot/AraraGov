@@ -15,19 +15,25 @@ from datetime import date
 from sqlalchemy import func, select
 
 from . import db
-from .collectors import assembleias, beneficios, camara, gabinete, referencia, senado, tse
+from .collectors import assembleias, beneficios, camara, camara_recursos, emendas, gabinete, referencia, senado, tse
 from .http import HttpClient
 
 ALVOS = {
+    # Legislatura anterior primeiro: a coleta atual vem depois e atualiza
+    # partido e situação de quem continua no mandato.
+    "camara-deputados-anteriores": lambda c, a: camara.coletar_deputados(c, camara.legislatura_atual(c) - 1),
     "camara-deputados": lambda c, a: camara.coletar_deputados(c),
     "camara-votacoes": lambda c, a: camara.coletar_votacoes(c, a.ano, a.limite),
     "camara-despesas": lambda c, a: camara.coletar_despesas(c, a.ano, a.limite),
+    "senado-senadores-anteriores": lambda c, a: senado.coletar_senadores_anteriores(c),
     "senado-senadores": lambda c, a: senado.coletar_senadores(c),
     "senado-votacoes": lambda c, a: senado.coletar_votacoes(c, a.ano, a.limite),
     "senado-despesas": lambda c, a: senado.coletar_despesas(c, a.ano, a.limite),
     "camara-gabinetes": lambda c, a: gabinete.coletar_camara(c),
+    "camara-recursos": lambda c, a: camara_recursos.coletar_recursos(c, a.ano, a.limite),
     "senado-gabinetes": lambda c, a: gabinete.coletar_senado(c),
     "senado-moradia": lambda c, a: beneficios.coletar_moradia_senado(c),
+    "emendas": lambda c, a: emendas.coletar_emendas(c, a.ano, a.limite),
     # Estados: eleitos do TSE nos 27 estados. Onde a assembleia tem lista
     # própria (MG, SP), a coleta dela vem depois e substitui a do TSE; se a
     # assembleia estiver fora do ar, fica a lista do TSE.
@@ -48,8 +54,21 @@ COM_RESERVA = {"almg-deputados", "almg-despesas", "alesp-deputados", "alesp-desp
 
 POR_ANO = {
     "camara-votacoes", "camara-despesas", "senado-votacoes", "senado-despesas",
-    "almg-despesas", "alesp-despesas",
+    "almg-despesas", "alesp-despesas", "emendas", "camara-recursos",
 }
+
+
+# Alvos pesados (uma página por político e ano) ficam só com os anos mais
+# recentes do intervalo pedido.
+ANOS_RECENTES = {"camara-recursos": 2}
+
+
+def _anos_do_alvo(alvo: str, anos: list[int]) -> list[int]:
+    if alvo not in POR_ANO:
+        return anos[-1:]
+    if alvo in ANOS_RECENTES:
+        return anos[-ANOS_RECENTES[alvo]:]
+    return anos
 
 
 def _anos(texto: str) -> list[int]:
@@ -61,7 +80,7 @@ def _anos(texto: str) -> list[int]:
 
 def resumo() -> None:
     with db.sessao() as s:
-        for modelo in (db.Politico, db.Votacao, db.Voto, db.Despesa, db.Assessor, db.Beneficio, db.Ipca, db.Subsidio):
+        for modelo in (db.Politico, db.Votacao, db.Voto, db.Despesa, db.Assessor, db.Beneficio, db.RecursoMensal, db.Emenda, db.Favorecido, db.Ipca, db.Subsidio):
             total = s.execute(select(func.count()).select_from(modelo)).scalar_one()
             print(f"{modelo.__tablename__:10} {total:>10}")
 
@@ -107,7 +126,7 @@ def main(argv: list[str] | None = None) -> int:
     avisos = []
     anos = args.ano
     for alvo in alvos:
-        for ano in anos if alvo in POR_ANO else anos[:1]:
+        for ano in _anos_do_alvo(alvo, anos):
             args.ano = ano
             try:
                 ALVOS[alvo](client, args)

@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
     inputs:
       ano:
-        description: "Ano ou intervalo, ex.: 2025 ou 2023-2026 (vazio = 2023 até hoje)"
+        description: "Ano ou intervalo, ex.: 2025 ou 2019-2026 (vazio = 2019 até hoje)"
         required: false
       limite:
         description: "Limite de itens por fonte (vazio = tudo)"
@@ -33,7 +33,7 @@ concurrency:
 jobs:
   coleta:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 240
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -47,9 +47,9 @@ jobs:
             echo "ano=2025" >> "$GITHUB_OUTPUT"
             echo "limite=--limite 30" >> "$GITHUB_OUTPUT"
           else
-            # Padrão: a legislatura atual inteira (2023 em diante).
+            # Padrão: a legislatura atual e a anterior (2019 em diante).
             ANO_IN="${{ inputs.ano }}"
-            echo "ano=${ANO_IN:-2023-$(date +%Y)}" >> "$GITHUB_OUTPUT"
+            echo "ano=${ANO_IN:-2019-$(date +%Y)}" >> "$GITHUB_OUTPUT"
             echo "limite=${{ inputs.limite && format('--limite {0}', inputs.limite) || '' }}" >> "$GITHUB_OUTPUT"
           fi
       - name: Coletar
@@ -58,6 +58,12 @@ jobs:
           python -m araragov coletar tudo ${ANO:+--ano $ANO} ${{ steps.p.outputs.limite }}
       - name: Exportar API estática
         run: python -m araragov exportar --saida site
+      - name: Tamanho da API
+        # O GitHub Pages aceita sites de até 1 GB.
+        run: |
+          du -sh site site/v1/politicos site/v1/votacoes || true
+          tamanho=$(du -sm site | cut -f1)
+          if [ "$tamanho" -gt 900 ]; then echo "::warning::API com ${tamanho} MB, perto do limite de 1 GB do GitHub Pages"; fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:

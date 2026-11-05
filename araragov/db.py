@@ -145,6 +145,46 @@ class Assessor(Base):
     remuneracao_ref: Mapped[Optional[str]] = mapped_column(String(7))  # "2026-09"
 
 
+class Emenda(Base):
+    """Emenda parlamentar ao orçamento federal (Portal da Transparência/CGU).
+    Valores acumulados desde o ano da emenda; `codigo_politico` fica nulo
+    para emendas de bancada, comissão e relator, que não têm um autor só."""
+
+    __tablename__ = "emenda"
+    __table_args__ = (Index("ix_emenda_politico", "casa", "codigo_politico", "ano"),)
+
+    codigo: Mapped[str] = mapped_column(String(20), primary_key=True)
+    ano: Mapped[int] = mapped_column(Integer)
+    tipo: Mapped[Optional[str]] = mapped_column(String(120))
+    autor: Mapped[Optional[str]] = mapped_column(String(200))
+    casa: Mapped[Optional[str]] = mapped_column(String(10))
+    codigo_politico: Mapped[Optional[int]] = mapped_column(Integer)
+    localidade: Mapped[Optional[str]] = mapped_column(String(200))
+    uf: Mapped[Optional[str]] = mapped_column(String(40))
+    funcao: Mapped[Optional[str]] = mapped_column(String(120))
+    acao: Mapped[Optional[str]] = mapped_column(String(400))
+    empenhado: Mapped[Decimal] = mapped_column(Numeric(16, 2))
+    pago: Mapped[Decimal] = mapped_column(Numeric(16, 2))
+
+
+class Favorecido(Base):
+    """Quem recebeu dinheiro das emendas de cada parlamentar, somado no ano."""
+
+    __tablename__ = "favorecido"
+    __table_args__ = (Index("ix_favorecido_politico", "casa", "codigo_politico", "ano"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    casa: Mapped[str] = mapped_column(String(10))
+    codigo_politico: Mapped[int] = mapped_column(Integer)
+    ano: Mapped[int] = mapped_column(Integer)
+    nome: Mapped[str] = mapped_column(String(300))
+    documento: Mapped[Optional[str]] = mapped_column(String(20))
+    tipo: Mapped[Optional[str]] = mapped_column(String(60))
+    municipio: Mapped[Optional[str]] = mapped_column(String(200))
+    uf: Mapped[Optional[str]] = mapped_column(String(2))
+    valor: Mapped[Decimal] = mapped_column(Numeric(16, 2))
+
+
 class Beneficio(Base):
     """Benefício além do salário (auxílio-moradia, imóvel funcional...).
     Lista substituída a cada coleta, como um retrato do mês."""
@@ -160,6 +200,26 @@ class Beneficio(Base):
     valor_mensal: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 2))
     referencia: Mapped[Optional[str]] = mapped_column(String(40))
     fonte: Mapped[Optional[str]] = mapped_column(String(400))
+    # Câmara: o benefício é informado por ano, com o total recebido no ano.
+    ano: Mapped[Optional[int]] = mapped_column(Integer)
+    valor_ano: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 2))
+
+
+class RecursoMensal(Base):
+    """Valor mensal publicado pela casa: salário bruto pago ao parlamentar
+    ("salario") e verba de gabinete gasta com secretários ("verba_gabinete")."""
+
+    __tablename__ = "recurso_mensal"
+    __table_args__ = (Index("ix_recurso_politico", "casa", "codigo_politico"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    casa: Mapped[str] = mapped_column(String(10))
+    codigo_politico: Mapped[int] = mapped_column(Integer)
+    tipo: Mapped[str] = mapped_column(String(20))
+    ano: Mapped[int] = mapped_column(Integer)
+    mes: Mapped[int] = mapped_column(Integer)
+    valor: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    disponivel: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 2))
 
 
 class Ipca(Base):

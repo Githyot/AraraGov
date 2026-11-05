@@ -26,6 +26,7 @@ class _InicioState extends State<Inicio> {
   Esfera _esfera = Esfera.todas;
   String? _uf;
   bool _soEmExercicio = true;
+  bool _soDoaSalario = false;
   String? _selecionado;
 
   @override
@@ -43,6 +44,7 @@ class _InicioState extends State<Inicio> {
       if (_esfera != Esfera.todas && p.esfera != _esfera.name) return false;
       if (_uf != null && p.uf != _uf) return false;
       if (_soEmExercicio && !p.emExercicio) return false;
+      if (_soDoaSalario && !p.doaSalario) return false;
       if (termo.isEmpty) return true;
       return semAcento('${p.nome} ${p.partido ?? ''} ${p.uf ?? ''} ${p.cargo} ${p.orgao}'.toLowerCase()).contains(termo);
     }).toList();
@@ -147,11 +149,21 @@ class _InicioState extends State<Inicio> {
                         ],
                         onChanged: (v) => setState(() => _uf = v),
                       ),
-                      const Spacer(),
-                      FilterChip(
-                        label: const Text('Em exercício'),
-                        selected: _soEmExercicio,
-                        onSelected: (v) => setState(() => _soEmExercicio = v),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Wrap(alignment: WrapAlignment.end, spacing: 8, runSpacing: 4, children: [
+                          FilterChip(
+                            label: const Text('Doa o salário'),
+                            tooltip: 'Quem declara publicamente doar o salário ou parte dele',
+                            selected: _soDoaSalario,
+                            onSelected: (v) => setState(() => _soDoaSalario = v),
+                          ),
+                          FilterChip(
+                            label: const Text('Em exercício'),
+                            selected: _soEmExercicio,
+                            onSelected: (v) => setState(() => _soEmExercicio = v),
+                          ),
+                        ]),
                       ),
                     ]),
                     Text('${filtrados.length} resultados', style: tema.textTheme.bodySmall?.copyWith(color: tema.hintColor)),
