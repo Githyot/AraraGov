@@ -1,12 +1,16 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../dados/api.dart';
+import '../dados/contas_municipio.dart';
 import '../dados/md.dart';
 import '../formatar.dart';
 import '../tema.dart';
 import '../widgets/adw.dart';
 import '../widgets/lai.dart';
+
+part 'municipio_dinheiro.dart';
 
 /// Busca de municípios (lista do `municipios/indice.md`).
 class MunicipiosTela extends StatefulWidget {
@@ -323,93 +327,6 @@ class _Fonte extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 0, 4, 24),
       child: Text('Fonte: $texto', style: tema.textTheme.bodySmall?.copyWith(color: tema.hintColor)),
-    );
-  }
-}
-
-class _Dinheiro extends StatefulWidget {
-  final Api api;
-  final String pasta, uf;
-  const _Dinheiro({required this.api, required this.pasta, required this.uf});
-
-  @override
-  State<_Dinheiro> createState() => _DinheiroState();
-}
-
-class _DinheiroState extends State<_Dinheiro> {
-  late final Future<List<Map<int, DocumentoMd>>> _dados =
-      Future.wait([_porAno(widget.api, widget.pasta, ''), _porAno(widget.api, widget.pasta, '-pagamentos')]);
-  int? _ano;
-
-  @override
-  Widget build(BuildContext context) => FutureBuilder<List<Map<int, DocumentoMd>>>(
-        future: _dados,
-        builder: (context, snap) {
-          if (!snap.hasData) return const Center(child: CircularProgressIndicator());
-          final financas = snap.data![0];
-          final pagamentos = snap.data![1];
-          if (financas.isEmpty) {
-            return const _Pagina([_SemDados(motivo: 'As contas deste município ainda não foram coletadas do Siconfi.')]);
-          }
-          final anos = financas.keys.toList();
-          final ano = _ano ?? anos.first;
-          final doc = financas[ano]!;
-          final pag = pagamentos[ano];
-          final fator = numeroMd(doc.meta['ipca_fator']);
-          final areas = doc.tabela('areas');
-          final funcoes = areas.where((a) => a['subfuncao'] == null).toList()
-            ..sort((a, b) => _n(b['pago']).compareTo(_n(a['pago'])));
-          return _Pagina([
-            if (anos.length > 1) _Anos(anos: anos, atual: ano, aoMudar: (a) => setState(() => _ano = a)),
-            if (doc.tabela('destaques').isNotEmpty)
-              Grupo(
-                titulo: 'Arrecadação',
-                descricao: fator == null ? null : 'Em reais de $ano. Corrigido pelo IPCA até ${mesAno(doc.meta['ipca_ate'])}, multiplique por ${fator.toStringAsFixed(2).replaceAll('.', ',')}.',
-                filhos: [for (final d in doc.tabela('destaques')) Linha(titulo: d['destaque'] ?? '—', valor: _reais(d['liquida']))],
-              ),
-            if (funcoes.isNotEmpty)
-              Grupo(
-                titulo: 'Gastos por área',
-                descricao: 'Valor pago no ano. Toque para ver as subáreas${pag == null ? '' : ' e quem recebeu'}.',
-                filhos: [
-                  for (final f in funcoes)
-                    ExpansionTile(
-                      title: Text(f['area'] ?? '—'),
-                      trailing: Text(_reais(f['pago'])),
-                      children: [
-                        for (final s in areas.where((s) => s['funcao'] == f['funcao'] && s['subfuncao'] != null))
-                          _Subarea(subarea: s, pagamentos: pag),
-                      ],
-                    ),
-                ],
-              ),
-            _SemDados(linhas: doc.tabela('sem-dados')),
-            if (pag == null) _SemDados(motivo: 'Quem recebeu cada pagamento: ${_semTce(widget.uf)}'),
-            _Fonte('Siconfi (Tesouro Nacional), declaração de contas anuais'
-                '${pag == null ? '' : '; pagamentos pelo ${_tribunais[widget.uf]}'}'),
-          ]);
-        },
-      );
-}
-
-class _Subarea extends StatelessWidget {
-  final Map<String, String?> subarea;
-  final DocumentoMd? pagamentos;
-  const _Subarea({required this.subarea, this.pagamentos});
-
-  @override
-  Widget build(BuildContext context) {
-    final nome = subarea['area'] ?? '—';
-    final quem = pagamentos == null
-        ? const <Map<String, String?>>[]
-        : pagamentos!.tabela('areas-favorecidos').where((r) => semAcento((r['subfuncao'] ?? '').toLowerCase()) == semAcento(nome.toLowerCase())).toList();
-    if (quem.isEmpty) return Linha(titulo: nome, valor: _reais(subarea['pago']));
-    return ExpansionTile(
-      title: Text(nome),
-      trailing: Text(_reais(subarea['pago'])),
-      children: [
-        for (final r in quem) Linha(titulo: r['favorecido'] ?? '—', subtitulo: r['cnpj'], valor: _reais(r['pago'])),
-      ],
     );
   }
 }
