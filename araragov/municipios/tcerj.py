@@ -18,6 +18,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
+from . import publicados
 from . import md
 from .contratos import COLUNAS_CONTRATOS, classificar, comparar, documento
 from .eleitos import COLUNAS_SEM_DADOS, chave_nome, municipios_ibge
@@ -107,6 +108,10 @@ def gerar(client, saida: Path, anos: Iterable[int], hoje: Optional[date] = None,
         lista = lista[:limite_municipios]
     total = 0
     for ano in sorted(anos):
+        reaproveitados = publicados.ano_ja_publicado(client, saida, "RJ", ano, hoje, "{ano}-contratos.md")
+        if reaproveitados:
+            total += reaproveitados
+            continue
         for cod, nome in lista:
             try:
                 dados = client.get_json(f"{API}/contratos_municipio",

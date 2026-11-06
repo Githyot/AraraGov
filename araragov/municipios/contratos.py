@@ -26,6 +26,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple
 
+from . import publicados
 from . import md
 from .tcesp import BASE, FONTE, _resumir, baixar, formatar_cnpj, so_digitos, valor
 
@@ -303,6 +304,10 @@ def gerar(client, saida: Path, anos: Iterable[int], hoje: Optional[date] = None,
     ibge = {nome: cod for (uf, nome), (cod, _) in municipios_ibge().items() if uf == "SP"}
     total = 0
     for ano in sorted(anos):
+        reaproveitados = publicados.ano_ja_publicado(client, saida, "SP", ano, hoje, "{ano}-contratos.md")
+        if reaproveitados:
+            total += reaproveitados
+            continue
         arquivos = []
         for i, url in enumerate(links_ajustes(client, ano)):
             arq = pasta_tmp / f"ajustes-{ano}-{i}.zip"

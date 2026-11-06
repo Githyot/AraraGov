@@ -343,6 +343,26 @@ ele é reconhecido pelo dígito verificador do CNPJ e nunca é gravado.
 - Goiás: quem fiscaliza os municípios é o TCM-GO, que não respondeu; o TCE-GO
   só tem dados do estado.
 
+## Coleta semanal sem baixar tudo de novo
+
+Os tribunais de contas só publicam o arquivo bruto do ano inteiro (o do TCE-SP tem cerca de 2 GB).
+A coleta lê esse arquivo no servidor do GitHub, gera os `.md` e descarta o bruto. Para não repetir
+esse trabalho toda semana (`araragov/municipios/publicados.py`):
+
+- **Ano fechado** (a partir de abril do ano seguinte): os `.md` publicados na coleta anterior são
+  copiados de volta, sem baixar nada do tribunal. Vale para TCE-SP (pagamentos e contratos), TCE-CE,
+  TCE-PB e TCE-RJ. O Siconfi já fazia isso.
+- **Ano em curso:** antes de baixar, um pedido HEAD compara ETag, data e tamanho do arquivo com os da
+  coleta publicada (`v1/municipios/fontes-brutas/`, um arquivo por fonte). Se o tribunal não mudou o arquivo, os `.md`
+  publicados são reaproveitados. Vale para TCE-SP e TCE-PB, que têm um arquivo por ano.
+- **Em paralelo:** cada fonte roda numa máquina própria do GitHub (`.github/workflows/coleta.yml`,
+  scripts em `scripts/coleta/`). Primeiro a parte federal, os eleitos com os custos de referência e o
+  Siconfi; depois, lendo os eleitos e os custos, cada tribunal, o PNCP e as emendas; por fim os
+  fornecedores, que leem tudo. O tempo total é o da fonte mais lenta. Cada máquina faz no máximo
+  alguns pedidos de cada vez ao mesmo órgão, para não ser bloqueada.
+- Só vale com `ARARAGOV_REAPROVEITAR=1`, que a coleta da `main` liga. Nos PRs fica desligado, para os
+  coletores rodarem de verdade.
+
 ## Limitações conhecidas
 
 - Muitos municípios atrasam ou não entregam dados ao Siconfi; o app mostra

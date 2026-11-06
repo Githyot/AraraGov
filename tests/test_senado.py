@@ -64,3 +64,14 @@ def test_senadores_de_legislaturas_anteriores(client):
         situacao = {p.codigo: p.em_exercicio for p in s.execute(select(db.Politico)).scalars()}
     assert situacao[4000] is False  # saiu do Senado
     assert situacao[475] is True  # continua no mandato
+
+
+def test_votacoes_por_mes_sem_filtro_de_senador(client):
+    client.json(f"{senado.API}/senador/lista/atual", "senado_lista_atual.json")
+    senado.coletar_senadores(client)
+    client.json(f"{senado.API}/votacao", "senado_votacao.json")
+
+    assert senado.coletar_votacoes(client, 2025) == 1
+    pedidos = [p for u, p in client.chamadas if u == f"{senado.API}/votacao"]
+    assert len(pedidos) == 12 and all("codigoParlamentar" not in p for p in pedidos)
+    assert pedidos[1]["dataFim"] == "2025-02-28"

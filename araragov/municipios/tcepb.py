@@ -24,6 +24,7 @@ from datetime import date
 from pathlib import Path
 from typing import Dict, Iterable, Iterator, Optional
 
+from . import publicados
 from . import tcesp
 from .eleitos import chave_nome, municipios_ibge
 from .tcesp import PAGO, so_digitos
@@ -97,8 +98,17 @@ def gerar(client, saida: Path, anos: Iterable[int], limite_linhas: Optional[int]
     nomes = {cod: nome for (uf, _), (cod, nome) in municipios_ibge().items() if uf == "PB"}
     total = 0
     for ano in sorted(anos):
+        reaproveitados = publicados.ano_ja_publicado(client, saida, "PB", ano, hoje, "{ano}-pagamentos.md")
+        if reaproveitados:
+            total += reaproveitados
+            continue
+        url = DESPESAS_URL.format(ano=ano)
+        reaproveitados, assinatura = publicados.sem_mudanca(client, saida, "PB", url, f"{ano}-pagamentos.md")
+        if reaproveitados:
+            total += reaproveitados
+            continue
         arquivo = pasta_tmp / f"tcepb-despesas-{ano}.zip"
-        tcesp.baixar(client, DESPESAS_URL.format(ano=ano), arquivo)
+        tcesp.baixar(client, url, arquivo)
         municipios = tcesp.agregar(traduzir(linhas(arquivo), ibge), limite_linhas)
         for cod, m in municipios.items():
             m.nome = nomes.get(cod, m.nome)
@@ -107,6 +117,7 @@ def gerar(client, saida: Path, anos: Iterable[int], limite_linhas: Optional[int]
             caminho.write_text(tcesp.documento(cod, ano, m, hoje, tcesp._governo(saida, cod, ano, "PB"),
                                                uf="PB", fonte=FONTE, tribunal="TCE-PB (Sagres)"), encoding="utf-8")
         arquivo.unlink(missing_ok=True)
+        publicados.registrar(saida, url, assinatura)
         logger.info("TCE-PB %s: %s municípios", ano, len(municipios))
         total += len(municipios)
     return total
