@@ -14,13 +14,14 @@ PRs fica desligado, para que os coletores rodem de verdade.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 from pathlib import Path
-from typing import Any, Dict, Iterable, Optional, Tuple
+from typing import Dict, Iterable, Optional, Tuple
 
 from . import md
 
@@ -72,8 +73,12 @@ def ano_ja_publicado(client, saida: Path, uf: str, ano: int, hoje: date, nome: s
 
 # --- arquivo bruto sem mudança desde a última coleta -------------------------------------
 
-ASSINATURAS = "v1/municipios/fontes-brutas.json"
-_publicadas: Optional[Dict[str, Any]] = None
+# Um arquivo por fonte, para que coletas em paralelo (um job por tribunal) não se sobrescrevam.
+ASSINATURAS = "v1/municipios/fontes-brutas"
+
+
+def _arquivo(url: str) -> str:
+    return f"{ASSINATURAS}/{hashlib.sha1(url.encode()).hexdigest()[:16]}.json"
 
 
 def assinatura(client, url: str) -> Optional[Dict[str, str]]:
@@ -91,25 +96,21 @@ def assinatura(client, url: str) -> Optional[Dict[str, str]]:
     return campos
 
 
-def _assinaturas_publicadas(client) -> Dict[str, Any]:
-    global _publicadas
-    if _publicadas is None:
-        try:
-            _publicadas = json.loads(client.get_bytes(f"{PUBLICADO}/{ASSINATURAS}"))
-        except Exception:  # noqa: BLE001 - primeira publicação
-            _publicadas = {}
-    return _publicadas
+def _assinatura_publicada(client, url: str) -> Optional[Dict[str, str]]:
+    try:
+        dados = json.loads(client.get_bytes(f"{PUBLICADO}/{_arquivo(url)}"))
+    except Exception:  # noqa: BLE001 - primeira publicação
+        return None
+    return dados.get("assinatura") if dados.get("url") == url else None
 
 
 def registrar(saida: Path, url: str, campos: Optional[Dict[str, str]]) -> None:
     """Guarda a assinatura do arquivo que gerou os .md desta coleta."""
     if not campos:
         return
-    caminho = saida / ASSINATURAS
-    dados = json.loads(caminho.read_text(encoding="utf-8")) if caminho.exists() else {}
-    dados[url] = campos
+    caminho = saida / _arquivo(url)
     caminho.parent.mkdir(parents=True, exist_ok=True)
-    caminho.write_text(json.dumps(dados, ensure_ascii=False, indent=1, sort_keys=True), encoding="utf-8")
+    caminho.write_text(json.dumps({"url": url, "assinatura": campos}, ensure_ascii=False, indent=1), encoding="utf-8")
 
 
 def sem_mudanca(client, saida: Path, uf: str, url: str, nome: str) -> Tuple[int, Optional[Dict[str, str]]]:
@@ -121,7 +122,7 @@ def sem_mudanca(client, saida: Path, uf: str, url: str, nome: str) -> Tuple[int,
     if os.environ.get("ARARAGOV_REAPROVEITAR") != "1":
         return 0, None
     atual = assinatura(client, url)
-    if not atual or _assinaturas_publicadas(client).get(url) != atual:
+    if not atual or _assinatura_publicada(client, url) != atual:
         return 0, atual
     from .eleitos import municipios_ibge
 

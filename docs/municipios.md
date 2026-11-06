@@ -353,8 +353,13 @@ esse trabalho toda semana (`araragov/municipios/publicados.py`):
   copiados de volta, sem baixar nada do tribunal. Vale para TCE-SP (pagamentos e contratos), TCE-CE,
   TCE-PB e TCE-RJ. O Siconfi já fazia isso.
 - **Ano em curso:** antes de baixar, um pedido HEAD compara ETag, data e tamanho do arquivo com os da
-  coleta publicada (`v1/municipios/fontes-brutas.json`). Se o tribunal não mudou o arquivo, os `.md`
+  coleta publicada (`v1/municipios/fontes-brutas/`, um arquivo por fonte). Se o tribunal não mudou o arquivo, os `.md`
   publicados são reaproveitados. Vale para TCE-SP e TCE-PB, que têm um arquivo por ano.
+- **Em paralelo:** cada fonte roda numa máquina própria do GitHub (`.github/workflows/coleta.yml`,
+  scripts em `scripts/coleta/`). Primeiro a parte federal, os eleitos com os custos de referência e o
+  Siconfi; depois, lendo os eleitos e os custos, cada tribunal, o PNCP e as emendas; por fim os
+  fornecedores, que leem tudo. O tempo total é o da fonte mais lenta. Cada máquina faz no máximo
+  alguns pedidos de cada vez ao mesmo órgão, para não ser bloqueada.
 - Só vale com `ARARAGOV_REAPROVEITAR=1`, que a coleta da `main` liga. Nos PRs fica desligado, para os
   coletores rodarem de verdade.
 

@@ -66,21 +66,20 @@ class Sessao:
 
 def test_sem_mudanca_reaproveita(tmp_path, monkeypatch):
     monkeypatch.setenv("ARARAGOV_REAPROVEITAR", "1")
-    monkeypatch.setattr(publicados, "_publicadas", None)
     bruto = "https://exemplo/despesas-2026.zip"
     sig = {"ETag": '"abc"', "Content-Length": "10"}
     md_url = f"{publicados.PUBLICADO}/v1/municipios/pb/2507507/2026-pagamentos.md"
-    c = Falso({f"{publicados.PUBLICADO}/{publicados.ASSINATURAS}": json.dumps({bruto: sig}), md_url: TEXTO})
+    c = Falso({f"{publicados.PUBLICADO}/{publicados._arquivo(bruto)}": json.dumps({"url": bruto, "assinatura": sig}),
+               md_url: TEXTO})
     c.session = Sessao(sig)
     n, atual = publicados.sem_mudanca(c, tmp_path, "PB", bruto, "2026-pagamentos.md")
     assert n == 1 and atual == sig
-    assert bruto in (tmp_path / publicados.ASSINATURAS).read_text()
+    assert bruto in (tmp_path / publicados._arquivo(bruto)).read_text()
 
 
 def test_mudou_baixa_de_novo(tmp_path, monkeypatch):
     monkeypatch.setenv("ARARAGOV_REAPROVEITAR", "1")
-    monkeypatch.setattr(publicados, "_publicadas", {"u": {"ETag": '"velho"'}})
-    c = Falso({})
+    c = Falso({f"{publicados.PUBLICADO}/{publicados._arquivo('u')}": json.dumps({"url": "u", "assinatura": {"ETag": '"velho"'}})})
     c.session = Sessao({"ETag": '"novo"'})
     assert publicados.sem_mudanca(c, tmp_path, "PB", "u", "2026-pagamentos.md") == (0, {"ETag": '"novo"'})
-    assert c.pedidos == []
+    assert len(c.pedidos) == 1  # só a assinatura publicada; nenhum .md copiado
