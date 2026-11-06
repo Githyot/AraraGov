@@ -9,7 +9,9 @@ for u in \
   "https://dados.tce.rs.gov.br/" \
   "https://api.obrasgov.gestao.gov.br/obrasgov/api/projeto-investimento?pagina=1&tamanhoDaPagina=1" \
   "https://arquivos.receitafederal.gov.br/" \
-  "https://portaldatransparencia.gov.br/download-de-dados/ceis" ; do
+  "https://portaldatransparencia.gov.br/download-de-dados/ceis" \
+  "https://contas.tcu.gov.br/ords/condenacao/consulta/inabilitados" \
+  "https://cdn.tse.jus.br/estatistica/sead/odsele/motivo_cassacao/motivo_cassacao_2022.zip" ; do
   code=$(curl -s -o /tmp/r -w '%{http_code} %{size_download}B %{time_total}s' -m 40 -A "AraraGov (dados publicos; github.com/Githyot/AraraGov)" "$u" || echo "falhou")
   echo "$code  $u"; head -c 300 /tmp/r 2>/dev/null; echo
 done

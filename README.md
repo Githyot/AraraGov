@@ -34,6 +34,7 @@ nenhum lado. Toda informação tem link para a fonte oficial.
 | Cota parlamentar do Senado (CEAPS) | API administrativa do Senado |
 | Salário (subsídio) | Decretos legislativos, em [`araragov/referencia/subsidios.csv`](araragov/referencia/subsidios.csv) |
 | Inflação (IPCA) | Banco Central, série SGS 433 |
+| Processos e ocorrências | TSE (candidaturas), CGU (CEIS/CNEP), TCU (inabilitados) e lista curada de decisões em sites oficiais. Veja [docs/processos.md](docs/processos.md) |
 
 ## Como rodar
 

@@ -261,6 +261,71 @@ class DoacaoSalario {
   }
 }
 
+/// Registro oficial ligado ao político (TSE, CGU, TCU ou decisão de tribunal).
+class Ocorrencia {
+  final String fonte, tipo, titulo, situacao;
+  final String? descricao, data, orgao, processo, link, conferencia;
+
+  Ocorrencia.fromJson(Map<String, dynamic> j)
+      : fonte = j['fonte'] ?? '',
+        tipo = j['tipo'] ?? '',
+        titulo = j['titulo'] ?? '',
+        situacao = j['situacao'] ?? 'informativo',
+        descricao = j['descricao'],
+        data = j['data'],
+        orgao = j['orgao'],
+        processo = j['processo'],
+        link = j['link'],
+        conferencia = j['conferencia'];
+
+  /// Situação em palavras simples, sem julgamento.
+  String get situacaoRotulo => switch (situacao) {
+        'em_andamento' => 'Em andamento',
+        'recurso' => 'Com recurso',
+        'condenado' => 'Condenação, cabe recurso',
+        'condenado_definitivo' => 'Decisão definitiva',
+        'absolvido' => 'Absolvido',
+        'arquivado' => 'Arquivado',
+        'extinto' => 'Extinto',
+        'sancao_vigente' => 'Sanção em vigor',
+        'sancao_encerrada' => 'Sanção encerrada',
+        'decidido' => 'Decidido',
+        _ => 'Informativo',
+      };
+}
+
+class FonteConsultada {
+  final String fonte, nome;
+  final String? link, consultadoEm;
+
+  /// Falso quando a fonte foi consultada, mas não deu para conferir esta
+  /// pessoa nela (ex.: sem CPF no TSE para separar de homônimos).
+  final bool conferido;
+
+  FonteConsultada.fromJson(Map<String, dynamic> j)
+      : fonte = j['fonte'] ?? '',
+        nome = j['nome'] ?? '',
+        link = j['link'],
+        consultadoEm = j['consultado_em'],
+        conferido = j['conferido'] ?? false;
+}
+
+class Ocorrencias {
+  final List<Ocorrencia> itens;
+  final List<({String titulo, String? descricao, String? link})> certidoes;
+  final List<FonteConsultada> fontes;
+  final String? aviso;
+
+  Ocorrencias.fromJson(Map<String, dynamic> j)
+      : itens = [for (final i in (j['itens'] as List? ?? [])) Ocorrencia.fromJson(i)],
+        certidoes = [
+          for (final c in (j['certidoes'] as List? ?? []))
+            (titulo: c['titulo'] as String? ?? '', descricao: c['descricao'] as String?, link: c['link'] as String?)
+        ],
+        fontes = [for (final f in (j['fontes'] as List? ?? [])) FonteConsultada.fromJson(f)],
+        aviso = j['aviso'];
+}
+
 List<VotoEmVotacao> _lerVotos(Map<String, dynamic> j) {
   final inline = {for (final v in (j['votacoes'] as List? ?? [])) v['id'] as String: Map<String, dynamic>.from(v)};
   final votos = j['votos'] as List?;
@@ -293,6 +358,7 @@ class Perfil {
   final List<Beneficio> beneficios;
   final Emendas? emendas;
   final DoacaoSalario? doacaoSalario;
+  final Ocorrencias? ocorrencias;
   final Declaracao? ideologiaPartido, ideologiaPessoal;
   final Posicao? posicao;
   final Alinhamento? alinhamento;
@@ -319,6 +385,7 @@ class Perfil {
         beneficios = [for (final b in (j['beneficios'] as List? ?? [])) Beneficio.fromJson(b)],
         emendas = j['emendas'] == null ? null : Emendas.fromJson(j['emendas']),
         doacaoSalario = j['doacao_salario'] == null ? null : DoacaoSalario.fromJson(j['doacao_salario']),
+        ocorrencias = j['ocorrencias'] == null ? null : Ocorrencias.fromJson(j['ocorrencias']),
         ideologiaPartido = j['ideologia_declarada']?['partido'] == null ? null : Declaracao.fromJson(j['ideologia_declarada']['partido']),
         ideologiaPessoal = j['ideologia_declarada']?['pessoal'] == null ? null : Declaracao.fromJson(j['ideologia_declarada']['pessoal']),
         posicao = j['posicao'] == null ? null : Posicao.fromJson(j['posicao']),
