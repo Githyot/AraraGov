@@ -79,6 +79,23 @@ def codigos(client) -> Dict[str, Tuple[int, str]]:
     return saida
 
 
+CODIGOS_PUBLICADOS = "v1/municipios/fontes-brutas/tcepe-codigos.json"
+
+
+def _codigos_com_copia(client, saida: Path) -> Dict[str, Tuple[int, str]]:
+    """Códigos do tribunal; se a lista não responder, usa a cópia da coleta publicada."""
+    try:
+        cods = codigos(client)
+    except Exception as exc:  # noqa: BLE001 - servidor do TCE-PE instável
+        logger.warning("TCE-PE: lista de unidades não respondeu (%s); usando a cópia publicada", exc)
+        dados = json.loads(client.get_bytes(f"{publicados.PUBLICADO}/{CODIGOS_PUBLICADOS}"))
+        cods = {c: (int(v[0]), v[1]) for c, v in dados.items()}
+    caminho = saida / CODIGOS_PUBLICADOS
+    caminho.parent.mkdir(parents=True, exist_ok=True)
+    caminho.write_text(json.dumps(cods, ensure_ascii=False, indent=0), encoding="utf-8")
+    return cods
+
+
 def _pedido(client, params: Dict[str, Any]) -> List[Dict[str, Any]]:
     r = _ler(client, DESPESAS, params)
     if (r.get("status") or "").upper() != "OK":
@@ -160,7 +177,7 @@ def gerar(client, saida: Path, anos: Iterable[int], limite_municipios: Optional[
           hoje: Optional[date] = None, trabalhadores: int = 3) -> int:
     """Um pedido por município e ano, três ao mesmo tempo (o de Recife tem ~70 MB)."""
     hoje = hoje or date.today()
-    lista = sorted(codigos(client).items())[:limite_municipios]
+    lista = sorted(_codigos_com_copia(client, saida).items())[:limite_municipios]
     logger.info("TCE-PE: %s municípios", len(lista))
     total = 0
     for ano in sorted(anos):

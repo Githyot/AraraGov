@@ -73,3 +73,18 @@ def test_municipio_grande_e_pedido_mes_a_mes(tmp_path):
     assert tcepe.gerar(c, tmp_path, [2025], limite_municipios=1, hoje=date(2026, 11, 6)) == 1
     meses = [p.get("MESREFERENCIA") for p in c.pedidos if p.get("CODIGO_MUNICIPIO") == "P001"]
     assert meses == [None] + list(range(1, 13))
+
+
+def test_lista_fora_do_ar_usa_copia_publicada(tmp_path):
+    from araragov.municipios import publicados
+
+    class SemLista(Client):
+        def get_bytes(self, url, params=None):
+            if url == tcepe.UNIDADES:
+                raise RuntimeError("503")
+            if url == f"{publicados.PUBLICADO}/{tcepe.CODIGOS_PUBLICADOS}":
+                return json.dumps({"P001": [2600054, "Abreu e Lima"]}).encode()
+            return super().get_bytes(url, params)
+
+    assert tcepe.gerar(SemLista(), tmp_path, [2025], hoje=date(2026, 11, 6)) == 1
+    assert json.loads((tmp_path / tcepe.CODIGOS_PUBLICADOS).read_text())["P001"][0] == 2600054
