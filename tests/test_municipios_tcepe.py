@@ -8,6 +8,7 @@ UNIDADES = [
     {"UNIDADEFEDERATIVA": "PE", "MUNICIPIO": "Abreu e Lima", "CODIGOMUNICIPIO": "P001"},
     {"UNIDADEFEDERATIVA": "PE", "MUNICIPIO": "Recife", "CODIGOMUNICIPIO": "P120"},
     {"UNIDADEFEDERATIVA": "PE", "MUNICIPIO": "Governo do Estado", "CODIGOMUNICIPIO": ""},
+    {"UNIDADEFEDERATIVA": "PE", "MUNICIPIO": "Belém de São Francisco", "CODIGOMUNICIPIO": "P017"},
 ]
 
 
@@ -49,7 +50,8 @@ class Client:
 
 
 def test_codigos():
-    assert tcepe.codigos(Client()) == {"P001": (2600054, "Abreu e Lima"), "P120": (2611606, "Recife")}
+    assert tcepe.codigos(Client()) == {"P001": (2600054, "Abreu e Lima"), "P017": (2601607, "Belém do São Francisco"),
+                                     "P120": (2611606, "Recife")}
 
 
 def test_gerar(tmp_path):

@@ -47,6 +47,10 @@ _GRUPO = {"PESSOAL E ENCARGOS SOCIAIS": "1", "JUROS E ENCARGOS DA DIVIDA": "2", 
           "INVESTIMENTOS": "4", "INVERSOES FINANCEIRAS": "5", "AMORTIZACAO DA DIVIDA": "6"}
 
 
+# Nomes que o TCE-PE escreve diferente do IBGE.
+_NOMES_TCE = {"BELEM DE SAO FRANCISCO": "BELEM DO SAO FRANCISCO"}
+
+
 class LimiteAtingido(Exception):
     pass
 
@@ -60,11 +64,14 @@ def codigos(client) -> Dict[str, Tuple[int, str]]:
     """Código do município no TCE-PE ("P120") -> (código IBGE, nome oficial)."""
     ibge = {k: v for (uf, k), v in municipios_ibge().items() if uf == "PE"}
     saida: Dict[str, Tuple[int, str]] = {}
+    vistos = set()
     for u in _ler(client, UNIDADES, {}).get("conteudo") or []:
         cod = (u.get("CODIGOMUNICIPIO") or "").strip()
-        if (u.get("UNIDADEFEDERATIVA") or "").strip() != "PE" or not cod or cod in saida:
+        if (u.get("UNIDADEFEDERATIVA") or "").strip() != "PE" or not cod or cod in vistos:
             continue
-        achado = ibge.get(chave_nome(u.get("MUNICIPIO") or ""))
+        vistos.add(cod)
+        nome = chave_nome(u.get("MUNICIPIO") or "")
+        achado = ibge.get(_NOMES_TCE.get(nome, nome))
         if achado:
             saida[cod] = achado
         else:
