@@ -109,6 +109,9 @@ def _em_paralelo(client, caminho: str, consultas: List[Dict[str, Any]], prazo: O
                 linhas.append(r)
         except PrazoEsgotado:
             return linhas, False
+        except Exception as exc:  # noqa: BLE001 - uma semana fora do ar não derruba as outras
+            logger.warning("PNCP %s %s: %s", caminho, params, exc)
+            return linhas, False
         return linhas, True
 
     with ThreadPoolExecutor(max_workers=TRABALHADORES) as ex:
@@ -131,7 +134,10 @@ def _compra(numero: Optional[str]) -> Optional[Tuple[str, int, int]]:
 
 def contratos(client, inicio: date, fim: date) -> List[Dict[str, Any]]:
     consultas = [{"dataInicial": a.strftime("%Y%m%d"), "dataFinal": b.strftime("%Y%m%d")} for a, b in _janelas(inicio, fim)]
-    return _em_paralelo(client, "contratos", consultas)[0]
+    linhas, completo = _em_paralelo(client, "contratos", consultas)
+    if not completo:
+        logger.warning("PNCP: alguma semana de contratos não respondeu; os arquivos podem estar incompletos")
+    return linhas
 
 
 # As dispensas e inexigibilidades de todo o país são centenas de milhares por ano, e essa
@@ -158,7 +164,8 @@ def compras_diretas(client, inicio: date, fim: date, minutos: Optional[float] = 
                 amparo = (r.get("amparoLegal") or {}).get("nome")
                 saida[r["numeroControlePNCP"]] = f"{nome}" + (f" ({amparo})" if amparo else "")
     if not completo:
-        logger.warning("PNCP: prazo de %s min acabou; lista de contratações diretas incompleta (%s)", minutos, len(saida))
+        logger.warning("PNCP: prazo de %s min acabou ou o PNCP falhou; contratações diretas incompletas (%s)",
+                       minutos, len(saida))
     return saida, completo
 
 

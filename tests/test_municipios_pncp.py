@@ -107,3 +107,19 @@ def test_diretas_com_prazo_esgotado_saem_incompletas():
                                          uf="SC", fonte=p.FONTE, colunas_contratos=p.COLUNAS_CONTRATOS_PNCP),
                              d(2026, 11, 6), False)
     assert "pode estar incompleta" in texto
+
+
+def test_semana_com_erro_nao_derruba_as_outras():
+    from datetime import date as d
+
+    from araragov.municipios import pncp as p
+
+    class Metade:
+        def get_json(self, url, params=None):
+            if params["dataInicial"] == "20250101":
+                raise RuntimeError("503")
+            return {"data": [{"numeroControlePNCP": "x" + params["dataInicial"], "orgaoEntidade": {"esferaId": "M"}}],
+                    "paginasRestantes": 0}
+
+    diretas, completas = p.compras_diretas(Metade(), d(2025, 1, 1), d(2025, 1, 14), minutos=5)
+    assert completas is False and set(diretas) == {"x20250108"}
