@@ -16,36 +16,28 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: TCE-PE, lista de entidades e códigos dos municípios
+      - name: TCE-PE, empenho repetido entre meses?
         run: |
           set +e
           A="AraraGov (dados publicos; github.com/Githyot/AraraGov)"
-          B="https://sistemas.tce.pe.gov.br/DadosAbertos"
-          curl -sS -m 60 -A "$A" "$B/" -o /tmp/i.html -w "[indice %{http_code} %{size_download}B]\n"
-          iconv -f latin1 -t utf-8 /tmp/i.html | grep -o '[A-Za-z]*![a-z]*' | sort -u | head -150
-          for e in UnidadesJurisdicionadas MunicipiosPE MunicipiosPernambuco UnidadeJurisdicionada Entidades; do
-            curl -sS -m 120 -A "$A" "$B/$e!json" -o /tmp/e.json -w "[$e %{http_code} %{size_download}B]\n"
-            head -c 700 /tmp/e.json | iconv -f latin1 -t utf-8; echo
-          done
-      - name: AgiliCloud com o corpo completo
-        run: |
-          set +e
-          cat > /tmp/s.py <<'PY'
-          import json, sys, time
-          sys.path.insert(0, ".")
-          from araragov.http import HttpClient
-          from araragov.municipios import agili
-          c = HttpClient(tentativas=2)
-          ps = agili.prefeituras(c)
-          print(len(ps), "prefeituras com IBGE:", ps)
-          for uf, cod, curto in ps[:3]:
-              for tam in (1000, 500):
-                  t = time.time()
-                  try:
-                      d = c.pedir_json("POST", agili.GRID.format(pagina=0, tamanho=tam), agili._corpo(2025),
-                                       {"uc": curto, "Content-Type": "application/json; charset=utf-8"})
-                      print(curto, tam, "total", d.get("totalResult"), "linhas", len(d.get("data") or []), f"{time.time()-t:.1f}s")
-                  except Exception as e:
-                      print(curto, tam, "erro", str(e)[:300])
+          U="https://sistemas.tce.pe.gov.br/DadosAbertos/DespesasMunicipais!json"
+          for q in "ANOREFERENCIA=2024&CODIGO_MUNICIPIO=P001" "ANOREFERENCIA=2019&CODIGO_MUNICIPIO=P001" "ANOREFERENCIA=2026&CODIGO_MUNICIPIO=P001"; do
+            curl -sS -m 300 -A "$A" "$U?$q" -o /tmp/pe.json -w "[$q %{http_code} %{size_download}B %{time_total}s]\n"
+            python - <<'PY'
+          import json, collections
+          d = json.loads(open('/tmp/pe.json', 'rb').read().decode('latin-1'))['resposta']
+          c = d.get('conteudo') or []
+          print(d.get('status'), len(c))
+          por = collections.defaultdict(list)
+          for x in c:
+              por[(x['ID_EMPENHO'].strip(), x['ID_UNIDADE_GESTORA'])].append(x)
+          rep = [v for v in por.values() if len(v) > 1]
+          print('empenhos', len(por), 'repetidos', len(rep))
+          for v in rep[:3]:
+              print([(x['MESREFERENCIA'], x['VALOREMPENHADO'], x['VALORLIQUIDADO'], x['VALORPAGO'], x['DATAEMPENHO'][:10]) for x in v])
+          print(collections.Counter(x['ELEMENTODESPESA'] for x in c).most_common(40))
+          print(collections.Counter((x['CATEGORIA'], x['NATUREZA']) for x in c).most_common(12))
+          print(collections.Counter(x['TIPOCREDOR'] for x in c), collections.Counter((x['TIPOCREDOR'], len(x['CPF_CNPJ'].strip())) for x in c))
+          print([x['CPF_CNPJ'] for x in c if len(x['CPF_CNPJ'].strip()) != 14][:3])
           PY
-          pip install -q -e . >/dev/null 2>&1; python /tmp/s.py
+          done

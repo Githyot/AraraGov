@@ -40,7 +40,7 @@ GRID = (API + "/contabilidade/despesas/empenhosporexercicio/obterdadosempenhospo
         "?model=Agili.Blue.Portal.Shared.Contabilidade.Dto.Despesas.EmpenhosPorExercicio.EmpenhosPorExercicioGridDto"
         "&page={pagina}&size={tamanho}&withCount=true")
 DETALHE = API + "/contabilidade/contabilidade/obterDadosAbaDadosDetalhadosDespesa?idEmpenho={id}"
-TAMANHO_PAGINA = 500
+TAMANHO_PAGINA = 1000
 # Histórico das obras: um pedido por empenho, então só para as maiores.
 MAX_DETALHES = 100
 TRIBUNAL = "portal da transparência da prefeitura (Agili/IPM)"
