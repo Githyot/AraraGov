@@ -30,6 +30,10 @@ env:
   # Anos fechados já publicados não são baixados de novo (araragov/municipios/publicados.py).
   ARARAGOV_REAPROVEITAR: ${{ github.event_name == 'pull_request' && '0' || '1' }}
   EVENTO: ${{ github.event_name }}
+  # Saída com IP brasileiro para portais que recusam IP estrangeiro (araragov/http.py).
+  # Sem os secrets cadastrados ficam vazias e nada muda.
+  ARARAGOV_PROXY_BR: ${{ secrets.ARARAGOV_PROXY_BR }}
+  ARARAGOV_PROXY_HOSTS: ${{ secrets.ARARAGOV_PROXY_HOSTS }}
 
 concurrency:
   group: coleta-${{ github.event_name == 'pull_request' && github.ref || 'completa' }}
