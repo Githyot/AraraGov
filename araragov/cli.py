@@ -133,6 +133,13 @@ def main(argv: list[str] | None = None) -> int:
     tpe.add_argument("--saida", default="site")
     tpe.add_argument("--anos", type=_anos, default=[date.today().year - 1])
     tpe.add_argument("--limite-municipios", type=int, help="só os N primeiros municípios (teste)")
+    fdc = sub.add_parser("fiorilli-descobrir", help="procura portais Fiorilli das prefeituras (lista .csv)")
+    fdc.add_argument("--saida", default="araragov/referencia/fiorilli.csv")
+    fdc.add_argument("--ufs", default="", help="ex.: GO,MG (padrão: todos)")
+    fio = sub.add_parser("fiorilli", help="pagamentos das prefeituras com portal Fiorilli (.md)")
+    fio.add_argument("--saida", default="site")
+    fio.add_argument("--anos", type=_anos, default=[date.today().year - 1])
+    fio.add_argument("--limite-municipios", type=int, help="só as N primeiras prefeituras (teste)")
     agl = sub.add_parser("agili", help="pagamentos das prefeituras com portal Agili/IPM, quase todas do MT (.md)")
     agl.add_argument("--saida", default="site")
     agl.add_argument("--anos", type=_anos, default=[date.today().year - 1])
@@ -157,6 +164,9 @@ def main(argv: list[str] | None = None) -> int:
     pnc.add_argument("--anos", type=_anos, default=[date.today().year - 1, date.today().year])
     pnc.add_argument("--dias", type=int, help="só os primeiros N dias de cada ano (teste)")
     pnc.add_argument("--limite-itens", type=int, default=3000, help="máximo de compras com itens consultados")
+    pnc.add_argument("--parte", help="i/n: baixa só a parte i de n das semanas e grava em --partes (sem .md)")
+    pnc.add_argument("--juntar", action="store_true", help="junta as partes de --partes e escreve os .md")
+    pnc.add_argument("--partes", default="pncp-partes", help="pasta das partes (padrão: pncp-partes)")
     eme = sub.add_parser("emendas-municipios", help="emendas federais recebidas em cada município (.md)")
     eme.add_argument("--saida", default="site")
     eme.add_argument("--anos", type=_anos, default=_anos(f"2019-{date.today().year}"), help="anos do pagamento")
@@ -227,6 +237,22 @@ def main(argv: list[str] | None = None) -> int:
 
         return 0 if tcepe.gerar(HttpClient(), Path(args.saida), args.anos, args.limite_municipios) else 1
 
+    if args.comando == "fiorilli-descobrir":
+        from pathlib import Path
+
+        from .municipios import fiorilli
+
+        achados = fiorilli.descobrir([u for u in args.ufs.split(",") if u] or None)
+        Path(args.saida).write_text(fiorilli.escrever_lista(achados), encoding="utf-8")
+        return 0
+
+    if args.comando == "fiorilli":
+        from pathlib import Path
+
+        from .municipios import fiorilli
+
+        return 0 if fiorilli.gerar(HttpClient(), Path(args.saida), args.anos, args.limite_municipios) else 1
+
     if args.comando == "agili":
         from pathlib import Path
 
@@ -292,6 +318,13 @@ def main(argv: list[str] | None = None) -> int:
 
         from .municipios import pncp
 
+        if args.parte:
+            i, n = (int(x) for x in args.parte.split("/"))
+            pncp.baixar_parte(HttpClient(), Path(args.partes), args.anos, i, n, dias=args.dias)
+            return 0
+        if args.juntar:
+            return 0 if pncp.juntar(HttpClient(), Path(args.partes), Path(args.saida), args.anos,
+                                    limite_itens=args.limite_itens) else 1
         return 0 if pncp.gerar(HttpClient(), Path(args.saida), args.anos, dias=args.dias,
                                limite_itens=args.limite_itens) else 1
 

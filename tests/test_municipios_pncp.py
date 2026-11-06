@@ -123,3 +123,46 @@ def test_semana_com_erro_nao_derruba_as_outras():
 
     diretas, completas = p.compras_diretas(Metade(), d(2025, 1, 1), d(2025, 1, 14), minutos=5)
     assert completas is False and set(diretas) == {"x20250108"}
+
+
+def test_semanas_divididas_entre_partes():
+    todas = list(pncp._janelas(date(2025, 1, 1), date(2025, 12, 31)))
+    partes = [pncp._semanas(date(2025, 1, 1), date(2025, 12, 31), i, 4) for i in range(4)]
+    assert sorted(j for p in partes for j in p) == sorted(todas)
+    assert partes[1][0] == todas[1]
+
+
+class _PorConsulta:
+    """Contratos por semana: só a semana de 2025-01-08 tem um contrato municipal e um estadual."""
+
+    def get_json(self, url, params=None):
+        if "/itens" in url or "contratacoes" in url:
+            return [] if "/itens" in url else {"data": [], "paginasRestantes": 0}
+        if params["dataInicial"] == "20250108":
+            return {"data": [_contrato(1), _contrato(2, esfera="E")], "paginasRestantes": 0}
+        return {"data": [], "paginasRestantes": 0}
+
+
+def test_partes_e_juntar(tmp_path):
+    pasta = tmp_path / "partes"
+    hoje = date(2025, 1, 20)
+    assert pncp.baixar_parte(_PorConsulta(), pasta, [2025], 0, 2, hoje=hoje) == 0
+    assert pncp.baixar_parte(_PorConsulta(), pasta, [2025], 1, 2, hoje=hoje) == 1
+    saida = tmp_path / "site"
+    assert pncp.juntar(_PorConsulta(), pasta, saida, [2025], hoje=hoje) == 1
+    doc = md.ler((saida / "v1/municipios/sc/4208203/2025-contratos.md").read_text(encoding="utf-8"))
+    assert doc.tabelas["contratos"][0]["empresa"] == "EMPRESA"
+    import json
+
+    marca = json.loads((saida / pncp.MARCA.format(ano=2025)).read_text())
+    assert marca["contratos_completos"] and marca["diretas_completas"] and marca["partes"] == 2
+
+
+def test_juntar_com_parte_faltando_marca_incompleto(tmp_path):
+    pasta = tmp_path / "partes"
+    hoje = date(2025, 1, 20)
+    pncp.baixar_parte(_PorConsulta(), pasta, [2025], 1, 2, hoje=hoje)
+    saida = tmp_path / "site"
+    assert pncp.juntar(_PorConsulta(), pasta, saida, [2025], hoje=hoje) == 1
+    texto = (saida / "v1/municipios/sc/4208203/2025-contratos.md").read_text(encoding="utf-8")
+    assert "contratacoes-diretas" in texto and "incompleta" in texto

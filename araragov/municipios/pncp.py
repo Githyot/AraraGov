@@ -23,6 +23,8 @@ na tabela `sem-dados`.
 
 from __future__ import annotations
 
+import gzip
+import json
 import logging
 import os
 import re
@@ -132,12 +134,18 @@ def _compra(numero: Optional[str]) -> Optional[Tuple[str, int, int]]:
     return (m.group(1), int(m.group(3)), int(m.group(2))) if m else None
 
 
-def contratos(client, inicio: date, fim: date) -> List[Dict[str, Any]]:
-    consultas = [{"dataInicial": a.strftime("%Y%m%d"), "dataFinal": b.strftime("%Y%m%d")} for a, b in _janelas(inicio, fim)]
+def _semanas(inicio: date, fim: date, parte: int = 0, partes: int = 1) -> List[Tuple[date, date]]:
+    """As semanas do período; com `partes`, só as da parte pedida (semana i vai para a parte i % partes)."""
+    return [j for i, j in enumerate(_janelas(inicio, fim)) if i % partes == parte]
+
+
+def contratos(client, inicio: date, fim: date, parte: int = 0, partes: int = 1) -> Tuple[List[Dict[str, Any]], bool]:
+    consultas = [{"dataInicial": a.strftime("%Y%m%d"), "dataFinal": b.strftime("%Y%m%d")}
+                 for a, b in _semanas(inicio, fim, parte, partes)]
     linhas, completo = _em_paralelo(client, "contratos", consultas)
     if not completo:
         logger.warning("PNCP: alguma semana de contratos não respondeu; os arquivos podem estar incompletos")
-    return linhas
+    return linhas, completo
 
 
 # As dispensas e inexigibilidades de todo o país são centenas de milhares por ano, e essa
@@ -145,7 +153,8 @@ def contratos(client, inicio: date, fim: date) -> List[Dict[str, Any]]:
 MINUTOS_DIRETAS = float(os.environ.get("ARARAGOV_PNCP_MINUTOS_DIRETAS", "60"))
 
 
-def compras_diretas(client, inicio: date, fim: date, minutos: Optional[float] = None) -> Tuple[Dict[str, str], bool]:
+def compras_diretas(client, inicio: date, fim: date, minutos: Optional[float] = None, parte: int = 0,
+                    partes: int = 1) -> Tuple[Dict[str, str], bool]:
     """Número de controle da compra -> modalidade, para dispensas e inexigibilidades municipais.
 
     Devolve também se a lista está completa (False quando o prazo acabou antes).
@@ -156,7 +165,7 @@ def compras_diretas(client, inicio: date, fim: date, minutos: Optional[float] = 
     completo = True
     for cod, nome in MODALIDADES_DIRETAS.items():
         consultas = [{"dataInicial": a.strftime("%Y%m%d"), "dataFinal": b.strftime("%Y%m%d"),
-                      "codigoModalidadeContratacao": cod} for a, b in _janelas(inicio, fim)]
+                      "codigoModalidadeContratacao": cod} for a, b in _semanas(inicio, fim, parte, partes)]
         linhas, ok = _em_paralelo(client, "contratacoes/publicacao", consultas, prazo)
         completo = completo and ok
         for r in linhas:
@@ -260,14 +269,39 @@ def completar_obras(client, por: Dict[int, Dict[str, Any]], ano: int, saida: Pat
     return pedidos
 
 
+def _periodo(ano: int, hoje: date, dias: Optional[int]) -> Tuple[date, date]:
+    inicio = date(ano, 1, 1)
+    fim = min(date(ano, 12, 31), hoje - timedelta(days=1))
+    if dias:
+        fim = min(fim, inicio + timedelta(days=dias - 1))
+    return inicio, fim
+
+
+def _escrever(client, saida: Path, ano: int, linhas: Iterable[Dict[str, Any]], diretas: Dict[str, str],
+              diretas_completas: bool, hoje: date, limite_itens: int) -> int:
+    from .custos import carregar_itens
+
+    unidades_itens = {i.id: i.unidade for i in carregar_itens().values()}
+    nomes = {cod: nome for (_, _), (cod, nome) in municipios_ibge().items()}
+    por = agregar(linhas, ano, diretas)
+    pedidos = completar_obras(client, por, ano, saida, unidades_itens, limite_itens)
+    for ibge, m in por.items():
+        for lista in (m["contratos"], m["obras"]):
+            for r in lista:
+                r.pop("_compra", None)
+        mun = nomes.get(ibge, m["municipio"])
+        caminho = saida / "v1" / "municipios" / m["uf"].lower() / str(ibge) / f"{ano}-contratos.md"
+        caminho.parent.mkdir(parents=True, exist_ok=True)
+        texto = documento(ibge, mun, ano, m, hoje, uf=m["uf"], fonte=FONTE, colunas_contratos=COLUNAS_CONTRATOS_PNCP)
+        caminho.write_text(_com_sem_dados(texto, hoje, diretas_completas), encoding="utf-8")
+    logger.info("PNCP %s: %s municípios, %s compras diretas, %s consultas de itens", ano, len(por), len(diretas), pedidos)
+    return len(por)
+
+
 def gerar(client, saida: Path, anos: Iterable[int], hoje: Optional[date] = None, dias: Optional[int] = None,
           limite_itens: int = 3000) -> int:
     """`dias` limita a busca aos primeiros N dias do ano (teste)."""
-    from .custos import carregar_itens
-
     hoje = hoje or date.today()
-    unidades_itens = {i.id: i.unidade for i in carregar_itens().values()}
-    nomes = {cod: nome for (_, _), (cod, nome) in municipios_ibge().items()}
     total = 0
     for ano in sorted(anos):
         if not dias:
@@ -275,24 +309,121 @@ def gerar(client, saida: Path, anos: Iterable[int], hoje: Optional[date] = None,
             if reaproveitados:
                 total += reaproveitados
                 continue
-        inicio = date(ano, 1, 1)
-        fim = min(date(ano, 12, 31), hoje - timedelta(days=1))
-        if dias:
-            fim = min(fim, inicio + timedelta(days=dias - 1))
+        inicio, fim = _periodo(ano, hoje, dias)
         diretas, diretas_completas = compras_diretas(client, inicio, fim)
-        por = agregar(contratos(client, inicio, fim), ano, diretas)
-        pedidos = completar_obras(client, por, ano, saida, unidades_itens, limite_itens)
-        for ibge, m in por.items():
-            for lista in (m["contratos"], m["obras"]):
-                for r in lista:
-                    r.pop("_compra", None)
-            mun = nomes.get(ibge, m["municipio"])
-            caminho = saida / "v1" / "municipios" / m["uf"].lower() / str(ibge) / f"{ano}-contratos.md"
-            caminho.parent.mkdir(parents=True, exist_ok=True)
-            texto = documento(ibge, mun, ano, m, hoje, uf=m["uf"], fonte=FONTE, colunas_contratos=COLUNAS_CONTRATOS_PNCP)
-            caminho.write_text(_com_sem_dados(texto, hoje, diretas_completas), encoding="utf-8")
-            total += 1
-        logger.info("PNCP %s: %s municípios, %s compras diretas, %s consultas de itens", ano, len(por), len(diretas), pedidos)
+        linhas, _ = contratos(client, inicio, fim)
+        total += _escrever(client, saida, ano, linhas, diretas, diretas_completas, hoje, limite_itens)
+    return total
+
+
+# --- coleta em partes ------------------------------------------------------------------------
+#
+# Um ano inteiro de contratos do país não cabe no tempo de um job do GitHub. A coleta
+# semanal divide as semanas do ano entre vários jobs (`baixar_parte`), cada um grava
+# só as linhas municipais com os campos que `agregar` usa, e um último job junta tudo
+# (`juntar`) e escreve os .md.
+
+_CAMPOS = ("numeroControlePNCP", "anoContrato", "tipoPessoa", "niFornecedor", "valorGlobal", "valorInicial",
+           "numeroControlePncpCompra", "nomeRazaoSocialFornecedor", "numeroContratoEmpenho", "objetoContrato",
+           "dataAssinatura", "emendaParlamentar")
+_CAMPOS_UNIDADE = ("ufSigla", "codigoIbge", "municipioNome", "nomeUnidade")
+MARCA = "v1/municipios/fontes-brutas/pncp-{ano}.json"
+
+
+def _compacta(r: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    org = r.get("orgaoEntidade") or {}
+    if org.get("esferaId") != "M":
+        return None
+    un = r.get("unidadeOrgao") or {}
+    return {**{k: r.get(k) for k in _CAMPOS if r.get(k) is not None},
+            "orgaoEntidade": {"esferaId": "M", "razaoSocial": org.get("razaoSocial")},
+            "unidadeOrgao": {k: un.get(k) for k in _CAMPOS_UNIDADE}}
+
+
+def _ano_completo_publicado(client, ano: int, hoje: date) -> bool:
+    """O ano está fechado e a coleta publicada dele terminou sem falhas."""
+    if os.environ.get("ARARAGOV_REAPROVEITAR") != "1" or not publicados.ano_fechado(ano, hoje):
+        return False
+    try:
+        marca = json.loads(client.get_bytes(f"{publicados.PUBLICADO}/{MARCA.format(ano=ano)}"))
+    except Exception:  # noqa: BLE001 - ainda não publicado
+        return False
+    return bool(marca.get("contratos_completos") and marca.get("diretas_completas"))
+
+
+def baixar_parte(client, pasta: Path, anos: Iterable[int], parte: int, partes: int, hoje: Optional[date] = None,
+                 dias: Optional[int] = None) -> int:
+    """Baixa as semanas da parte e grava `{ano}-{parte}.jsonl.gz` e `{ano}-{parte}.json` em `pasta`."""
+    hoje = hoje or date.today()
+    pasta.mkdir(parents=True, exist_ok=True)
+    total = 0
+    for ano in sorted(anos):
+        if not dias and _ano_completo_publicado(client, ano, hoje):
+            logger.info("PNCP %s: ano fechado e já publicado completo; a parte %s não baixa nada", ano, parte)
+            continue
+        inicio, fim = _periodo(ano, hoje, dias)
+        diretas, diretas_completas = compras_diretas(client, inicio, fim, parte=parte, partes=partes)
+        linhas, contratos_completos = contratos(client, inicio, fim, parte=parte, partes=partes)
+        n = 0
+        with gzip.open(pasta / f"{ano}-{parte}.jsonl.gz", "wt", encoding="utf-8") as f:
+            for r in linhas:
+                c = _compacta(r)
+                if c:
+                    f.write(json.dumps(c, ensure_ascii=False) + "\n")
+                    n += 1
+        (pasta / f"{ano}-{parte}.json").write_text(json.dumps({
+            "ano": ano, "parte": parte, "partes": partes, "contratos": n, "diretas": diretas,
+            "diretas_completas": diretas_completas, "contratos_completos": contratos_completos}, ensure_ascii=False),
+            encoding="utf-8")
+        logger.info("PNCP %s parte %s/%s: %s contratos municipais, %s compras diretas", ano, parte, partes, n, len(diretas))
+        total += n
+    return total
+
+
+def _ler_partes(pasta: Path, ano: int) -> Tuple[List[Dict[str, Any]], Dict[str, str], bool, bool, int]:
+    resumos = [json.loads(p.read_text(encoding="utf-8")) for p in sorted(pasta.glob(f"{ano}-*.json"))]
+    linhas: List[Dict[str, Any]] = []
+    diretas: Dict[str, str] = {}
+    for r in resumos:
+        diretas.update(r["diretas"])
+        caminho = pasta / f"{ano}-{r['parte']}.jsonl.gz"
+        with gzip.open(caminho, "rt", encoding="utf-8") as f:
+            linhas.extend(json.loads(l) for l in f if l.strip())
+    partes = {r["partes"] for r in resumos}
+    esperadas = max(partes) if partes else 0
+    todas = len(resumos) == esperadas and len(partes) == 1
+    if resumos and not todas:
+        logger.warning("PNCP %s: chegaram %s de %s partes", ano, len(resumos), esperadas)
+    contratos_ok = bool(resumos) and todas and all(r["contratos_completos"] for r in resumos)
+    diretas_ok = bool(resumos) and todas and all(r["diretas_completas"] for r in resumos)
+    return linhas, diretas, contratos_ok, diretas_ok, len(resumos)
+
+
+def juntar(client, pasta: Path, saida: Path, anos: Iterable[int], hoje: Optional[date] = None,
+           limite_itens: int = 3000) -> int:
+    """Junta as partes baixadas e escreve os .md. Ano sem partes: reaproveita a publicação anterior."""
+    hoje = hoje or date.today()
+    total = 0
+    for ano in sorted(anos):
+        linhas, diretas, contratos_ok, diretas_ok, n_partes = _ler_partes(pasta, ano)
+        if not n_partes:
+            reaproveitados = _ano_ja_publicado(client, saida, ano, hoje)
+            logger.info("PNCP %s: nenhuma parte baixada; %s arquivos reaproveitados", ano, reaproveitados)
+            total += reaproveitados
+            marca = MARCA.format(ano=ano)
+            if reaproveitados:
+                try:
+                    (saida / marca).parent.mkdir(parents=True, exist_ok=True)
+                    (saida / marca).write_bytes(client.get_bytes(f"{publicados.PUBLICADO}/{marca}"))
+                except Exception:  # noqa: BLE001 - sem marca, a próxima coleta baixa o ano de novo
+                    pass
+            continue
+        total += _escrever(client, saida, ano, linhas, diretas, diretas_ok, hoje, limite_itens)
+        caminho = saida / MARCA.format(ano=ano)
+        caminho.parent.mkdir(parents=True, exist_ok=True)
+        caminho.write_text(json.dumps({"ano": ano, "partes": n_partes, "contratos": len(linhas),
+                                       "contratos_completos": contratos_ok, "diretas_completas": diretas_ok,
+                                       "coletado_em": hoje.isoformat()}, indent=1), encoding="utf-8")
     return total
 
 

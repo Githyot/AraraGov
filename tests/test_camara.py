@@ -70,3 +70,17 @@ def test_legislatura_pela_data_quando_api_falha(client):
     assert camara.legislatura_pela_data(date(2027, 2, 1)) == 58
     # sem rota cadastrada, o cliente falso levanta erro, como num 504
     assert camara.legislatura_atual(client) == camara.legislatura_pela_data()
+
+
+def test_lancamento_de_outro_ano_nao_quebra_a_carga():
+    from araragov import db
+    from araragov.collectors._comum import substituir_despesas
+    from araragov.db import Despesa
+
+    linha = {"casa": "camara", "chave_fonte": "x1", "ano": 2019, "mes": 5, "valor": 10}
+    with db.sessao() as s:
+        substituir_despesas(s, "camara", 2019, [linha])
+    with db.sessao() as s:  # o arquivo de 2020 traz o mesmo lançamento, datado de 2019
+        assert substituir_despesas(s, "camara", 2020, [{**linha, "valor": 12}]) == 1
+    with db.sessao() as s:
+        assert [d.valor for d in s.query(Despesa).filter_by(chave_fonte="x1")] == [12]

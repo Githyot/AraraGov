@@ -6,6 +6,7 @@ import '../dados/md.dart';
 import '../formatar.dart';
 import '../tema.dart';
 import '../widgets/adw.dart';
+import '../widgets/lai.dart';
 
 /// Busca de municípios (lista do `municipios/indice.md`).
 class MunicipiosTela extends StatefulWidget {
@@ -131,13 +132,21 @@ class MunicipioTela extends StatelessWidget {
       child: Scaffold(
         appBar: AppBar(
           title: Text('$nome ($uf)'),
+          actions: [
+            IconButton(
+              tooltip: 'Pedir documentos à prefeitura (LAI)',
+              icon: const Icon(Icons.mail_outline),
+              onPressed: () => mostrarPedidoLai(
+                  context, PedidoLai(municipio: nome, uf: uf, assunto: 'despesas e contratos da prefeitura')),
+            ),
+          ],
           bottom: TabBar(isScrollable: true, tabAlignment: TabAlignment.start, tabs: [for (final a in abas) Tab(text: a)]),
         ),
         body: TabBarView(children: [
           _Governo(api: api, pasta: pasta),
           _Dinheiro(api: api, pasta: pasta, uf: uf),
-          _Obras(api: api, pasta: pasta, uf: uf),
-          _Fornecedores(api: api, pasta: pasta, uf: uf),
+          _Obras(api: api, pasta: pasta, uf: uf, nome: nome),
+          _Fornecedores(api: api, pasta: pasta, uf: uf, nome: nome),
           _Emendas(api: api, pasta: pasta),
         ]),
       ),
@@ -407,8 +416,8 @@ class _Subarea extends StatelessWidget {
 
 class _Obras extends StatefulWidget {
   final Api api;
-  final String pasta, uf;
-  const _Obras({required this.api, required this.pasta, required this.uf});
+  final String pasta, uf, nome;
+  const _Obras({required this.api, required this.pasta, required this.uf, required this.nome});
 
   @override
   State<_Obras> createState() => _ObrasState();
@@ -452,6 +461,19 @@ class _ObrasState extends State<_Obras> {
                           ].join('\n')),
                           trailing: Etiqueta(_rotulo(o['comparacao']), _corComparacao(o['comparacao'])),
                           isThreeLine: true,
+                          onTap: () => mostrarPedidoLai(
+                            context,
+                            PedidoLai(
+                              municipio: widget.nome,
+                              uf: widget.uf,
+                              assunto: 'o contrato de obra "${o['objeto'] ?? '—'}" (${o['empresa'] ?? 'empresa não informada'}, $ano)',
+                              itens: const [
+                                'Contrato, aditivos e projeto básico',
+                                'Planilha orçamentária e medições',
+                                'Notas de empenho, liquidação e pagamento, com as notas fiscais',
+                              ],
+                            ),
+                          ),
                         ),
                     ],
             ),
@@ -493,8 +515,8 @@ class _ObrasState extends State<_Obras> {
 
 class _Fornecedores extends StatelessWidget {
   final Api api;
-  final String pasta, uf;
-  const _Fornecedores({required this.api, required this.pasta, required this.uf});
+  final String pasta, uf, nome;
+  const _Fornecedores({required this.api, required this.pasta, required this.uf, required this.nome});
 
   @override
   Widget build(BuildContext context) => _Carregar(
@@ -516,6 +538,19 @@ class _Fornecedores extends StatelessWidget {
                       if (f['indicios'] != null) f['indicios']!,
                     ].join('\n')),
                     leading: f['indicios'] == null ? null : const Icon(Icons.flag_outlined, color: Adw.amarelo),
+                    onTap: () => mostrarPedidoLai(
+                      context,
+                      PedidoLai(
+                        municipio: nome,
+                        uf: uf,
+                        assunto: 'os pagamentos e contratos com ${f['empresa'] ?? 'a empresa'} (CNPJ ${f['cnpj'] ?? '—'})',
+                        itens: const [
+                          'Contratos e aditivos com a empresa',
+                          'Notas de empenho, liquidação e pagamento, com as notas fiscais',
+                          'Comprovação da entrega (medições, termos de recebimento)',
+                        ],
+                      ),
+                    ),
                   ),
               ],
             ),

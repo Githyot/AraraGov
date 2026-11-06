@@ -304,6 +304,14 @@ fora de SP, no mesmo formato da fase 4:
 - `sem-dados`: contratos pela lei antiga e de quem não publica no PNCP ficam
   de fora (responsável: a prefeitura; Lei 14.133, art. 94 e 174).
 
+Um ano inteiro de contratos do país não cabe no tempo de um job do GitHub. Na
+coleta semanal, quatro jobs (`araragov pncp --parte i/4`) dividem as semanas
+do ano entre si e guardam só as linhas municipais; um último job
+(`araragov pncp --juntar`) soma as partes e escreve os `.md`. Se alguma parte
+falhar, os arquivos dizem que a lista pode estar incompleta, e
+`fontes-brutas/pncp-{ano}.json` registra isso. Um ano fechado só é reaproveitado
+da publicação anterior quando ela saiu completa.
+
 Com isso, `fornecedores.md` passa a existir para todos os estados (sanções,
 campanhas e emendas).
 
@@ -355,6 +363,20 @@ subfunção, natureza, favorecido e valor pago. O histórico só vem num pedido 
 empenho, então é buscado para as 100 maiores obras de cada ano. O formato do
 pedido veio do projeto Transparência Cidadã (Lucas7X7, licença MIT,
 github.com/Lucas7X7/transparencia-cidada-portal-de-empenhos).
+
+### Prefeituras com portal Fiorilli
+
+`araragov fiorilli --anos 2025` lê o portal da transparência das prefeituras
+que usam o sistema da Fiorilli (`{site}/Transparencia/VersaoJson/Despesas/`,
+listagem `DespesasGerais`, todas as entidades do município de uma vez). Não há
+lista pública dos clientes: `araragov fiorilli-descobrir` testa os endereços
+mais comuns do portal em cada município, a partir do GitHub, e grava os que
+respondem em `araragov/referencia/fiorilli.csv`. A busca de 2026-11-06 achou 21
+portais em 4.191 municípios de 21 estados (MS, PI, RN, RS, RJ), mais Imperatriz
+(MA), que fica num servidor da Fiorilli na nuvem. Portais atrás de proteção
+contra robôs (Cloudflare) ficam de fora. Endpoints e nomes de campo conferidos
+no projeto Mais Transparência (github.com/maistransparencia/transparencia,
+AGPL-3.0).
 - Outros tribunais sondados em 2026-11-05:
   - TCE-RJ (`dados.tcerj.tc.br/api/v1`): `araragov tce-rj` grava
     `{ano}-contratos.md` dos 91 municípios (a capital fica no PNCP), com CNPJ e
