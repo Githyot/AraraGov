@@ -37,3 +37,18 @@ def test_decimal_formatos():
 def test_datas():
     assert n.data("01/02/2024").isoformat() == "2024-02-01"
     assert n.data_hora("2025-03-11T20:15:02").hour == 20
+
+
+@pytest.mark.parametrize(
+    "entrada,esperado",
+    [
+        ("ANDRÉ ABDON", "André Abdon"),
+        ("JOSÉ DA SILVA E SOUZA", "José da Silva e Souza"),
+        ("MARIA-JOSÉ DOS SANTOS", "Maria-José dos Santos"),
+        ("AJ Albuquerque", "AJ Albuquerque"),
+        ("Abel Rebouças", "Abel Rebouças"),
+        (None, None),
+    ],
+)
+def test_nome_proprio(entrada, esperado):
+    assert n.nome_proprio(entrada) == esperado

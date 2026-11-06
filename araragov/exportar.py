@@ -25,6 +25,7 @@ from . import __version__
 from .collectors import historico
 from .analise import espectro, inflacao
 from .analise.atencao import motivo_atencao
+from .normalizar import nome_proprio
 from .db import Assessor, Beneficio, Despesa, Emenda, Favorecido, Politico, RecursoMensal, Subsidio, Votacao, Voto, sessao
 
 logger = logging.getLogger(__name__)
@@ -228,7 +229,7 @@ def _resumo(p: Politico, doacoes: Optional[Dict[tuple, Dict[str, Any]]] = None) 
         "casa": p.casa,
         **orgao(p.casa),
         "cargo": p.cargo,
-        "nome": p.nome,
+        "nome": nome_proprio(p.nome),
         "partido": p.partido,
         "uf": p.uf,
         "foto": p.url_foto,
@@ -559,6 +560,18 @@ def _analises(politicos, votos_por, votacoes) -> Dict[Any, Any]:
     return saida
 
 
+def _partido_pelos_votos(politicos: List[Politico], votos_por: Dict[tuple, List[Voto]], votacoes: Dict[str, Votacao]) -> None:
+    """A lista de legislaturas do Senado não traz o partido de quem já saiu
+    (ex.: suplentes). Nesse caso usa o partido do voto mais recente, que a
+    própria fonte publica em cada votação."""
+    for p in politicos:
+        if p.partido:
+            continue
+        com_partido = [v for v in votos_por[(p.casa, p.codigo)] if v.partido and v.votacao_id in votacoes]
+        if com_partido:
+            p.partido = max(com_partido, key=lambda v: votacoes[v.votacao_id].data or datetime.min).partido
+
+
 def exportar(saida: Path) -> int:
     base = saida / "v1"
     with sessao() as s:
@@ -592,6 +605,7 @@ def exportar(saida: Path) -> int:
                 {"tipo": b.tipo, "descricao": b.descricao, "valor_mensal": b.valor_mensal,
                  "valor_ano": b.valor_ano, "ano": b.ano, "referencia": b.referencia, "fonte": b.fonte}
             )
+        _partido_pelos_votos(politicos, votos_por, votacoes)
         recursos = defaultdict(lambda: defaultdict(list))
         for r in s.execute(select(RecursoMensal)).scalars():
             recursos[(r.casa, r.codigo_politico)][r.tipo].append(r)

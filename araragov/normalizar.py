@@ -15,6 +15,25 @@ def texto(valor: Any) -> Optional[str]:
     return limpo or None
 
 
+_MINUSCULAS = {"de", "da", "do", "das", "dos", "e", "di", "du", "del", "van", "von"}
+
+
+def nome_proprio(valor: Any) -> Optional[str]:
+    """Nomes que a fonte publica TODO EM MAIÚSCULAS viram "Todo em Maiúsculas".
+    Nomes que já vêm com maiúsculas e minúsculas ficam como estão, porque a
+    grafia escolhida pelo político ("AJ Albuquerque") vale mais que a regra."""
+    t = texto(valor)
+    if not t or t != t.upper() or not any(c.isalpha() for c in t):
+        return t
+    partes = []
+    for i, palavra in enumerate(t.lower().split(" ")):
+        if i and palavra in _MINUSCULAS:
+            partes.append(palavra)
+        else:
+            partes.append("-".join(p[:1].upper() + p[1:] for p in palavra.split("-")))
+    return " ".join(partes)
+
+
 def inteiro(valor: Any) -> Optional[int]:
     t = texto(valor)
     if t is None:
