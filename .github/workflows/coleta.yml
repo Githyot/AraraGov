@@ -36,6 +36,9 @@ jobs:
     # Limite do GitHub: 6 h por job. Cada passo tem o próprio limite para sobrar tempo de
     # publicar o que já foi gerado; um passo que estoura fica com dados parciais.
     timeout-minutes: 350
+    env:
+      # Anos fechados já publicados não são baixados de novo (araragov/municipios/publicados.py).
+      ARARAGOV_REAPROVEITAR: ${{ github.event_name == 'pull_request' && '0' || '1' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
