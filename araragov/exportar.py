@@ -219,7 +219,11 @@ def _historico() -> Dict[str, Any]:
                                .order_by(Despesa.id)).scalars()
             if historico.ano_fechado(d.ano)
         ]
-    return {"recursos": recursos, "beneficios": beneficios, "despesas": despesas}
+    atuais, anteriores = historico.gabinetes()
+    return {
+        "recursos": recursos, "beneficios": beneficios, "despesas": despesas,
+        "gabinetes": {"atuais": atuais, "anteriores": anteriores},
+    }
 
 
 def _resumo(p: Politico, doacoes: Optional[Dict[tuple, Dict[str, Any]]] = None) -> Dict[str, Any]:
@@ -435,8 +439,12 @@ def _gastos(despesas: List[Despesa], politico: Politico) -> Dict[str, Any]:
     # Para o filtro de período do app: categoria e fornecedor de cada ano.
     cat_ano: Dict[int, Dict[str, Decimal]] = defaultdict(lambda: defaultdict(Decimal))
     forn_ano: Dict[int, Dict[str, Decimal]] = defaultdict(lambda: defaultdict(Decimal))
+    # Para comparar cada categoria mês a mês dentro do ano.
+    cat_mes: Dict[int, Dict[str, List[Decimal]]] = defaultdict(lambda: defaultdict(lambda: [Decimal(0)] * 12))
     for d in despesas:
         cat_ano[d.ano][d.categoria or "Outros"] += d.valor
+        if 1 <= d.mes <= 12:
+            cat_mes[d.ano][d.categoria or "Outros"][d.mes - 1] += d.valor
         forn_ano[d.ano][d.fornecedor or "Não informado"] += d.valor
         por_ano[d.ano] += d.valor
         por_mes[f"{d.ano}-{d.mes:02d}"] += d.valor
@@ -450,6 +458,10 @@ def _gastos(despesas: List[Despesa], politico: Politico) -> Dict[str, Any]:
             "valor": c.valor_real,
             "corrigido_pela_inflacao": c.valor_corrigido,
             "acima_da_inflacao_pct": round(c.acima_da_inflacao_pct, 2),
+            "ano_base": c.referencia.year,
+            "meses": c.meses,
+            "meses_base": c.meses_base,
+            "parcial": c.parcial,
         }
         for c in inflacao.gastos_vs_inflacao(politico.casa, politico.codigo)
     ]
@@ -461,7 +473,12 @@ def _gastos(despesas: List[Despesa], politico: Politico) -> Dict[str, Any]:
         "por_categoria": top(por_categoria, 20),
         "maiores_fornecedores": top(por_fornecedor, 10),
         "anos": {
-            str(a): {"total": por_ano[a], "por_categoria": top(cat_ano[a], 20), "maiores_fornecedores": top(forn_ano[a], 10)}
+            str(a): {
+                "total": por_ano[a],
+                "por_categoria": top(cat_ano[a], 20),
+                "maiores_fornecedores": top(forn_ano[a], 10),
+                "por_categoria_mes": [{"nome": k, "meses": v} for k, v in sorted(cat_mes[a].items())],
+            }
             for a in sorted(por_ano)
         },
         "vs_inflacao": vs_inflacao,
@@ -580,6 +597,9 @@ def exportar(saida: Path) -> int:
                     "remuneracao": a.remuneracao, "remuneracao_ref": a.remuneracao_ref,
                 }
             )
+        ex_gabinetes = defaultdict(list)
+        for casa, cod, nome, cargo, nivel, desde, ate in historico.gabinetes()[1]:
+            ex_gabinetes[(casa, cod)].append({"nome": nome, "cargo": cargo, "nivel": nivel, "desde": desde, "ate": ate})
         emendas_por = defaultdict(list)
         for e in s.execute(select(Emenda).where(Emenda.codigo_politico.is_not(None))).scalars():
             emendas_por[(e.casa, e.codigo_politico)].append(e)
@@ -619,6 +639,7 @@ def exportar(saida: Path) -> int:
             "salario": salarios[(p.cargo, p.uf)],
             "gastos": _gastos(despesas_por[(p.casa, p.codigo)], p),
             "gabinete": gabinetes[(p.casa, p.codigo)],
+            "gabinete_anteriores": sorted(ex_gabinetes[(p.casa, p.codigo)], key=lambda g: (g["ate"], g["nome"]), reverse=True),
             "custo_gabinete": _custo_gabinete(
                 gabinetes[(p.casa, p.codigo)], _ultimo_mes(recursos[(p.casa, p.codigo)]["verba_gabinete"])
             ),

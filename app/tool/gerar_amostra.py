@@ -14,8 +14,10 @@ PARTIDOS = ["PEX", "PFI", "PAM", "PDE", "PTO"]
 UFS = ["SP", "RJ", "MG", "BA", "RS", "PE", "CE", "PA", "AM", "DF"]
 NOMES = ["Ana Exemplo", "Bruno Fictício", "Carla Modelo", "Diego Amostra", "Elisa Teste",
          "Fábio Ilustrativo", "Gabriela Demo", "Hugo Protótipo", "Iara Simulada", "João Hipotético"]
-CATEGORIAS = ["Passagens aéreas", "Divulgação da atividade parlamentar", "Manutenção de escritório",
-              "Combustíveis e lubrificantes", "Telefonia", "Locação de veículos"]
+# Em maiúsculas, como vêm das fontes oficiais.
+CATEGORIAS = ["PASSAGEM AÉREA - RPA", "DIVULGAÇÃO DA ATIVIDADE PARLAMENTAR.", "MANUTENÇÃO DE ESCRITÓRIO DE APOIO À ATIVIDADE PARLAMENTAR",
+              "COMBUSTÍVEIS E LUBRIFICANTES.", "TELEFONIA", "LOCAÇÃO OU FRETAMENTO DE VEÍCULOS AUTOMOTORES"]
+MESES_2026 = 10  # ano em andamento: dados até outubro
 SALARIO = [
     {"desde": "2015-02-01", "valor": 33763.0, "ato": "Decreto Legislativo 276/2014", "fonte": None},
     {"desde": "2023-01-01", "valor": 39293.32, "ato": "Decreto Legislativo 172/2022", "fonte": None},
@@ -40,7 +42,18 @@ def perfil(i, nome):
         "nome": nome, "partido": PARTIDOS[i % len(PARTIDOS)], "uf": UFS[i % len(UFS)],
         "foto": None, "em_exercicio": i != 9, "doa_salario": i == 1,
     }
-    anos = [{"ano": a, "valor": round(random.uniform(250e3, 520e3), 2)} for a in (2023, 2024, 2025)]
+    # Gasto de cada categoria em cada mês; 2023 começa em fevereiro (posse).
+    meses_cat = {
+        a: {c: [0.0 if (a == 2023 and m == 1) or (a == 2026 and m > MESES_2026) else round(random.uniform(0, 9e3) * (1.6 if k < 2 else 0.5), 2)
+                for m in range(1, 13)] for k, c in enumerate(CATEGORIAS)}
+        for a in (2023, 2024, 2025, 2026)
+    }
+    anos = [{"ano": a, "valor": round(sum(sum(v) for v in cats.values()), 2)} for a, cats in meses_cat.items()]
+    meses_ano = {2023: 11, 2024: 12, 2025: 12, 2026: MESES_2026}
+    base = anos[0]["valor"]
+
+    def corrigido(a):
+        return round(base / 11 * meses_ano[a] * 1.045 ** (a - 2023), 2)
     votos = random.choices(["sim", "nao", "abstencao", "ausente", "obstrucao"], weights=[50, 30, 4, 12, 4], k=len(VOTACOES))
     p = {
         **resumo,
@@ -54,15 +67,17 @@ def perfil(i, nome):
         "gastos": {
             "total": sum(a["valor"] for a in anos), "por_ano": anos, "por_mes": [],
             "anos": {str(a["ano"]): {"total": a["valor"],
-                                     "por_categoria": [{"nome": CATEGORIAS[0], "valor": round(a["valor"] * 0.6, 2)}, {"nome": CATEGORIAS[1], "valor": round(a["valor"] * 0.4, 2)}],
+                                     "por_categoria": sorted(({"nome": c, "valor": round(sum(v), 2)} for c, v in meses_cat[a["ano"]].items()), key=lambda x: -x["valor"]),
+                                     "por_categoria_mes": [{"nome": c, "meses": v} for c, v in sorted(meses_cat[a["ano"]].items())],
                                      "maiores_fornecedores": [{"nome": f"Fornecedor Exemplo {a['ano']} Ltda", "valor": round(a["valor"] * 0.2, 2)}]}
                      for a in anos},
-            "por_categoria": sorted(({"nome": c, "valor": round(random.uniform(5e3, 300e3), 2)} for c in CATEGORIAS), key=lambda x: -x["valor"]),
+            "por_categoria": sorted(({"nome": c, "valor": round(sum(sum(meses_cat[a][c]) for a in meses_cat), 2)} for c in CATEGORIAS), key=lambda x: -x["valor"]),
             "maiores_fornecedores": [{"nome": f"Fornecedor Exemplo {k} Ltda", "valor": round(random.uniform(5e3, 90e3), 2)} for k in range(1, 6)],
             "vs_inflacao": [
-                {"ano": a["ano"], "desde": "2023-12-01", "valor_inicial": anos[0]["valor"], "valor": a["valor"],
-                 "corrigido_pela_inflacao": round(anos[0]["valor"] * (1.045 ** (a["ano"] - 2023)), 2),
-                 "acima_da_inflacao_pct": round((a["valor"] / (anos[0]["valor"] * 1.045 ** (a["ano"] - 2023)) - 1) * 100, 2)}
+                {"ano": a["ano"], "desde": "2023-12-01", "valor_inicial": base, "valor": a["valor"],
+                 "corrigido_pela_inflacao": corrigido(a["ano"]),
+                 "acima_da_inflacao_pct": round((a["valor"] / corrigido(a["ano"]) - 1) * 100, 2),
+                 "ano_base": 2023, "meses": meses_ano[a["ano"]], "meses_base": 11, "parcial": meses_ano[a["ano"]] < 12}
                 for a in anos[1:]
             ],
             "documentos_recentes": [
@@ -72,6 +87,9 @@ def perfil(i, nome):
             ],
         },
         "gabinete": [{"nome": f"Assessor Exemplo {k}", "cargo": "Secretário Parlamentar", "nivel": f"SP{10 + k}", "desde": "2023-02-01", "remuneracao": 3000 + 500 * k, "remuneracao_ref": "2026-09"} for k in range(1, 13)],
+        # Nomes em maiúsculas, como a Câmara publica.
+        "gabinete_anteriores": [{"nome": f"EX ASSESSOR DE EXEMPLO {k}", "cargo": "Secretário Parlamentar", "nivel": f"SP0{k}C",
+                                 "desde": "2023-02-01", "ate": f"2026-1{k - 1}-0{k + 1}"} for k in range(1, 3)],
         "custo_gabinete": {"mensal": sum(3000 + 500 * k for k in range(1, 13)), "pessoas_com_valor": 12, "pessoas": 12, "referencia": "2026-09"},
         "emendas": {"total_empenhado": 18_500_000, "total_pago": 11_200_000, "quantidade": 24,
                     "por_ano": [{"ano": 2023, "empenhado": 6_000_000, "pago": 5_000_000}, {"ano": 2024, "empenhado": 6_500_000, "pago": 4_200_000}, {"ano": 2025, "empenhado": 6_000_000, "pago": 2_000_000}],
@@ -81,7 +99,8 @@ def perfil(i, nome):
                     "anos": {str(a): {"total_empenhado": e, "total_pago": pg, "quantidade": 8, "por_area": [{"nome": "Saúde", "valor": e}], "por_local": [], "favorecidos": []}
                              for a, e, pg in ((2023, 6_000_000, 5_000_000), (2024, 6_500_000, 4_200_000), (2025, 6_000_000, 2_000_000))}},
         "verba_gabinete": None if casa == "senado" else {
-            "total": 12 * 120000.0, "por_ano": [{"ano": 2025, "valor": 12 * 120000.0}],
+            # 2023 e 2024 faltam de propósito: o gráfico mostra "sem dados publicados".
+            "total": 12 * 120000.0, "por_ano": [{"ano": 2022, "valor": 12 * 98000.0}, {"ano": 2025, "valor": 12 * 120000.0}],
             "anos": {"2025": {"total": 12 * 120000.0, "por_mes": [{"mes": m, "valor": 120000.0} for m in range(1, 13)]}}},
         "salario_pago": None if casa == "senado" else {
             "total": 44008.52 + 11 * 46366.19, "por_ano": [{"ano": 2025, "valor": 44008.52 + 11 * 46366.19}],
