@@ -160,18 +160,25 @@ def traduzir(rs: Iterable[Dict[str, Any]], cod: int, nome: str) -> Iterator[Dict
         }
 
 
+# Falhas do pedido de histórico nesta execução; depois de algumas, para de pedir
+# (cada falha custa as novas tentativas do cliente, cerca de um minuto).
+_falhas_detalhe: List[str] = []
+MAX_FALHAS_DETALHE = 3
+
+
 def _historicos(client, curto: str, m: tcesp.Municipio, ids: Dict[Tuple[str, str], str]) -> None:
     """Preenche o histórico das maiores obras (um pedido por empenho)."""
     maiores = sorted(m.obras.items(), key=lambda kv: kv[1]["pago"], reverse=True)[:MAX_DETALHES]
     for chave, obra in maiores:
         i = ids.get(chave)
-        if not i:
+        if not i or len(_falhas_detalhe) >= MAX_FALHAS_DETALHE:
             continue
         try:
             d = client.pedir_json("GET", DETALHE.format(id=i), None, {"uc": curto}) or {}
         except Exception as exc:  # noqa: BLE001 - sem histórico, a obra continua no arquivo
             logger.info("AgiliCloud %s: sem histórico do empenho %s (%s)", curto, i, exc)
-            continue
+            _falhas_detalhe.append(curto)
+            break
         obra["historico"] = tcesp._resumir(d.get("historico"))
 
 

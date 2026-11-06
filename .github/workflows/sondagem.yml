@@ -12,32 +12,32 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: TCE-PE, empenho repetido entre meses?
+      - name: Cabeçalhos dos arquivos brutos (ETag, Last-Modified)
         run: |
           set +e
           A="AraraGov (dados publicos; github.com/Githyot/AraraGov)"
-          U="https://sistemas.tce.pe.gov.br/DadosAbertos/DespesasMunicipais!json"
-          for q in "ANOREFERENCIA=2024&CODIGO_MUNICIPIO=P001" "ANOREFERENCIA=2019&CODIGO_MUNICIPIO=P001" "ANOREFERENCIA=2026&CODIGO_MUNICIPIO=P001"; do
-            curl -sS -m 300 -A "$A" "$U?$q" -o /tmp/pe.json -w "[$q %{http_code} %{size_download}B %{time_total}s]\n"
-            python - <<'PY'
-          import json, collections
-          d = json.loads(open('/tmp/pe.json', 'rb').read().decode('latin-1'))['resposta']
-          c = d.get('conteudo') or []
-          print(d.get('status'), len(c))
-          por = collections.defaultdict(list)
-          for x in c:
-              por[(x['ID_EMPENHO'].strip(), x['ID_UNIDADE_GESTORA'])].append(x)
-          rep = [v for v in por.values() if len(v) > 1]
-          print('empenhos', len(por), 'repetidos', len(rep))
-          for v in rep[:3]:
-              print([(x['MESREFERENCIA'], x['VALOREMPENHADO'], x['VALORLIQUIDADO'], x['VALORPAGO'], x['DATAEMPENHO'][:10]) for x in v])
-          print(collections.Counter(x['ELEMENTODESPESA'] for x in c).most_common(40))
-          print(collections.Counter((x['CATEGORIA'], x['NATUREZA']) for x in c).most_common(12))
-          print(collections.Counter(x['TIPOCREDOR'] for x in c), collections.Counter((x['TIPOCREDOR'], len(x['CPF_CNPJ'].strip())) for x in c))
-          print([x['CPF_CNPJ'] for x in c if len(x['CPF_CNPJ'].strip()) != 14][:3])
-          PY
+          for u in \
+            "https://transparencia.tce.sp.gov.br/sites/default/files/conjunto-dados/despesas-2026.zip" \
+            "https://download.tce.pb.gov.br/dados-abertos/dados-consolidados/despesas/despesas-2026.zip" \
+            "https://cdn.tse.jus.br/estatistica/sead/odsele/prestacao_contas/prestacao_de_contas_eleitorais_candidatos_2024.zip" ; do
+            echo "== $u"; curl -sSI -L -m 60 -A "$A" "$u" | grep -iE "^(HTTP|etag|last-modified|content-length)"
           done
+      - name: Senado, votações de um período sem filtrar por senador
+        run: |
+          set +e
+          A="AraraGov (dados publicos; github.com/Githyot/AraraGov)"
+          curl -sS -m 120 -A "$A" -H "Accept: application/json" \
+            "https://legis.senado.leg.br/dadosabertos/votacao?dataInicio=2025-03-01&dataFim=2025-03-31&v=1" -o /tmp/s.json \
+            -w "[%{http_code} %{size_download}B %{time_total}s]\n"
+          python3 - <<'PY'
+          import json
+          d = json.load(open("/tmp/s.json"))
+          lista = d if isinstance(d, list) else next((v for v in d.values() if isinstance(v, list)), d)
+          print(type(d).__name__, "itens:", len(lista) if isinstance(lista, list) else "?")
+          if isinstance(lista, list) and lista:
+              e = lista[0]
+              print("chaves:", sorted(e.keys())[:40])
+              votos = e.get("votos") or e.get("Votos") or []
+              print("votos na primeira:", len(votos))
+              print("votos por votação:", [len(x.get("votos") or x.get("Votos") or []) for x in lista[:15]])
+          PY
