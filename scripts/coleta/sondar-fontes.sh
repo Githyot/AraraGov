@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Sondar fontes municipais (alcance a partir do GitHub). EVENTO=pull_request roda só uma amostra.
-set -eo pipefail
+set -e  # sem pipefail: os diagnósticos dos PRs cortam a saída com head
 for u in \
   "https://pncp.gov.br/api/consulta/v1/contratacoes/publicacao?dataInicial=20250101&dataFinal=20250102&codigoModalidadeContratacao=6&uf=AC&pagina=1" \
   "https://apisidra.ibge.gov.br/values/t/2296/n3/41/v/48/p/202501" \

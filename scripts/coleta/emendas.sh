@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Emendas recebidas pelos municípios (Portal da Transparência). EVENTO=pull_request roda só uma amostra.
-set -eo pipefail
+set -e  # sem pipefail: os diagnósticos dos PRs cortam a saída com head
 if [ "$EVENTO" = "pull_request" ]; then
   python -m araragov emendas-municipios --saida site --ufs AC,SP --anos 2024-2025
   ls site/v1/municipios/*/*/emendas.md | wc -l

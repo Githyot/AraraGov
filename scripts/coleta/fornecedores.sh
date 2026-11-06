@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Fornecedores dos municípios (CEIS/CNEP e campanhas no TSE). EVENTO=pull_request roda só uma amostra.
-set -eo pipefail
+set -e  # sem pipefail: os diagnósticos dos PRs cortam a saída com head
 if [ "$EVENTO" = "pull_request" ]; then
   python -m araragov fornecedores --saida site --ufs SP,SC,CE,PB,RJ --eleicoes 2024
   grep -l "Sanção no\|Fornecedora de campanha" site/v1/municipios/sp/*/fornecedores.md | wc -l

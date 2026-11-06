@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Pagamentos dos municípios da PB (TCE-PB). EVENTO=pull_request roda só uma amostra.
-set -eo pipefail
+set -e  # sem pipefail: os diagnósticos dos PRs cortam a saída com head
 if [ "$EVENTO" = "pull_request" ]; then
   python -m araragov tce-pb --saida site --anos 2025 --limite-linhas 300000
   echo "== valores pagos com vírgula, só com ponto, e exemplos"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Pagamentos dos municípios de SP (TCE-SP). EVENTO=pull_request roda só uma amostra.
-set -eo pipefail
+set -e  # sem pipefail: os diagnósticos dos PRs cortam a saída com head
 if [ "$EVENTO" = "pull_request" ]; then
   python -m araragov tce-sp --saida site --anos 2024 --limite-linhas 400000
   f=$(ls site/v1/municipios/sp/*/2024-pagamentos.md | head -1); head -60 "$f"; grep -A8 "tabela: obras" "$f" || true

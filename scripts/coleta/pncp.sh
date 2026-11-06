@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Contratos dos municípios fora de SP (PNCP). EVENTO=pull_request roda só uma amostra.
-set -eo pipefail
+set -e  # sem pipefail: os diagnósticos dos PRs cortam a saída com head
 if [ "$EVENTO" = "pull_request" ]; then
   python -m araragov pncp --saida site --anos 2025 --dias 3 --limite-itens 80
   ls site/v1/municipios/*/*/2025-contratos.md | wc -l

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Arrecadação e gastos por área (Siconfi).
-set -eo pipefail
+set -e  # sem pipefail: os diagnósticos dos PRs cortam a saída com head
 if [ "$EVENTO" = "pull_request" ]; then
   python -m araragov municipios --saida site --sem-eleitos --ufs AC,RR,SP --financas 2023 --limite-siconfi 6
   for f in $(ls site/v1/municipios/*/*/2023.md | head -2); do
