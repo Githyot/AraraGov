@@ -134,7 +134,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        fonte: [tce-sp, tce-ce, tce-pb, tce-pe, tce-rj, agili, pncp, emendas]
+        fonte: [tce-sp, tce-ce, tce-pb, tce-pe, tce-rj, agili, fiorilli, pncp, emendas]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

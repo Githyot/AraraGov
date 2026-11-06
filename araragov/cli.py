@@ -136,6 +136,10 @@ def main(argv: list[str] | None = None) -> int:
     fdc = sub.add_parser("fiorilli-descobrir", help="procura portais Fiorilli das prefeituras (lista .csv)")
     fdc.add_argument("--saida", default="araragov/referencia/fiorilli.csv")
     fdc.add_argument("--ufs", default="", help="ex.: GO,MG (padrão: todos)")
+    fio = sub.add_parser("fiorilli", help="pagamentos das prefeituras com portal Fiorilli (.md)")
+    fio.add_argument("--saida", default="site")
+    fio.add_argument("--anos", type=_anos, default=[date.today().year - 1])
+    fio.add_argument("--limite-municipios", type=int, help="só as N primeiras prefeituras (teste)")
     agl = sub.add_parser("agili", help="pagamentos das prefeituras com portal Agili/IPM, quase todas do MT (.md)")
     agl.add_argument("--saida", default="site")
     agl.add_argument("--anos", type=_anos, default=[date.today().year - 1])
@@ -238,6 +242,13 @@ def main(argv: list[str] | None = None) -> int:
         achados = fiorilli.descobrir([u for u in args.ufs.split(",") if u] or None)
         Path(args.saida).write_text(fiorilli.escrever_lista(achados), encoding="utf-8")
         return 0
+
+    if args.comando == "fiorilli":
+        from pathlib import Path
+
+        from .municipios import fiorilli
+
+        return 0 if fiorilli.gerar(HttpClient(), Path(args.saida), args.anos, args.limite_municipios) else 1
 
     if args.comando == "agili":
         from pathlib import Path
