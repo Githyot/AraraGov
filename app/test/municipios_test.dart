@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import 'package:araragov/dados/api.dart';
+import 'package:araragov/dados/tse.dart';
+import 'package:araragov/telas/perfil_municipal.dart';
 import 'package:araragov/telas/municipios.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -23,6 +25,7 @@ tipo: municipios-indice
 const _resumo = '''---
 formato: araragov-md/1
 tipo: municipio-resumo
+tse: 61018
 ---
 
 <!-- tabela: mandatos -->
@@ -88,6 +91,15 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('ANA TESTE'), findsOneWidget);
 
+    // Cada pessoa abre um perfil, com foto do TSE (ou iniciais) e a ficha.
+    await tester.tap(find.text('ANA TESTE'));
+    await tester.pumpAndSettle();
+    expect(find.text('Ficha no TSE'), findsOneWidget);
+    expect(find.text('Mandatos em Cidade Exemplo'), findsOneWidget);
+    expect(find.textContaining('ainda não foram coletados'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
     await tester.tap(find.text('Obras'));
     await tester.pumpAndSettle();
     expect(find.text('Recape da Rua A'), findsOneWidget);
@@ -101,5 +113,15 @@ void main() {
     await tester.tap(find.text('Emendas'));
     await tester.pumpAndSettle();
     expect(find.text('Não há dados'), findsOneWidget);
+  });
+
+  test('endereços do TSE e nome para ligar mandatos', () {
+    expect(fotoTse('2024', '160002229427', '77577'),
+        'https://divulgacandcontas.tse.jus.br/divulga/rest/arquivo/img/2045202024/160002229427/77577');
+    expect(paginaTse('2024', '160002229427', '77577'),
+        'https://divulgacandcontas.tse.jus.br/divulga/#/candidato/2024/2045202024/77577/160002229427');
+    expect(fotoTse('2024', null, '77577'), isNull);
+    expect(fotoTse('2010', '1', '77577'), isNull);
+    expect(chaveNome('Mário  Chotian'), chaveNome('MARIO CHOTIAN'));
   });
 }

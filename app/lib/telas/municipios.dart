@@ -3,10 +3,12 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../dados/api.dart';
 import '../dados/md.dart';
+import '../dados/tse.dart';
 import '../formatar.dart';
 import '../tema.dart';
 import '../widgets/adw.dart';
 import '../widgets/lai.dart';
+import 'perfil_municipal.dart';
 
 /// Busca de municípios (lista do `municipios/indice.md`).
 class MunicipiosTela extends StatefulWidget {
@@ -143,7 +145,7 @@ class MunicipioTela extends StatelessWidget {
           bottom: TabBar(isScrollable: true, tabAlignment: TabAlignment.start, tabs: [for (final a in abas) Tab(text: a)]),
         ),
         body: TabBarView(children: [
-          _Governo(api: api, pasta: pasta),
+          _Governo(api: api, pasta: pasta, uf: uf, nome: nome),
           _Dinheiro(api: api, pasta: pasta, uf: uf),
           _Obras(api: api, pasta: pasta, uf: uf, nome: nome),
           _Fornecedores(api: api, pasta: pasta, uf: uf, nome: nome),
@@ -271,8 +273,8 @@ Color _corComparacao(String? c) {
 
 class _Governo extends StatelessWidget {
   final Api api;
-  final String pasta;
-  const _Governo({required this.api, required this.pasta});
+  final String pasta, uf, nome;
+  const _Governo({required this.api, required this.pasta, required this.uf, required this.nome});
 
   @override
   Widget build(BuildContext context) => _Carregar(
@@ -285,6 +287,15 @@ class _Governo extends StatelessWidget {
               _SemDados(linhas: doc?.tabela('sem-dados') ?? const [], motivo: 'O resumo deste município ainda não foi coletado.'),
             ]);
           }
+          final ue = doc?.meta['tse'];
+          Widget pessoa(Map<String, String?> m, String? subtitulo) => Linha(
+                prefixo: Avatar(url: fotoTse(m['eleicao'], m['sq_candidato'], ue), nome: m['nome'] ?? ''),
+                titulo: m['nome'] ?? '—',
+                subtitulo: subtitulo,
+                aoTocar: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => PerfilMunicipalTela(mandato: m, mandatos: mandatos, municipio: nome, uf: uf, ue: ue),
+                )),
+              );
           final eleicoes = {for (final m in mandatos) m['eleicao'] ?? ''}.toList()..sort((a, b) => b.compareTo(a));
           return _Pagina([
             for (final e in eleicoes) ...[
@@ -295,19 +306,20 @@ class _Governo extends StatelessWidget {
                 }(),
                 filhos: [
                   for (final m in mandatos.where((m) => m['eleicao'] == e && m['cargo'] != 'Vereador'))
-                    Linha(titulo: m['nome'] ?? '—', subtitulo: '${m['cargo']} · ${m['partido'] ?? '—'}'),
+                    pessoa(m, '${m['cargo']} · ${m['partido'] ?? '—'}'),
                   ExpansionTile(
                     title: Text('Vereadores (${mandatos.where((m) => m['eleicao'] == e && m['cargo'] == 'Vereador').length})'),
+                    shape: const Border(),
                     children: [
                       for (final m in mandatos.where((m) => m['eleicao'] == e && m['cargo'] == 'Vereador'))
-                        Linha(titulo: m['nome'] ?? '—', subtitulo: m['partido']),
+                        pessoa(m, m['partido']),
                     ],
                   ),
                 ],
               ),
             ],
             _SemDados(linhas: doc?.tabela('sem-dados') ?? const []),
-            const _Fonte('Tribunal Superior Eleitoral (candidaturas eleitas)'),
+            const _Fonte('Tribunal Superior Eleitoral (candidaturas eleitas e fotos)'),
           ]);
         },
       );
