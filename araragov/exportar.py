@@ -478,6 +478,40 @@ def _gastos(despesas: List[Despesa], politico: Politico) -> Dict[str, Any]:
     }
 
 
+def _medias_partido(r: espectro.Resultado, partido_atual, casa: str) -> Dict[str, List[float]]:
+    """% à esquerda de cada parlamentar, agrupado pelo partido atual."""
+    por_partido: Dict[str, List[float]] = defaultdict(list)
+    for cod, (pct, _) in r.pct_esquerda.items():
+        partido = partido_atual.get((casa, cod))
+        if partido:
+            por_partido[partido].append(pct)
+    return por_partido
+
+
+def _posicao_alinhamento(r: espectro.Resultado, alinh, medias, partido: Optional[str], cod) -> Dict[str, Any]:
+    item: Dict[str, Any] = {}
+    if cod in r.pct_esquerda:
+        pct, n = r.pct_esquerda[cod]
+        media = medias.get(partido or "")
+        item["posicao"] = {
+            "pct_esquerda": pct,
+            "pct_direita": round(100 - pct, 1),
+            "faixa": espectro.faixa(pct),
+            "votacoes_consideradas": n,
+            "media_do_partido": round(sum(media) / len(media), 1) if media else None,
+            "faixa_do_partido": espectro.faixa(sum(media) / len(media)) if media else None,
+        }
+    if alinh.get(cod):
+        sigla = (partido or "").upper().replace(" ", "")
+        todos = alinh[cod]
+        item["alinhamento"] = {
+            "mais_alinhados": todos[:5],
+            "menos_alinhados": todos[-3:][::-1] if len(todos) > 5 else [],
+            "proprio_partido": next((a for a in todos if a["partido"] == sigla), None),
+        }
+    return item
+
+
 def _analises(politicos, votos_por, votacoes) -> Dict[Any, Any]:
     """Posição no espectro, alinhamento com partidos e votações de atenção."""
     saida: Dict[Any, Any] = {"_lados": {}, "_atencao": {}}
@@ -511,43 +545,35 @@ def _analises(politicos, votos_por, votacoes) -> Dict[Any, Any]:
             casa, len(r.votacoes), len(r.pct_esquerda),
         )
 
-        por_partido: Dict[str, List[float]] = defaultdict(list)
-        for cod, (pct, _) in r.pct_esquerda.items():
-            partido = partido_atual.get((casa, cod))
-            if partido:
-                por_partido[partido].append(pct)
-
-        medias = sorted(
-            ((sum(v) / len(v), k, len(v)) for k, v in por_partido.items() if len(v) >= 3), reverse=True
-        )
+        medias = _medias_partido(r, partido_atual, casa)
         logger.info(
             "%s: %% médio à esquerda por partido: %s",
-            casa, ", ".join(f"{k} {m:.0f}% (n={n})" for m, k, n in medias),
+            casa, ", ".join(f"{k} {sum(v) / len(v):.0f}% (n={len(v)})" for k, v in medias.items() if len(v) >= 3),
         )
+
+        # O mesmo cálculo só com os votos de cada ano, para o filtro de período
+        # do app. O lado de cada votação continua o calculado sobre tudo.
+        ano_de = {vid: v.data.year for vid, v in votacoes.items() if v.data}
+        por_ano_votos: Dict[int, List[espectro.VotoSimples]] = defaultdict(list)
+        for v in simples:
+            if v.votacao_id in ano_de:
+                por_ano_votos[ano_de[v.votacao_id]].append(v)
+        por_ano = {}
+        for ano, lista_ano in por_ano_votos.items():
+            r_ano = espectro.calcular(lista_ano, lados=r.votacoes)
+            por_ano[ano] = (r_ano, espectro.alinhamento_partidos(lista_ano), _medias_partido(r_ano, partido_atual, casa))
+
         for (c, cod), lista in votos_por.items():
             if c != casa:
                 continue
-            item: Dict[str, Any] = {}
-            if cod in r.pct_esquerda:
-                pct, n = r.pct_esquerda[cod]
-                partido = partido_atual.get((casa, cod))
-                media = por_partido.get(partido or "")
-                item["posicao"] = {
-                    "pct_esquerda": pct,
-                    "pct_direita": round(100 - pct, 1),
-                    "faixa": espectro.faixa(pct),
-                    "votacoes_consideradas": n,
-                    "media_do_partido": round(sum(media) / len(media), 1) if media else None,
-                    "faixa_do_partido": espectro.faixa(sum(media) / len(media)) if media else None,
-                }
-            if cod in alinh:
-                partido = (partido_atual.get((casa, cod)) or "").upper().replace(" ", "")
-                todos = alinh[cod]
-                item["alinhamento"] = {
-                    "mais_alinhados": todos[:5],
-                    "menos_alinhados": todos[-3:][::-1] if len(todos) > 5 else [],
-                    "proprio_partido": next((a for a in todos if a["partido"] == partido), None),
-                }
+            item: Dict[str, Any] = _posicao_alinhamento(r, alinh, medias, partido_atual.get((casa, cod)), cod)
+            anos = {}
+            for ano, (r_ano, alinh_ano, medias_ano) in sorted(por_ano.items()):
+                do_ano = _posicao_alinhamento(r_ano, alinh_ano, medias_ano, partido_atual.get((casa, cod)), cod)
+                if do_ano:
+                    anos[str(ano)] = do_ano
+            if anos:
+                item["analises_anos"] = anos
             de_atencao = [v for v in lista if v.votacao_id in saida["_atencao"]]
             if de_atencao:
                 item["atencao"] = {

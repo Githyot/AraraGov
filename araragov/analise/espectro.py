@@ -31,6 +31,10 @@ PARTIDOS_DIREITA_REFERENCIA = {"PL", "NOVO"}
 MEMBROS_MINIMOS = 3  # cada bloco precisa de N votos (Sim/Não) na votação
 COESAO_MINIMA = 0.6  # a maioria de cada bloco precisa ter ao menos 60%
 VOTOS_MINIMOS = 10  # parlamentar precisa de N votações ideológicas para ter posição
+# Para dizer como "o partido" votou sem contar a própria pessoa, o partido
+# precisa de N outros membros votando Sim ou Não. Sem isso, num partido de
+# um ou dois deputados o alinhamento com ele seria sempre ~100%.
+OUTROS_MEMBROS_MINIMOS = 3
 
 
 @dataclass
@@ -82,8 +86,13 @@ def _maioria(votos: List[bool]) -> Optional[Tuple[bool, float]]:
     return None
 
 
-def calcular(votos: Iterable[VotoSimples]) -> Resultado:
-    """Roda o método para uma casa legislativa."""
+def calcular(votos: Iterable[VotoSimples], lados: Optional[Dict[str, LadoVotacao]] = None) -> Resultado:
+    """Roda o método para uma casa legislativa.
+
+    Com [lados], usa o lado já calculado de cada votação (sobre todo o período)
+    e só recalcula o percentual de cada parlamentar nos [votos] dados, por
+    exemplo os de um ano.
+    """
     por_votacao: Dict[str, Dict[int, bool]] = defaultdict(dict)
     blocos: Dict[str, Dict[str, List[bool]]] = defaultdict(lambda: {"esquerda": [], "direita": []})
     for v in votos:
@@ -98,12 +107,15 @@ def calcular(votos: Iterable[VotoSimples]) -> Resultado:
             blocos[v.votacao_id]["direita"].append(sim)
 
     resultado = Resultado()
-    for vid, b in blocos.items():
-        esq, dir_ = _maioria(b["esquerda"]), _maioria(b["direita"])
-        if esq is None or dir_ is None or esq[0] == dir_[0]:
-            continue
-        lado = "esquerda" if esq[0] else "direita"
-        resultado.votacoes[vid] = LadoVotacao(lado, round(abs(esq[1] - dir_[1]), 2))
+    if lados is not None:
+        resultado.votacoes = {vid: lado for vid, lado in lados.items() if vid in por_votacao}
+    else:
+        for vid, b in blocos.items():
+            esq, dir_ = _maioria(b["esquerda"]), _maioria(b["direita"])
+            if esq is None or dir_ is None or esq[0] == dir_[0]:
+                continue
+            lado = "esquerda" if esq[0] else "direita"
+            resultado.votacoes[vid] = LadoVotacao(lado, round(abs(esq[1] - dir_[1]), 2))
 
     com_esquerda: Dict[int, List[bool]] = defaultdict(list)
     for vid, lado in resultado.votacoes.items():
@@ -119,8 +131,9 @@ def alinhamento_partidos(votos: Iterable[VotoSimples], minimo_comum: int = 10) -
     """Com quais partidos cada parlamentar mais vota junto.
 
     A posição de um partido numa votação é a da maioria dos seus membros que
-    votaram Sim ou Não. O alinhamento é o % de votações em comum em que o
-    parlamentar votou igual a essa maioria.
+    votaram Sim ou Não, sem contar o próprio parlamentar. O alinhamento é o %
+    de votações em comum em que ele votou igual a essa maioria. O partido de
+    cada voto é o da época da votação.
     """
     lista = [v for v in votos if v.voto in ("sim", "nao")]
     contagem: Dict[Tuple[str, str], List[int]] = defaultdict(lambda: [0, 0])
@@ -128,19 +141,21 @@ def alinhamento_partidos(votos: Iterable[VotoSimples], minimo_comum: int = 10) -
         if v.partido:
             c = contagem[(v.votacao_id, _sigla(v.partido))]
             c[0 if v.voto == "sim" else 1] += 1
-    posicao = {
-        chave: ("sim" if s > n else "nao") for chave, (s, n) in contagem.items() if s != n
-    }
-    partidos_por_votacao: Dict[str, List[Tuple[str, str]]] = defaultdict(list)
-    for (vid, partido), pos in posicao.items():
-        partidos_por_votacao[vid].append((partido, pos))
-
     acordos: Dict[int, Dict[str, List[int]]] = defaultdict(lambda: defaultdict(lambda: [0, 0]))
+    partidos_por_votacao: Dict[str, List[str]] = defaultdict(list)
+    for vid, partido in contagem:
+        partidos_por_votacao[vid].append(partido)
     for v in lista:
-        for partido, pos in partidos_por_votacao.get(v.votacao_id, []):
+        meu = _sigla(v.partido) if v.partido else None
+        for partido in partidos_por_votacao.get(v.votacao_id, []):
+            s, n = contagem[(v.votacao_id, partido)]
+            if partido == meu:  # tira o próprio voto da maioria do partido
+                s, n = (s - 1, n) if v.voto == "sim" else (s, n - 1)
+            if s + n < OUTROS_MEMBROS_MINIMOS or s == n:
+                continue
             a = acordos[v.codigo_politico][partido]
             a[1] += 1
-            if v.voto == pos:
+            if v.voto == ("sim" if s > n else "nao"):
                 a[0] += 1
     saida: Dict[int, List[dict]] = {}
     for cod, por_partido in acordos.items():

@@ -261,6 +261,28 @@ class DoacaoSalario {
   }
 }
 
+/// Mesmo método do servidor (analise/espectro.py), sem a média do partido.
+Map<String, dynamic>? _posicaoLocal(List<VotoEmVotacao> votos) {
+  final lados = [for (final v in votos) if (v.ladoDoVoto != null) v.ladoDoVoto!];
+  if (lados.length < 10) return null;
+  final pct = (1000 * lados.where((l) => l == 'esquerda').length / lados.length).round() / 10;
+  final faixa = pct >= 65
+      ? 'esquerda'
+      : pct >= 55
+          ? 'centro-esquerda'
+          : pct > 45
+              ? 'centro'
+              : pct > 35
+                  ? 'centro-direita'
+                  : 'direita';
+  return {
+    'pct_esquerda': pct,
+    'pct_direita': ((1000 - pct * 10).round()) / 10,
+    'faixa': faixa,
+    'votacoes_consideradas': lados.length,
+  };
+}
+
 List<VotoEmVotacao> _lerVotos(Map<String, dynamic> j) {
   final inline = {for (final v in (j['votacoes'] as List? ?? [])) v['id'] as String: Map<String, dynamic>.from(v)};
   final votos = j['votos'] as List?;
@@ -331,6 +353,9 @@ class Perfil {
                 votouNao: j['atencao']['votou_nao'] as int,
               );
 
+  /// Se os dados publicados trazem posição e alinhamento calculados por ano.
+  bool get temAnalisesPorAno => _json['analises_anos'] != null;
+
   /// Anos que têm algum dado (votações, gastos ou emendas), do mais recente.
   List<int> get anosDisponiveis {
     final base = Perfil.fromJson(_json);
@@ -345,7 +370,8 @@ class Perfil {
   }
 
   /// O mesmo perfil, só com o que aconteceu em [ano] (null = todo o período).
-  /// Posição e alinhamento continuam calculados sobre todo o período.
+  /// Posição e alinhamento são os recalculados com os votos do ano; equipe do
+  /// gabinete, custo mensal dela e tabela de salário são sempre os atuais.
   Perfil noAno(int? ano) {
     if (ano == null) return Perfil.fromJson(_json);
     final j = Map<String, dynamic>.from(_json);
@@ -367,6 +393,17 @@ class Perfil {
       presenca[v.voto] = (presenca[v.voto] ?? 0) + 1;
     }
     j['presenca'] = presenca;
+    final analisesAno = j['analises_anos'] as Map?;
+    if (analisesAno != null) {
+      final a = analisesAno[chave] as Map?;
+      j['posicao'] = a?['posicao'];
+      j['alinhamento'] = a?['alinhamento'];
+    } else {
+      // Dados publicados antes do cálculo por ano: a posição sai dos lados das
+      // votações que já vêm em cada voto; o alinhamento precisa do servidor.
+      j['posicao'] = _posicaoLocal(votosAno);
+      j['alinhamento'] = null;
+    }
     final comAtencao = votosAno.where((v) => v.atencao != null).toList();
     j['atencao'] = comAtencao.isEmpty
         ? null
