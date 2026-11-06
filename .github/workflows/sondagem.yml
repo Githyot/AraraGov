@@ -12,47 +12,40 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
-      - name: TCE-PE, campos e filtros das despesas municipais
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: TCE-PE, lista de entidades e códigos dos municípios
         run: |
           set +e
           A="AraraGov (dados publicos; github.com/Githyot/AraraGov)"
-          U="https://sistemas.tce.pe.gov.br/DadosAbertos/DespesasMunicipais!json"
-          for q in "ANOREFERENCIA=2025&CODIGO_MUNICIPIO=P120&MES=3" "ANOREFERENCIA=2025&CODIGOMUNICIPIO=P120&MES=3" "ANOREFERENCIA=2025&MUNICIPIO=Garanhuns&MESREFERENCIA=3"; do
-            curl -sS -m 300 -A "$A" "$U?$q" -o /tmp/pe.json -w "[$q %{http_code} %{size_download}B %{time_total}s]\n"
-            python3 -c "
-          import json,collections
-          d=json.loads(open('/tmp/pe.json','rb').read().decode('latin-1'))['resposta']
-          c=d.get('conteudo') or []
-          print(d.get('status'), d.get('tamanhoResultado'), len(c))
-          if c:
-              print(sorted(c[0].keys()))
-              print(collections.Counter(x.get('CODIGO_MUNICIPIO') for x in c).most_common(3))
-              print(collections.Counter(x.get('MES') or x.get('MESREFERENCIA') for x in c).most_common(13))
-              print(collections.Counter(len((x.get('CPF_CNPJ') or '').strip()) for x in c).most_common())
-              print(json.dumps(c[0], ensure_ascii=False)[:1500])"
+          B="https://sistemas.tce.pe.gov.br/DadosAbertos"
+          curl -sS -m 60 -A "$A" "$B/" -o /tmp/i.html -w "[indice %{http_code} %{size_download}B]\n"
+          iconv -f latin1 -t utf-8 /tmp/i.html | grep -o '[A-Za-z]*![a-z]*' | sort -u | head -150
+          for e in UnidadesJurisdicionadas MunicipiosPE MunicipiosPernambuco UnidadeJurisdicionada Entidades; do
+            curl -sS -m 120 -A "$A" "$B/$e!json" -o /tmp/e.json -w "[$e %{http_code} %{size_download}B]\n"
+            head -c 700 /tmp/e.json | iconv -f latin1 -t utf-8; echo
           done
-          curl -sS -m 60 -A "$A" "https://sistemas.tce.pe.gov.br/DadosAbertos/Municipios!json" -o /tmp/m.json -w "[Municipios %{http_code} %{size_download}B]\n"
-          head -c 800 /tmp/m.json | iconv -f latin1 -t utf-8; echo
-      - name: AgiliCloud, total de empenhos de um ano
+      - name: AgiliCloud com o corpo completo
         run: |
           set +e
-          A="AraraGov (dados publicos; github.com/Githyot/AraraGov)"
-          B=https://transparencia.agilicloud.com.br/api
-          echo '[{"field":"FiltroExercicio","label":"Exercício","nameFieldTable":"","aliasTable":"E","type":1,"typeParam":1,"operatorDefault":1,"operatorValue":1,"checked":true,"order":100,"required":true,"value":"2025"}]' > /tmp/corpo.json
-          for uc in prefguarantanorte-mt prefcarlinda-mt; do
-            curl -sS -m 120 -A "$A" -H "Accept: application/json" -H "Content-Type: application/json; charset=utf-8" -H "uc: $uc" -X POST --data @/tmp/corpo.json \
-              "$B/contabilidade/despesas/empenhosporexercicio/obterdadosempenhosporexercicio/?model=Agili.Blue.Portal.Shared.Contabilidade.Dto.Despesas.EmpenhosPorExercicio.EmpenhosPorExercicioGridDto&page=0&size=1000&withCount=true" \
-              -o /tmp/g.json -w "[$uc %{http_code} %{size_download}B %{time_total}s]\n"
-            python3 -c "
-          import json
-          d=json.load(open('/tmp/g.json'))
-          r=d.get('data') or []
-          print('total', d.get('totalResult'), 'nesta página', len(r))
-          if r: print(json.dumps(r[0], ensure_ascii=False)[:1200])"
-          done
-      - name: Querido Diário (com redirecionamento)
-        run: |
-          set +e
-          A="AraraGov (dados publicos; github.com/Githyot/AraraGov)"
-          curl -sSL -m 60 -A "$A" "https://queridodiario.ok.org.br/api/gazettes?querystring=%2200.360.305%2F0001-04%22&size=2" -o /tmp/q.json -w "[qd %{http_code} %{size_download}B %{url_effective}]\n"
-          head -c 1500 /tmp/q.json; echo
+          cat > /tmp/s.py <<'PY'
+          import json, sys, time
+          sys.path.insert(0, ".")
+          from araragov.http import HttpClient
+          from araragov.municipios import agili
+          c = HttpClient(tentativas=2)
+          ps = agili.prefeituras(c)
+          print(len(ps), "prefeituras com IBGE:", ps)
+          for uf, cod, curto in ps[:3]:
+              for tam in (1000, 500):
+                  t = time.time()
+                  try:
+                      d = c.pedir_json("POST", agili.GRID.format(pagina=0, tamanho=tam), agili._corpo(2025),
+                                       {"uc": curto, "Content-Type": "application/json; charset=utf-8"})
+                      print(curto, tam, "total", d.get("totalResult"), "linhas", len(d.get("data") or []), f"{time.time()-t:.1f}s")
+                  except Exception as e:
+                      print(curto, tam, "erro", str(e)[:300])
+          PY
+          pip install -q -e . >/dev/null 2>&1; python /tmp/s.py

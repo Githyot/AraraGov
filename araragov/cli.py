@@ -129,6 +129,11 @@ def main(argv: list[str] | None = None) -> int:
     tpb.add_argument("--saida", default="site")
     tpb.add_argument("--anos", type=_anos, default=[date.today().year - 1])
     tpb.add_argument("--limite-linhas", type=int, help="lê só N linhas do arquivo (teste)")
+    agl = sub.add_parser("agili", help="pagamentos das prefeituras com portal Agili/IPM, quase todas do MT (.md)")
+    agl.add_argument("--saida", default="site")
+    agl.add_argument("--anos", type=_anos, default=[date.today().year - 1])
+    agl.add_argument("--limite-municipios", type=int, help="só as N primeiras prefeituras (teste)")
+    agl.add_argument("--limite-linhas", type=int, help="lê só N empenhos de cada prefeitura (teste)")
     trj = sub.add_parser("tce-rj", help="contratos dos municípios do RJ pelo TCE-RJ (.md)")
     trj.add_argument("--saida", default="site")
     trj.add_argument("--anos", type=_anos, default=[date.today().year - 1, date.today().year])
@@ -210,6 +215,14 @@ def main(argv: list[str] | None = None) -> int:
         from .municipios import tcepb
 
         return 0 if tcepb.gerar(HttpClient(), Path(args.saida), args.anos, args.limite_linhas) else 1
+
+    if args.comando == "agili":
+        from pathlib import Path
+
+        from .municipios import agili
+
+        n = agili.gerar(HttpClient(), Path(args.saida), args.anos, args.limite_municipios, args.limite_linhas)
+        return 0 if n else 1
 
     if args.comando == "tce-rj":
         from pathlib import Path
