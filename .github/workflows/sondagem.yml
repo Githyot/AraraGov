@@ -12,44 +12,47 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
-      - name: AgiliCloud (portais de prefeituras do MT, sistema IPM/Agili)
+      - name: TCE-PE, campos e filtros das despesas municipais
+        run: |
+          set +e
+          A="AraraGov (dados publicos; github.com/Githyot/AraraGov)"
+          U="https://sistemas.tce.pe.gov.br/DadosAbertos/DespesasMunicipais!json"
+          for q in "ANOREFERENCIA=2025&CODIGO_MUNICIPIO=P120&MES=3" "ANOREFERENCIA=2025&CODIGOMUNICIPIO=P120&MES=3" "ANOREFERENCIA=2025&MUNICIPIO=Garanhuns&MESREFERENCIA=3"; do
+            curl -sS -m 300 -A "$A" "$U?$q" -o /tmp/pe.json -w "[$q %{http_code} %{size_download}B %{time_total}s]\n"
+            python3 -c "
+          import json,collections
+          d=json.loads(open('/tmp/pe.json','rb').read().decode('latin-1'))['resposta']
+          c=d.get('conteudo') or []
+          print(d.get('status'), d.get('tamanhoResultado'), len(c))
+          if c:
+              print(sorted(c[0].keys()))
+              print(collections.Counter(x.get('CODIGO_MUNICIPIO') for x in c).most_common(3))
+              print(collections.Counter(x.get('MES') or x.get('MESREFERENCIA') for x in c).most_common(13))
+              print(collections.Counter(len((x.get('CPF_CNPJ') or '').strip()) for x in c).most_common())
+              print(json.dumps(c[0], ensure_ascii=False)[:1500])"
+          done
+          curl -sS -m 60 -A "$A" "https://sistemas.tce.pe.gov.br/DadosAbertos/Municipios!json" -o /tmp/m.json -w "[Municipios %{http_code} %{size_download}B]\n"
+          head -c 800 /tmp/m.json | iconv -f latin1 -t utf-8; echo
+      - name: AgiliCloud, total de empenhos de um ano
         run: |
           set +e
           A="AraraGov (dados publicos; github.com/Githyot/AraraGov)"
           B=https://transparencia.agilicloud.com.br/api
-          curl -sS -m 60 -A "$A" -H "Accept: application/json" -H "uc: prefguarantanorte-mt" "$B/seletor/get" -o /tmp/cli.json -w "[seletor %{http_code} %{size_download}B %{time_total}s]\n"
-          python3 -c "
-          import json,collections
-          d=json.load(open('/tmp/cli.json'))
-          print(len(d), 'clientes'); print(collections.Counter(c.get('uf') for c in d).most_common())
-          pref=[c for c in d if 'pref' in (c.get('shortname') or '')]
-          print(len(pref), 'prefeituras'); print([ (c.get('shortname'), c.get('nomeRazaoSocial')) for c in pref[:5]])
-          print(sorted(d[0].keys()))"
-          cat > /tmp/corpo.json <<'JSON'
-          [{"field":"FiltroExercicio","label":"Exercício","nameFieldTable":"","aliasTable":"E","type":1,"typeParam":1,"operatorDefault":1,"operatorValue":1,"checked":true,"order":100,"required":true,"value":"2025"},
-           {"field":"DataInicio","label":"De","nameFieldTable":"DataEmpenho","aliasTable":"E","type":3,"typeParam":3,"operatorDefault":1,"operatorValue":1,"checked":true,"order":50,"required":false,"value":"2025-01-01","valueFinnaly":"2025-12-31"},
-           {"field":"DataFim","label":"Até","nameFieldTable":"DataEmpenho","aliasTable":"E","type":3,"typeParam":3,"operatorDefault":1,"operatorValue":1,"checked":true,"order":50,"required":false,"value":"2025-12-31"}]
-          JSON
-          curl -sS -m 120 -A "$A" -H "Accept: application/json" -H "Content-Type: application/json; charset=utf-8" -H "uc: prefguarantanorte-mt" \
-            -X POST --data @/tmp/corpo.json \
-            "$B/contabilidade/despesas/empenhosporexercicio/obterdadosempenhosporexercicio/?model=Agili.Blue.Portal.Shared.Contabilidade.Dto.Despesas.EmpenhosPorExercicio.EmpenhosPorExercicioGridDto&page=0&size=3&withCount=true" \
-            -o /tmp/g.json -w "[grid %{http_code} %{size_download}B %{time_total}s]\n"
-          head -c 3000 /tmp/g.json; echo
-      - name: TCE-PE (dados abertos, despesas municipais)
-        run: |
-          set +e
-          A="AraraGov (dados publicos; github.com/Githyot/AraraGov)"
-          curl -sS -m 60 -A "$A" "https://sistemas.tce.pe.gov.br/DadosAbertos/" -o /tmp/pe.html -w "[índice %{http_code} %{size_download}B]\n"
-          sed 's/<[^>]*>/ /g' /tmp/pe.html | tr -s ' \n' | grep -oiE "[A-Za-z]*(Municip|Despesa|Empenho|Pagamento|Contrato|Licita)[A-Za-z]*" | sort | uniq -c | sort -rn | head -40
-          for r in DespesasMunicipais EmpenhosMunicipais PagamentosMunicipais ContratosMunicipais; do
-            curl -sS -m 120 -A "$A" "https://sistemas.tce.pe.gov.br/DadosAbertos/$r!json?ANOREFERENCIA=2025&MUNICIPIO=RECIFE" -o /tmp/r.json -w "[$r %{http_code} %{size_download}B %{time_total}s]\n"
-            head -c 600 /tmp/r.json | iconv -f latin1 -t utf-8; echo
+          echo '[{"field":"FiltroExercicio","label":"Exercício","nameFieldTable":"","aliasTable":"E","type":1,"typeParam":1,"operatorDefault":1,"operatorValue":1,"checked":true,"order":100,"required":true,"value":"2025"}]' > /tmp/corpo.json
+          for uc in prefguarantanorte-mt prefcarlinda-mt; do
+            curl -sS -m 120 -A "$A" -H "Accept: application/json" -H "Content-Type: application/json; charset=utf-8" -H "uc: $uc" -X POST --data @/tmp/corpo.json \
+              "$B/contabilidade/despesas/empenhosporexercicio/obterdadosempenhosporexercicio/?model=Agili.Blue.Portal.Shared.Contabilidade.Dto.Despesas.EmpenhosPorExercicio.EmpenhosPorExercicioGridDto&page=0&size=1000&withCount=true" \
+              -o /tmp/g.json -w "[$uc %{http_code} %{size_download}B %{time_total}s]\n"
+            python3 -c "
+          import json
+          d=json.load(open('/tmp/g.json'))
+          r=d.get('data') or []
+          print('total', d.get('totalResult'), 'nesta página', len(r))
+          if r: print(json.dumps(r[0], ensure_ascii=False)[:1200])"
           done
-      - name: Querido Diário (diários oficiais municipais)
+      - name: Querido Diário (com redirecionamento)
         run: |
           set +e
           A="AraraGov (dados publicos; github.com/Githyot/AraraGov)"
-          curl -sS -m 60 -A "$A" "https://queridodiario.ok.org.br/api/gazettes?querystring=%2200.360.305%2F0001-04%22&size=3" -o /tmp/q.json -w "[qd %{http_code} %{size_download}B %{time_total}s]\n"
+          curl -sSL -m 60 -A "$A" "https://queridodiario.ok.org.br/api/gazettes?querystring=%2200.360.305%2F0001-04%22&size=2" -o /tmp/q.json -w "[qd %{http_code} %{size_download}B %{url_effective}]\n"
           head -c 1500 /tmp/q.json; echo
-          curl -sS -m 60 -A "$A" "https://queridodiario.ok.org.br/api/cities?levels=3" -o /tmp/c.json -w "[cidades %{http_code} %{size_download}B]\n"
-          python3 -c "import json;d=json.load(open('/tmp/c.json'));c=d.get('cities',d);print(len(c),'cidades com diário completo')"
