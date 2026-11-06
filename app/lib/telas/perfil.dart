@@ -62,7 +62,7 @@ class _PerfilTelaState extends State<PerfilTela> {
                 IconButton(
                   tooltip: 'Comparar com outro político',
                   icon: const Icon(Icons.compare_arrows),
-                  onPressed: () => abrirComparacao(context, widget.api, snap.data!),
+                  onPressed: () => abrirComparacao(context, widget.api, snap.data!.noAno(_ano)),
                 ),
               ]);
             },
@@ -270,7 +270,7 @@ class _SecaoGastos extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final titulo = executivo(r) ? 'Gastos' : estadual ? 'Gastos de gabinete' : 'Gastos da cota parlamentar';
+    final titulo = rotuloGastos(r);
     if (g.total == 0) {
       return Grupo(titulo: titulo, filhos: [SemDados(r)]);
     }
@@ -584,6 +584,13 @@ class _Rodape extends StatelessWidget {
 
 
 /// Governador e vice não votam em plenário.
+/// Nome da verba de gastos do mandato conforme o cargo.
+String rotuloGastos(PoliticoResumo r) => executivo(r)
+    ? 'Gastos'
+    : r.esfera == 'estadual'
+        ? 'Gastos de gabinete'
+        : 'Gastos da cota parlamentar';
+
 bool executivo(PoliticoResumo r) => r.cargo == 'Governador' || r.cargo == 'Vice-governador';
 
 /// Linha mostrada quando falta um dado: diz que não há dados e qual órgão
