@@ -27,6 +27,8 @@ from ..http import HttpClient
 from .. import normalizar as n
 from ._comum import gravar_politico, substituir_despesas
 
+from . import historico
+
 logger = logging.getLogger(__name__)
 
 # --- Minas Gerais -----------------------------------------------------------
@@ -108,6 +110,9 @@ def coletar_despesas_almg(client: HttpClient, ano: int, limite: Optional[int] = 
         deputados = s.execute(select(Politico.codigo, Politico.nome).where(Politico.casa == ALMG)).all()
     if not deputados:
         raise RuntimeError("Nenhum deputado da ALMG no banco. Rode antes: araragov coletar almg-deputados")
+    if (ALMG, ano) in historico.anos_carregados:
+        logger.info("ALMG %s: ano fechado, despesas da coleta anterior", ano)
+        return 0
     hoje = date.today()
     ultimo_mes = 12 if ano < hoje.year else hoje.month
     linhas: List[Dict[str, Any]] = []

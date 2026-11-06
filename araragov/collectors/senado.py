@@ -12,6 +12,8 @@ Fontes (dados abertos, sem chave):
 from __future__ import annotations
 
 import logging
+from calendar import monthrange
+from datetime import date
 from typing import Any, Dict, Iterator, List, Optional
 
 from sqlalchemy import select
@@ -153,15 +155,10 @@ def coletar_votacoes(client: HttpClient, ano: int, limite: Optional[int] = None)
     if not codigos:
         raise RuntimeError("Nenhum senador no banco. Rode antes: araragov coletar senado-senadores")
 
-    # Filtrada por senador, a API devolve só o voto daquele senador em cada
-    # sessão. Juntamos as respostas de todos para montar cada votação.
     votacoes: Dict[str, Dict[str, Any]] = {}
     votos_por: Dict[str, Dict[int, Dict[str, Any]]] = {}
-    for cod in codigos:
-        dados = client.get_json(
-            f"{API}/votacao",
-            {"codigoParlamentar": cod, "dataInicio": f"{ano}-01-01", "dataFim": f"{ano}-12-31", "v": 1},
-        )
+
+    def juntar(dados: Any) -> None:
         for entrada in _votacoes(dados):
             convertido = _converter(entrada)
             if convertido is None:
@@ -175,6 +172,28 @@ def coletar_votacoes(client: HttpClient, ano: int, limite: Optional[int] = None)
                 votos_por[vid] = {}
             for v in votos:
                 votos_por[vid].setdefault(v["codigo_politico"], v)
+
+    # Sem filtro de senador, a API devolve cada votação do período com os votos de todos:
+    # 12 pedidos por ano em vez de um por senador (mais de 300).
+    hoje = date.today()
+    ultimo = 12 if ano < hoje.year else hoje.month
+    try:
+        for mes in range(1, ultimo + 1):
+            fim = monthrange(ano, mes)[1]
+            juntar(client.get_json(f"{API}/votacao", {"dataInicio": f"{ano}-{mes:02d}-01",
+                                                      "dataFim": f"{ano}-{mes:02d}-{fim:02d}", "v": 1}))
+    except Exception as exc:  # noqa: BLE001 - volta para a consulta por senador
+        logger.warning("Senado: votações por mês indisponíveis (%s); consultando por senador", exc)
+        votacoes.clear()
+        votos_por.clear()
+    if not votacoes:
+        # Filtrada por senador, a API devolve só o voto daquele senador em cada
+        # sessão. Juntamos as respostas de todos para montar cada votação.
+        for cod in codigos:
+            juntar(client.get_json(
+                f"{API}/votacao",
+                {"codigoParlamentar": cod, "dataInicio": f"{ano}-01-01", "dataFim": f"{ano}-12-31", "v": 1},
+            ))
 
     gravadas = 0
     with sessao() as s:
