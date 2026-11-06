@@ -62,7 +62,7 @@ _Última atualização: 5 de novembro de 2026 (madrugada do dia 6)_
 ## 3. App ✅
 
 - ✅ Flutter: um código para iOS, Android, Windows, Linux (e web)
-- ✅ Visual no estilo GNOME, sem poluição visual
+- ✅ Visual limpo, sem poluição visual, com temas GNOME, Android (Material 3), Apple e Windows 11: segue o aparelho ou é escolhido em Aparência; as cores com significado são iguais em todos
 - ✅ Ícone: cabeça da Arara sobre a bandeira do Brasil
 - ✅ Busca por nome, partido, estado e casa; perfil completo com gráficos
 - ✅ Telas de posição política, alinhamento e votações de atenção
