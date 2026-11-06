@@ -218,7 +218,7 @@ class _SemDados extends StatelessWidget {
 Future<void> _abrir(String url) async => launchUrl(Uri.parse(url));
 
 /// Tribunais de contas cujos pagamentos, um a um, já são lidos.
-const _tribunais = {'SP': 'TCE-SP', 'CE': 'TCE-CE', 'PB': 'TCE-PB'};
+const _tribunais = {'SP': 'TCE-SP', 'CE': 'TCE-CE', 'PB': 'TCE-PB', 'PE': 'TCE-PE'};
 
 String _semTce(String uf) => _tribunais.containsKey(uf)
     ? 'Ainda não coletado para este município.'

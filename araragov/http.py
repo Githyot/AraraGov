@@ -27,6 +27,10 @@ class HttpClient:
         self.fora_do_ar: Set[str] = set()
 
     def _get(self, url: str, params: Optional[Mapping[str, Any]], accept: str) -> requests.Response:
+        return self._pedir("GET", url, params, {"Accept": accept})
+
+    def _pedir(self, metodo: str, url: str, params: Optional[Mapping[str, Any]], cabecalhos: Mapping[str, str],
+               corpo: Any = None) -> requests.Response:
         host = urlsplit(url).netloc
         if host in self.fora_do_ar:
             raise RuntimeError(f"{host} não respondeu antes nesta execução; pulando {url}")
@@ -34,8 +38,8 @@ class HttpClient:
         so_falhas_de_conexao = True
         for tentativa in range(1, self.tentativas + 1):
             try:
-                resp = self.session.get(
-                    url, params=params, headers={"Accept": accept}, timeout=(20, HTTP_TIMEOUT)
+                resp = self.session.request(
+                    metodo, url, params=params, headers=dict(cabecalhos), json=corpo, timeout=(20, HTTP_TIMEOUT)
                 )
                 so_falhas_de_conexao = False
                 if resp.status_code < 500 and resp.status_code != 429:
@@ -55,6 +59,11 @@ class HttpClient:
 
     def get_json(self, url: str, params: Optional[Mapping[str, Any]] = None) -> Any:
         return self._get(url, params, "application/json").json()
+
+    def pedir_json(self, metodo: str, url: str, corpo: Any = None,
+                   cabecalhos: Optional[Mapping[str, str]] = None) -> Any:
+        """GET ou POST com corpo JSON e cabeçalhos extras (APIs de portais de transparência)."""
+        return self._pedir(metodo, url, None, {"Accept": "application/json", **(cabecalhos or {})}, corpo).json()
 
     def get_bytes(self, url: str, params: Optional[Mapping[str, Any]] = None) -> bytes:
         return self._get(url, params, "*/*").content

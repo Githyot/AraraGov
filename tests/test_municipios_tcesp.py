@@ -77,3 +77,13 @@ def test_agregar_e_documento(tmp_path):
 
 def test_valor():
     assert tcesp.valor("1.234,56") == D("1234.56") and tcesp.valor("") == 0 and tcesp.valor("x") == 0
+
+
+def test_ano_em_curso_sem_arquivo_nao_falha(tmp_path):
+    from araragov.municipios import tcesp as t
+
+    class SemArquivo:
+        def baixar_arquivo(self, url, destino):
+            raise RuntimeError("404 Client Error: Not Found")
+
+    assert t.gerar(SemArquivo(), tmp_path / "site", [2026], hoje=date(2026, 11, 6), pasta_tmp=tmp_path / "t") == 0

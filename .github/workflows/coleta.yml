@@ -18,9 +18,13 @@ on:
       limite:
         description: "Limite de itens por fonte (vazio = tudo)"
         required: false
+      republicar:
+        description: "Só publicar o site já montado por outra execução (número da execução; vazio = coletar)"
+        required: false
 
 permissions:
   contents: read
+  actions: read
   pages: write
   id-token: write
 
@@ -30,6 +34,10 @@ env:
   # Anos fechados já publicados não são baixados de novo (araragov/municipios/publicados.py).
   ARARAGOV_REAPROVEITAR: ${{ github.event_name == 'pull_request' && '0' || '1' }}
   EVENTO: ${{ github.event_name }}
+  # Saída com IP brasileiro para portais que recusam IP estrangeiro (araragov/http.py).
+  # Sem os secrets cadastrados ficam vazias e nada muda.
+  ARARAGOV_PROXY_BR: ${{ secrets.ARARAGOV_PROXY_BR }}
+  ARARAGOV_PROXY_HOSTS: ${{ secrets.ARARAGOV_PROXY_HOSTS }}
 
 concurrency:
   group: coleta-${{ github.event_name == 'pull_request' && github.ref || 'completa' }}
@@ -41,6 +49,7 @@ jobs:
   # base; 3) fornecedores, que lê tudo; 4) montar junta os pedaços e publica.
   # Os scripts de cada fonte ficam em scripts/coleta/; em PRs rodam só uma amostra.
   federal:
+    if: ${{ !inputs.republicar }}
     runs-on: ubuntu-latest
     timeout-minutes: 200
     steps:
@@ -72,6 +81,7 @@ jobs:
 
   base:
     # Quem governa (lido pelos pagamentos) e os custos de referência (lidos pelos contratos).
+    if: ${{ !inputs.republicar }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -96,6 +106,7 @@ jobs:
           retention-days: 3
 
   siconfi:
+    if: ${{ !inputs.republicar }}
     runs-on: ubuntu-latest
     timeout-minutes: 200
     steps:
@@ -117,13 +128,13 @@ jobs:
 
   municipais:
     needs: base
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && !inputs.republicar }}
     runs-on: ubuntu-latest
     timeout-minutes: 240
     strategy:
       fail-fast: false
       matrix:
-        fonte: [tce-sp, tce-ce, tce-pb, tce-rj, pncp, emendas]
+        fonte: [tce-sp, tce-ce, tce-pb, tce-pe, tce-rj, agili, pncp, emendas]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -149,7 +160,7 @@ jobs:
   fornecedores:
     # Cruza as empresas que receberam (pagamentos, contratos e emendas) com o CEIS/CNEP e o TSE.
     needs: [base, municipais]
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && !inputs.republicar }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -210,7 +221,7 @@ jobs:
 
   montar:
     needs: [federal, base, siconfi, municipais, fornecedores]
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && !inputs.republicar }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -237,12 +248,36 @@ jobs:
   publicar:
     # Publica a API estática no GitHub Pages: https://githyot.github.io/AraraGov/v1/
     # Só a partir do main; execuções manuais em outros ramos servem para testar.
-    if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+    # Publica mesmo que uma fonte tenha falhado: montar só passa com a parte federal no lugar.
+    # (Sem !cancelled(), uma fonte com erro em qualquer job anterior pulava a publicação.)
+    if: ${{ !cancelled() && needs.montar.result == 'success' && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
     needs: montar
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
+
+  republicar:
+    # Publica o site montado por outra execução (ex.: quando só a publicação falhou),
+    # sem coletar de novo. O artefato github-pages fica guardado por um dia.
+    if: ${{ inputs.republicar && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: github-pages
+          run-id: ${{ inputs.republicar }}
+          github-token: ${{ github.token }}
+          path: pacote
+      - run: mkdir site && tar -xf pacote/artifact.tar -C site && du -sh site
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
       - id: deploy
         uses: actions/deploy-pages@v4

@@ -9,7 +9,7 @@ class SessaoQueFalha:
         self.headers = {}
         self.chamadas = []
 
-    def get(self, url, **kwargs):
+    def request(self, metodo, url, **kwargs):
         self.chamadas.append(url)
         raise requests.ConnectionError("sem rota")
 

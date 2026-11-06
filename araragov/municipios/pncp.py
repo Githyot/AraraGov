@@ -24,14 +24,18 @@ na tabela `sem-dados`.
 from __future__ import annotations
 
 import logging
+import os
 import re
+import time
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple
 
 from . import md
+from . import publicados
 from .contratos import (COLUNAS_CONTRATOS, comparar, comparar_com_contratos, classificar, documento,
                         referencias_uf, unidade)
 from .eleitos import COLUNAS_SEM_DADOS, municipios_ibge
@@ -70,15 +74,49 @@ def _pedir(client, caminho: str, params: Dict[str, Any], pagina: int) -> Any:
             logger.info("PNCP %s: página de %s registros", caminho, tamanho)
 
 
-def _paginas(client, caminho: str, params: Dict[str, Any]) -> Iterator[Dict[str, Any]]:
+class PrazoEsgotado(Exception):
+    pass
+
+
+def _paginas(client, caminho: str, params: Dict[str, Any], prazo: Optional[float] = None) -> Iterator[Dict[str, Any]]:
     pagina = 1
     while True:
+        if prazo is not None and time.monotonic() > prazo:
+            raise PrazoEsgotado()
         dados = _pedir(client, caminho, params, pagina)
         for r in (dados or {}).get("data") or []:
             yield r
         if not dados or not dados.get("paginasRestantes"):
             return
         pagina += 1
+
+
+# Pedidos ao mesmo tempo. O PNCP responde 429 quando são muitos; o cliente espera e tenta de novo.
+TRABALHADORES = 4
+
+
+def _em_paralelo(client, caminho: str, consultas: List[Dict[str, Any]], prazo: Optional[float] = None
+                 ) -> Tuple[List[Dict[str, Any]], bool]:
+    """Todas as páginas de cada consulta, várias consultas ao mesmo tempo.
+
+    Devolve (linhas, completo). Com prazo, as consultas que não couberem nele
+    ficam de fora e `completo` sai False.
+    """
+    def uma(params):
+        linhas = []
+        try:
+            for r in _paginas(client, caminho, params, prazo):
+                linhas.append(r)
+        except PrazoEsgotado:
+            return linhas, False
+        except Exception as exc:  # noqa: BLE001 - uma semana fora do ar não derruba as outras
+            logger.warning("PNCP %s %s: %s", caminho, params, exc)
+            return linhas, False
+        return linhas, True
+
+    with ThreadPoolExecutor(max_workers=TRABALHADORES) as ex:
+        resultados = list(ex.map(uma, consultas))
+    return [r for linhas, _ in resultados for r in linhas], all(ok for _, ok in resultados)
 
 
 def _janelas(inicio: date, fim: date, dias: int = 7) -> Iterator[Tuple[date, date]]:
@@ -94,23 +132,41 @@ def _compra(numero: Optional[str]) -> Optional[Tuple[str, int, int]]:
     return (m.group(1), int(m.group(3)), int(m.group(2))) if m else None
 
 
-def contratos(client, inicio: date, fim: date) -> Iterator[Dict[str, Any]]:
-    for a, b in _janelas(inicio, fim):
-        yield from _paginas(client, "contratos", {"dataInicial": a.strftime("%Y%m%d"), "dataFinal": b.strftime("%Y%m%d")})
+def contratos(client, inicio: date, fim: date) -> List[Dict[str, Any]]:
+    consultas = [{"dataInicial": a.strftime("%Y%m%d"), "dataFinal": b.strftime("%Y%m%d")} for a, b in _janelas(inicio, fim)]
+    linhas, completo = _em_paralelo(client, "contratos", consultas)
+    if not completo:
+        logger.warning("PNCP: alguma semana de contratos não respondeu; os arquivos podem estar incompletos")
+    return linhas
 
 
-def compras_diretas(client, inicio: date, fim: date) -> Dict[str, str]:
-    """Número de controle da compra -> modalidade, para dispensas e inexigibilidades municipais."""
-    saida = {}
+# As dispensas e inexigibilidades de todo o país são centenas de milhares por ano, e essa
+# consulta só aceita páginas de 50. Sem limite de tempo ela ocupava a coleta inteira.
+MINUTOS_DIRETAS = float(os.environ.get("ARARAGOV_PNCP_MINUTOS_DIRETAS", "60"))
+
+
+def compras_diretas(client, inicio: date, fim: date, minutos: Optional[float] = None) -> Tuple[Dict[str, str], bool]:
+    """Número de controle da compra -> modalidade, para dispensas e inexigibilidades municipais.
+
+    Devolve também se a lista está completa (False quando o prazo acabou antes).
+    """
+    minutos = MINUTOS_DIRETAS if minutos is None else minutos
+    prazo = time.monotonic() + minutos * 60
+    saida: Dict[str, str] = {}
+    completo = True
     for cod, nome in MODALIDADES_DIRETAS.items():
-        for a, b in _janelas(inicio, fim):
-            for r in _paginas(client, "contratacoes/publicacao", {
-                    "dataInicial": a.strftime("%Y%m%d"), "dataFinal": b.strftime("%Y%m%d"),
-                    "codigoModalidadeContratacao": cod}):
-                if (r.get("orgaoEntidade") or {}).get("esferaId") == "M" and r.get("numeroControlePNCP"):
-                    amparo = (r.get("amparoLegal") or {}).get("nome")
-                    saida[r["numeroControlePNCP"]] = f"{nome}" + (f" ({amparo})" if amparo else "")
-    return saida
+        consultas = [{"dataInicial": a.strftime("%Y%m%d"), "dataFinal": b.strftime("%Y%m%d"),
+                      "codigoModalidadeContratacao": cod} for a, b in _janelas(inicio, fim)]
+        linhas, ok = _em_paralelo(client, "contratacoes/publicacao", consultas, prazo)
+        completo = completo and ok
+        for r in linhas:
+            if (r.get("orgaoEntidade") or {}).get("esferaId") == "M" and r.get("numeroControlePNCP"):
+                amparo = (r.get("amparoLegal") or {}).get("nome")
+                saida[r["numeroControlePNCP"]] = f"{nome}" + (f" ({amparo})" if amparo else "")
+    if not completo:
+        logger.warning("PNCP: prazo de %s min acabou ou o PNCP falhou; contratações diretas incompletas (%s)",
+                       minutos, len(saida))
+    return saida, completo
 
 
 def agregar(linhas: Iterable[Dict[str, Any]], ano: int, diretas: Dict[str, str],
@@ -214,11 +270,16 @@ def gerar(client, saida: Path, anos: Iterable[int], hoje: Optional[date] = None,
     nomes = {cod: nome for (_, _), (cod, nome) in municipios_ibge().items()}
     total = 0
     for ano in sorted(anos):
+        if not dias:
+            reaproveitados = _ano_ja_publicado(client, saida, ano, hoje)
+            if reaproveitados:
+                total += reaproveitados
+                continue
         inicio = date(ano, 1, 1)
         fim = min(date(ano, 12, 31), hoje - timedelta(days=1))
         if dias:
             fim = min(fim, inicio + timedelta(days=dias - 1))
-        diretas = compras_diretas(client, inicio, fim)
+        diretas, diretas_completas = compras_diretas(client, inicio, fim)
         por = agregar(contratos(client, inicio, fim), ano, diretas)
         pedidos = completar_obras(client, por, ano, saida, unidades_itens, limite_itens)
         for ibge, m in por.items():
@@ -229,13 +290,24 @@ def gerar(client, saida: Path, anos: Iterable[int], hoje: Optional[date] = None,
             caminho = saida / "v1" / "municipios" / m["uf"].lower() / str(ibge) / f"{ano}-contratos.md"
             caminho.parent.mkdir(parents=True, exist_ok=True)
             texto = documento(ibge, mun, ano, m, hoje, uf=m["uf"], fonte=FONTE, colunas_contratos=COLUNAS_CONTRATOS_PNCP)
-            caminho.write_text(_com_sem_dados(texto, hoje), encoding="utf-8")
+            caminho.write_text(_com_sem_dados(texto, hoje, diretas_completas), encoding="utf-8")
             total += 1
         logger.info("PNCP %s: %s municípios, %s compras diretas, %s consultas de itens", ano, len(por), len(diretas), pedidos)
     return total
 
 
-def _com_sem_dados(texto: str, hoje: date) -> str:
+def _ano_ja_publicado(client, saida: Path, ano: int, hoje: date) -> int:
+    """Ano fechado: copia os contratos já publicados (fora dos estados que vêm do tribunal)."""
+    if os.environ.get("ARARAGOV_REAPROVEITAR") != "1" or not publicados.ano_fechado(ano, hoje):
+        return 0
+    por_uf: Dict[str, List[int]] = defaultdict(list)
+    for (uf, _), (cod, _) in municipios_ibge().items():
+        if uf not in UFS_COM_TCE or cod in FORA_DO_TCE:
+            por_uf[uf].append(cod)
+    return sum(publicados.reaproveitar(client, saida, uf, cods, f"{ano}-contratos.md") for uf, cods in sorted(por_uf.items()))
+
+
+def _com_sem_dados(texto: str, hoje: date, diretas_completas: bool = True) -> str:
     """Acrescenta a tabela sem-dados sobre o que o PNCP não cobre."""
     doc = md.ler(texto)
     tabelas = dict(doc.tabelas)
@@ -245,6 +317,13 @@ def _com_sem_dados(texto: str, hoje: date) -> str:
                   "(8.666) e quem ainda não publica ficam de fora.",
         "obrigacao": "Lei 14.133/2021, art. 94 e 174", "fonte_consultada": FONTE, "consultado_em": hoje.isoformat(),
     }]
+    if not diretas_completas:
+        tabelas["sem-dados"].append({
+            "secao": "contratacoes-diretas", "esfera": "municipal", "responsavel": "AraraGov",
+            "motivo": "Nesta coleta não deu tempo de ler todas as dispensas e inexigibilidades do país no PNCP; "
+                      "a lista de contratações diretas pode estar incompleta.",
+            "obrigacao": "", "fonte_consultada": FONTE, "consultado_em": hoje.isoformat(),
+        })
     colunas = dict(doc.colunas)
     colunas["sem-dados"] = COLUNAS_SEM_DADOS
     titulo = next((l[2:] for l in texto.splitlines() if l.startswith("# ")), None)

@@ -287,7 +287,8 @@ Arquivo que não existe vira "Não há dados" com o motivo; a tabela
 ## Fase 8: outros estados
 
 Dos tribunais de contas sondados a partir do GitHub, só TCE-CE, TCE-PB e
-TCE-GO responderam; TCE-PR, TCE-MG, TCE-PE, TCE-RS, TCM-BA, TCE-SC e TCE-ES
+TCE-GO responderam (o TCE-PE respondeu depois, em 2026-11-06); TCE-PR,
+TCE-MG, TCE-RS, TCM-BA, TCE-SC e TCE-ES
 não. Por isso o primeiro passo é nacional: o **PNCP**, onde todo órgão que
 contrata pela Lei 14.133 publica os contratos.
 
@@ -328,6 +329,32 @@ os municípios do Sagres
 ~190 MB) e grava `{ano}-pagamentos.md` como em SP. Cada linha é um empenho com
 o valor pago acumulado. O arquivo traz o CPF completo (com zeros à esquerda);
 ele é reconhecido pelo dígito verificador do CNPJ e nunca é gravado.
+
+### Pernambuco (TCE-PE)
+
+`araragov tce-pe --anos 2025-2026` usa a API de dados abertos do TCE-PE
+(`sistemas.tce.pe.gov.br/DadosAbertos`, JSON em latin-1).
+`UnidadesJurisdicionadas!json` dá o código de cada município no tribunal
+("P120" é Recife) e `DespesasMunicipais!json?ANOREFERENCIA=&CODIGO_MUNICIPIO=`
+devolve os empenhos do ano de todas as unidades do município (prefeitura,
+câmara, fundos), com credor, função, subfunção, elemento por extenso, histórico
+e valor pago. Cada resposta para em 100 mil linhas; quem passa disso é pedido
+mês a mês (`MESREFERENCIA`). Recife tem ~56 mil empenhos por ano (~70 MB).
+O elemento vem só por extenso, então categoria e grupo (pessoal, dívida,
+investimentos) e "Obras e Instalações" são convertidos nos códigos usados em SP.
+`TIPOCREDOR` 1 (pessoa física) e 3 (servidor) entram só no total.
+
+### Prefeituras com portal Agili/IPM (AgiliCloud)
+
+`araragov agili --anos 2025` lê o portal da transparência de cerca de 25
+prefeituras que usam a AgiliCloud (quase todas do MT, mais AL, PA e PR). É uma
+API só para todos os clientes (`transparencia.agilicloud.com.br/api`): o
+cabeçalho `uc` escolhe a prefeitura, `seletor/get` lista os clientes e o grid
+"Empenhos por exercício" devolve 1000 empenhos por página, com função,
+subfunção, natureza, favorecido e valor pago. O histórico só vem num pedido por
+empenho, então é buscado para as 100 maiores obras de cada ano. O formato do
+pedido veio do projeto Transparência Cidadã (Lucas7X7, licença MIT,
+github.com/Lucas7X7/transparencia-cidada-portal-de-empenhos).
 - Outros tribunais sondados em 2026-11-05:
   - TCE-RJ (`dados.tcerj.tc.br/api/v1`): `araragov tce-rj` grava
     `{ano}-contratos.md` dos 91 municípios (a capital fica no PNCP), com CNPJ e
@@ -351,7 +378,7 @@ esse trabalho toda semana (`araragov/municipios/publicados.py`):
 
 - **Ano fechado** (a partir de abril do ano seguinte): os `.md` publicados na coleta anterior são
   copiados de volta, sem baixar nada do tribunal. Vale para TCE-SP (pagamentos e contratos), TCE-CE,
-  TCE-PB e TCE-RJ. O Siconfi já fazia isso.
+  TCE-PB, TCE-PE, TCE-RJ e AgiliCloud. O Siconfi já fazia isso.
 - **Ano em curso:** antes de baixar, um pedido HEAD compara ETag, data e tamanho do arquivo com os da
   coleta publicada (`v1/municipios/fontes-brutas/`, um arquivo por fonte). Se o tribunal não mudou o arquivo, os `.md`
   publicados são reaproveitados. Vale para TCE-SP e TCE-PB, que têm um arquivo por ano.
