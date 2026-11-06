@@ -132,3 +132,20 @@ def test_ideologia_declarada(tmp_path):
     assert a["ideologia_declarada"]["partido"]["declaracao"] == "Comunismo"
     assert a["ideologia_declarada"]["pessoal"] is None
     assert json.loads((tmp_path / "v1/politicos/camara-2.json").read_text())["ideologia_declarada"] is None
+
+
+def test_senador_sem_partido_usa_o_do_ultimo_voto_e_nome_em_maiusculas(tmp_path):
+    from datetime import datetime
+
+    from araragov import db
+
+    with db.sessao() as s:
+        s.add(db.Politico(casa="senado", cargo="Senador", codigo=5918, nome="Adilson Gomes", uf="PE"))
+        s.add(db.Politico(casa="camara", cargo="Deputado Federal", codigo=1, nome="ANDRÉ ABDON", partido="PP", uf="AP"))
+        for i, (dia, partido) in enumerate([(datetime(2020, 1, 1), "PSB"), (datetime(2022, 1, 1), "PDT")]):
+            s.add(db.Votacao(id=f"senado-{i}", casa="senado", codigo=str(i), data=dia))
+            s.add(db.Voto(votacao_id=f"senado-{i}", casa="senado", codigo_politico=5918, partido=partido, voto="sim"))
+    exportar(tmp_path)
+    resumo = {p["id"]: p for p in json.loads((tmp_path / "v1/politicos.json").read_text())}
+    assert resumo["senado-5918"]["partido"] == "PDT"
+    assert resumo["camara-1"]["nome"] == "André Abdon"
