@@ -1,0 +1,4 @@
+{"items": [
+  {"nome": "MARIA DA SILVA", "cpf": "***.456.789-**", "processo": "012.345/2019-0", "deliberacao": "AC-1234/2021-PLENÁRIO", "data_transito_julgado": "2021-08-10T00:00:00Z", "data_final": "2029-08-10T00:00:00Z", "data_acordao": "2021-05-05T00:00:00Z"},
+  {"nome": "MARIA DA SILVA", "cpf": "***.999.999-**", "processo": "099.999/2018-1", "deliberacao": "AC-9/2020", "data_transito_julgado": "2020-01-10T00:00:00Z", "data_final": "2028-01-10T00:00:00Z"}
+], "hasMore": false, "limit": 25, "offset": 0}

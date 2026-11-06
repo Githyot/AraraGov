@@ -222,6 +222,55 @@ class RecursoMensal(Base):
     disponivel: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 2))
 
 
+class Ocorrencia(Base):
+    """Registro oficial ligado ao político: situação de candidatura no TSE,
+    sanção no CEIS/CNEP (CGU), inabilitação no TCU, ou o link das certidões
+    entregues ao TSE (tipo "certidoes"). Recriado a cada coleta. Nenhum CPF é
+    gravado: ele só serve, em memória, para conferir que não é um homônimo."""
+
+    __tablename__ = "ocorrencia"
+    __table_args__ = (Index("ix_ocorrencia_politico", "casa", "codigo_politico"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    casa: Mapped[str] = mapped_column(String(10))
+    codigo_politico: Mapped[int] = mapped_column(Integer)
+    fonte: Mapped[str] = mapped_column(String(10))  # tse | cgu | tcu
+    tipo: Mapped[str] = mapped_column(String(30))
+    titulo: Mapped[str] = mapped_column(String(300))
+    descricao: Mapped[Optional[str]] = mapped_column(Text)
+    situacao: Mapped[str] = mapped_column(String(30))
+    data: Mapped[Optional[date]] = mapped_column(Date)
+    orgao: Mapped[Optional[str]] = mapped_column(String(300))
+    processo: Mapped[Optional[str]] = mapped_column(String(120))
+    link: Mapped[Optional[str]] = mapped_column(String(400))
+    conferencia: Mapped[Optional[str]] = mapped_column(String(200))
+
+
+class ConsultaOcorrencia(Base):
+    """Quais fontes de ocorrências foram consultadas na coleta e quando, para
+    o app dizer "nada encontrado em X, consultado em D" só quando é verdade."""
+
+    __tablename__ = "consulta_ocorrencia"
+
+    fonte: Mapped[str] = mapped_column(String(10), primary_key=True)
+    consultado_em: Mapped[date] = mapped_column(Date)
+    registros: Mapped[int] = mapped_column(Integer)
+    # Quantos políticos puderam ser conferidos por CPF nesta fonte.
+    conferidos: Mapped[Optional[int]] = mapped_column(Integer)
+
+
+class VerificacaoOcorrencia(Base):
+    """Fonte em que o político pôde ser conferido (achado no TSE; CPF
+    conferível para CGU e TCU). Sem esta linha, o app não diz "nada
+    encontrado": diz que não foi possível conferir."""
+
+    __tablename__ = "verificacao_ocorrencia"
+
+    casa: Mapped[str] = mapped_column(String(10), primary_key=True)
+    codigo_politico: Mapped[int] = mapped_column(Integer, primary_key=True)
+    fonte: Mapped[str] = mapped_column(String(10), primary_key=True)
+
+
 class Ipca(Base):
     """Variação mensal do IPCA (%), série 433 do Banco Central."""
 
