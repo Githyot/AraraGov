@@ -43,6 +43,32 @@ CARGOS = {
     "DEPUTADO DISTRITAL": ("al", "Deputado distrital"),
 }
 
+# Código de cada eleição ordinária no DivulgaCandContas do TSE. Não é o
+# CD_ELEICAO dos arquivos de dados abertos (2024 = 619 lá, 2045202024 aqui).
+ELEICAO_DIVULGACAND = {
+    2016: "2",
+    2018: "2022802018",
+    2020: "2030402020",
+    2022: "2040602022",
+    2024: "2045202024",
+}
+DIVULGACAND = "https://divulgacandcontas.tse.jus.br/divulga"
+
+
+def url_foto(ano: int, sq_candidato: Optional[str], ue: Optional[str]) -> Optional[str]:
+    """Foto pública da candidatura no DivulgaCandContas.
+
+    `ue` é a unidade eleitoral: a sigla da UF nas eleições gerais, o código
+    do município no TSE (SG_UE) nas municipais.
+    """
+    eleicao = ELEICAO_DIVULGACAND.get(ano)
+    sq = (sq_candidato or "").strip()
+    ue = (ue or "").strip()
+    if not eleicao or not sq.isdigit() or not ue:
+        return None
+    return f"{DIVULGACAND}/rest/arquivo/img/{eleicao}/{sq}/{ue}"
+
+
 UFS = (
     "AC AL AM AP BA CE DF ES GO MA MG MS MT PA PB PE PI PR RJ RN RO RR RS SC SE SP TO"
 ).split()
@@ -85,7 +111,7 @@ def _converter(linha: Dict[str, str], ano: int) -> Optional[Dict[str, Any]]:
         "partido": n.texto(linha.get("SG_PARTIDO")),
         "uf": uf,
         "sexo": _titulo(n.texto(linha.get("DS_GENERO")) or "") or None,
-        "url_foto": None,
+        "url_foto": url_foto(ano, linha.get("SQ_CANDIDATO"), uf),
         "email": None,
         # O TSE diz quem foi eleito, não quem está no cargo hoje; é a melhor
         # informação uniforme. O app avisa disso (ver exportar.AVISO_TSE).

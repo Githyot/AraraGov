@@ -56,3 +56,28 @@ def test_pula_casas_com_lista_propria(client):
         "MG": [["MG", "DEPUTADO ESTADUAL", "13123", "M", "M", "#NULO", "1", "PT", "FEMININO", "1", "ELEITO"]],
     }))
     assert tse.coletar_eleitos(client, pular_casas=("al-mg",)) == 0
+
+
+def test_url_foto_divulgacand():
+    assert tse.url_foto(2024, "160002229427", "77577") == (
+        "https://divulgacandcontas.tse.jus.br/divulga/rest/arquivo/img/2045202024/160002229427/77577")
+    assert tse.url_foto(2022, "130001234567", "MG").endswith("/2040602022/130001234567/MG")
+    assert tse.url_foto(2022, "#NULO", "MG") is None
+    assert tse.url_foto(2010, "1", "MG") is None
+
+
+def test_eleito_estadual_ganha_foto(client):
+    campos = CAMPOS + ["SQ_CANDIDATO"]
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        s = io.StringIO()
+        w = csv.writer(s, delimiter=";", quoting=csv.QUOTE_ALL)
+        w.writerow(campos)
+        w.writerow(["MG", "DEPUTADO ESTADUAL", "13123", "M", "M", "#NULO", "1", "PT", "FEMININO", "1", "ELEITO",
+                    "130001234567"])
+        z.writestr("consulta_cand_2022_MG.csv", s.getvalue().encode("latin-1"))
+    client.bytes(tse.CANDIDATOS_URL.format(ano=2022), buf.getvalue())
+    assert tse.coletar_eleitos(client) == 1
+    with db.sessao() as sess:
+        p = sess.execute(select(db.Politico)).scalar_one()
+    assert p.url_foto == tse.url_foto(2022, "130001234567", "MG")
