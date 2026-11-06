@@ -9,22 +9,19 @@ on:
 
 jobs:
   fiorilli:
-    # Procura os portais Fiorilli das prefeituras dos estados sem dados abertos no tribunal.
+    # Confere a resposta de portais Fiorilli conhecidos, para acertar a busca.
     runs-on: ubuntu-latest
-    timeout-minutes: 120
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - run: pip install -e .
-      - run: python -m araragov fiorilli-descobrir --ufs GO,MG,PR,RS,MS,TO,SC,BA,ES,MA,PI,RN,AL,SE --saida /tmp/fiorilli.csv
-      - run: cat /tmp/fiorilli.csv; grep -vc '^#' /tmp/fiorilli.csv
-      - uses: actions/upload-artifact@v4
-        with:
-          name: fiorilli
-          path: /tmp/fiorilli.csv
+      - run: |
+          set +e
+          A="AraraGov/0.1 (+https://github.com/Githyot/AraraGov)"
+          for b in https://transparencia.natividade.rj.gov.br https://transparencia.imperatriz.ma.gov.br https://transparencia.timon.ma.gov.br http://177.10.118.5:8079 http://scpi3.adtrcloud.com.br:8079; do
+            for q in "Listagem=DefineExercicio&ConectarExercicio=2025" "Listagem=DespesasGerais&DiaInicioPeriodo=01&MesInicialPeriodo=01&DiaFinalPeriodo=31&MesFinalPeriodo=01&Exercicio=2025&ConectarExercicio=2025&Ano=2025&Empresa=1&MostrarFornecedor=True&MostrarCNPJFornecedor=True&MostraDadosConsolidado=True&UFParaFiltroCOVID=&ApenasIDEmpenho=False"; do
+              curl -sS -L -m 60 -A "$A" "$b/Transparencia/VersaoJson/Despesas/?$q" -o /tmp/r -w "[$b ${q%%&*} %{http_code} %{size_download}B %{content_type} %{url_effective}]\n"
+              head -c 900 /tmp/r | tr '\n' ' '; echo
+            done
+          done
 
   sondar:
     runs-on: ubuntu-latest
