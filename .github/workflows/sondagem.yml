@@ -9,19 +9,31 @@ on:
 
 jobs:
   fiorilli:
-    # Confere a resposta de portais Fiorilli conhecidos, para acertar a busca.
+    # Procura os portais Fiorilli das prefeituras e mostra os campos de um portal conhecido.
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     continue-on-error: true
     steps:
-      - run: |
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - name: Campos de DespesasGerais
+        run: |
           set +e
-          A="AraraGov/0.1 (+https://github.com/Githyot/AraraGov)"
-          for b in https://transparencia.natividade.rj.gov.br https://transparencia.imperatriz.ma.gov.br https://transparencia.timon.ma.gov.br http://177.10.118.5:8079 http://scpi3.adtrcloud.com.br:8079; do
-            for q in "Listagem=DefineExercicio&ConectarExercicio=2025" "Listagem=DespesasGerais&DiaInicioPeriodo=01&MesInicialPeriodo=01&DiaFinalPeriodo=31&MesFinalPeriodo=01&Exercicio=2025&ConectarExercicio=2025&Ano=2025&Empresa=1&MostrarFornecedor=True&MostrarCNPJFornecedor=True&MostraDadosConsolidado=True&UFParaFiltroCOVID=&ApenasIDEmpenho=False"; do
-              curl -sS -L -m 60 -A "$A" "$b/Transparencia/VersaoJson/Despesas/?$q" -o /tmp/r -w "[$b ${q%%&*} %{http_code} %{size_download}B %{content_type} %{url_effective}]\n"
-              head -c 900 /tmp/r | tr '\n' ' '; echo
-            done
-          done
+          curl -sS -m 120 -A "AraraGov/0.1 (+https://github.com/Githyot/AraraGov)" "http://scpi3.adtrcloud.com.br:8079/Transparencia/VersaoJson/Despesas/?Listagem=DespesasGerais&DiaInicioPeriodo=01&MesInicialPeriodo=01&DiaFinalPeriodo=31&MesFinalPeriodo=01&Exercicio=2025&ConectarExercicio=2025&Ano=2025&Empresa=1&MostrarFornecedor=True&MostrarCNPJFornecedor=True&MostraDadosConsolidado=True&UFParaFiltroCOVID=&ApenasIDEmpenho=False" -o /tmp/g.json
+          python -c "
+          import json, collections
+          d = json.load(open('/tmp/g.json'))
+          print(type(d).__name__, len(d))
+          r = d[0] if isinstance(d, list) else d
+          print(sorted(r.keys()) if isinstance(r, dict) else r)
+          print(collections.Counter(x.get('nomeempresa') or x.get('NOMEEMPRESA') for x in d).most_common(5))
+          x = dict(r); [x.pop(k) for k in list(x) if 'cpf' in k.lower()]
+          print(json.dumps(x, ensure_ascii=False)[:1500])"
+      - run: python -m araragov fiorilli-descobrir --ufs GO,MG,PR,RS,MS,TO,SC,BA,ES,MA,PI,RN,AL,SE,RJ,AM,PA,AP,RR,RO,AC --saida /tmp/fiorilli.csv
+      - run: cat /tmp/fiorilli.csv; grep -vc '^#' /tmp/fiorilli.csv
 
   sondar:
     runs-on: ubuntu-latest

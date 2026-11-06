@@ -53,9 +53,13 @@ def candidatos(uf: str, nome: str) -> List[str]:
 
 
 def _parece_fiorilli(texto: str) -> bool:
+    """`DefineExercicio` devolve a página de documentação da API ("Dados Abertos Portal
+    Transparência Fiorilli"); outras listagens devolvem JSON. O desafio do Cloudflare não passa."""
     t = texto.lstrip()
+    if "Portal Transpar" in t[:2000] and "Fiorilli" in t[:2000]:
+        return True
     if not t.startswith(("[", "{")):
-        return False  # página HTML, inclusive o desafio do Cloudflare
+        return False
     try:
         json.loads(t)
     except ValueError:

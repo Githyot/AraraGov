@@ -28,7 +28,7 @@ def test_descobrir_aceita_so_json(monkeypatch):
     monkeypatch.setattr(fiorilli, "municipios_ibge", lambda: {
         ("GO", "ANAPOLIS"): (5201108, "Anápolis"), ("GO", "GOIAS"): (5208905, "Goiás"), ("MG", "X"): (1, "X")})
     s = Sessao({
-        "https://anapolis.go.gov.br": Resp(200, '[{"exercicio": "2025"}]'),
+        "https://anapolis.go.gov.br": Resp(200, "<HTML><head><TITLE>Dados Abertos Portal Transparência Fiorilli - Despesas</TITLE>"),
         "https://transparencia.goias.go.gov.br": Resp(200, "<html>Just a moment...</html>"),
     })
     achados = fiorilli.descobrir(["GO"], 2025, trabalhadores=2, sessao=s)
