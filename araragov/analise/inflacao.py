@@ -80,11 +80,69 @@ def gastos_anuais(casa: str, codigo_politico: int) -> Dict[int, Decimal]:
     return {ano: Decimal(total) for ano, total in linhas}
 
 
-def gastos_vs_inflacao(casa: str, codigo_politico: int) -> List[Comparacao]:
+@dataclass
+class ComparacaoAnual(Comparacao):
+    """Gasto de um ano comparado com o do ano-base corrigido pelo IPCA.
+
+    Quando um dos anos não tem os 12 meses (início do mandato ou ano em
+    andamento), a base é ajustada para o mesmo número de meses.
+    """
+
+    meses: int = 12
+    meses_base: int = 12
+
+    @property
+    def parcial(self) -> bool:
+        return self.meses < 12
+
+
+def meses_com_gasto(casa: str, codigo_politico: int) -> Dict[int, tuple]:
+    """Primeiro e último mês com gasto em cada ano."""
+    with sessao() as s:
+        linhas = s.execute(
+            select(Despesa.ano, func.min(Despesa.mes), func.max(Despesa.mes))
+            .where(Despesa.casa == casa, Despesa.codigo_politico == codigo_politico)
+            .group_by(Despesa.ano)
+        ).all()
+    return {ano: (ini, fim) for ano, ini, fim in linhas}
+
+
+def comparar_anos(
+    ipca: Mapping[date, Decimal], anos: Mapping[int, Decimal], meses: Mapping[int, tuple], hoje: Optional[date] = None
+) -> List[ComparacaoAnual]:
+    if len(anos) < 2:
+        return []
+    hoje = hoje or date.today()
+    primeiro, ultimo = min(anos), max(anos)
+
+    def periodo(ano: int) -> tuple:
+        ini, fim = meses.get(ano, (1, 12))
+        # Anos do meio contam inteiros; o primeiro pode começar depois de janeiro
+        # (posse) e o último pode não ter terminado.
+        ini = ini if ano == primeiro else 1
+        fim = fim if ano == ultimo and ano >= hoje.year else 12
+        return ini, fim
+
+    b_ini, b_fim = periodo(primeiro)
+    meses_base = b_fim - b_ini + 1
+    resultado = []
+    for ano in sorted(anos):
+        if ano == primeiro:
+            continue
+        ini, fim = periodo(ano)
+        n = fim - ini + 1
+        base = date(primeiro, b_fim, 1)
+        corrigido = (anos[primeiro] * fator_ipca(ipca, base, date(ano, fim, 1)) * n / meses_base).quantize(Decimal("0.01"))
+        resultado.append(ComparacaoAnual(base, anos[primeiro], date(ano, fim, 1), anos[ano], corrigido, n, meses_base))
+    return resultado
+
+
+def gastos_vs_inflacao(casa: str, codigo_politico: int) -> List[ComparacaoAnual]:
     """Compara o gasto de cada ano com o do primeiro ano corrigido pelo IPCA."""
     anos = gastos_anuais(casa, codigo_politico)
     if len(anos) < 2:
         return []
+    return comparar_anos(carregar_ipca(), anos, meses_com_gasto(casa, codigo_politico))
     ipca = carregar_ipca()
     primeiro = min(anos)
     base = date(primeiro, 12, 1)
