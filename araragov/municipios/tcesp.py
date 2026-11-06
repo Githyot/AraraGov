@@ -245,7 +245,13 @@ def gerar(client, saida: Path, anos: Iterable[int], limite_linhas: Optional[int]
             total += reaproveitados
             continue
         arquivo = pasta_tmp / f"tcesp-despesas-{ano}.zip"
-        baixar(client, url, arquivo)
+        try:
+            baixar(client, url, arquivo)
+        except Exception as exc:  # noqa: BLE001 - o arquivo do ano em curso só sai no meio do ano
+            if ano < hoje.year:
+                raise
+            logger.warning("TCE-SP: arquivo de despesas de %s ainda não publicado (%s)", ano, exc)
+            continue
         municipios = agregar(linhas_despesas(arquivo), limite_linhas)
         for ibge, m in municipios.items():
             caminho = saida / "v1" / "municipios" / "sp" / str(ibge) / f"{ano}-pagamentos.md"
