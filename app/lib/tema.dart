@@ -10,6 +10,24 @@ class Adw {
   static const azul = Color(0xFF3584E4);
   static const roxo = Color(0xFF9141AC);
 
+  /// Cores para distinguir pessoas na comparação: as cores de destaque do
+  /// libadwaita que não têm outro significado no app. Ficam de fora o verde
+  /// (destaque do app), o roxo e o marrom (Sim e Não), o vermelho e o azul
+  /// (esquerda e direita) e o amarelo (abstenção e atenção), e nenhuma
+  /// remete a partido.
+  static const pessoas = [
+    Color(0xFF2190A4), // teal
+    Color(0xFFED5B00), // laranja
+    Color(0xFFD56199), // rosa
+    Color(0xFF6F8396), // ardósia
+  ];
+
+  /// Cor da pessoa [i], clareada no tema escuro para manter o contraste.
+  static Color pessoa(int i, Brightness brilho) {
+    final c = pessoas[i % pessoas.length];
+    return brilho == Brightness.dark ? Color.lerp(c, Colors.white, 0.25)! : c;
+  }
+
   static const raio = 12.0; // cantos de cards e listas
   static const larguraMax = 720.0; // AdwClamp
   static const espaco = 12.0;
