@@ -15,7 +15,9 @@ const _rotuloFaixa = {
 
 String rotuloFaixa(String? f) => _rotuloFaixa[f] ?? '—';
 
-/// Barra horizontal esquerda x direita, com cores neutras.
+/// Régua esquerda x direita, igual para os dois lados: trilho neutro, um
+/// ponto onde a pessoa está e uma linha na média do partido. Nenhum lado
+/// ganha cor de destaque.
 class BarraEspectro extends StatelessWidget {
   final double pctEsquerda;
   final double? marcador; // média do partido, em % à esquerda
@@ -25,26 +27,44 @@ class BarraEspectro extends StatelessWidget {
   Widget build(BuildContext context) {
     final cor = Theme.of(context).colorScheme;
     final tema = Theme.of(context);
+    // Esquerda na ponta esquerda: 100% com a esquerda fica em 0, 0% fica em 1.
+    double x(double pct) => (100 - pct).clamp(0, 100) / 100;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       LayoutBuilder(builder: (context, c) {
         final w = c.maxWidth;
         return SizedBox(
-          height: 18,
-          child: Stack(clipBehavior: Clip.none, children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(9),
-              child: Row(children: [
-                Expanded(flex: (pctEsquerda * 10).round().clamp(1, 1000), child: Container(color: cor.primary)),
-                Expanded(flex: ((100 - pctEsquerda) * 10).round().clamp(1, 1000), child: Container(color: cor.outlineVariant)),
-              ]),
+          height: 26,
+          child: Stack(clipBehavior: Clip.none, alignment: Alignment.centerLeft, children: [
+            Positioned(
+              left: 0,
+              right: 0,
+              top: 10,
+              child: Container(
+                height: 6,
+                decoration: BoxDecoration(color: cor.outlineVariant, borderRadius: BorderRadius.circular(3)),
+              ),
             ),
+            // meio da régua
+            Positioned(left: w / 2 - 0.5, top: 6, child: Container(width: 1, height: 14, color: cor.outline)),
             if (marcador != null)
               Positioned(
-                // o marcador mostra onde fica a média do partido
-                left: (w * marcador! / 100).clamp(0, w) - 1.5,
-                top: -4,
-                child: Container(width: 3, height: 26, color: cor.onSurface),
+                left: w * x(marcador!) - 1.5,
+                top: 0,
+                child: Container(width: 3, height: 26, color: cor.onSurfaceVariant),
               ),
+            Positioned(
+              left: w * x(pctEsquerda) - 8,
+              top: 5,
+              child: Container(
+                width: 16,
+                height: 16,
+                decoration: BoxDecoration(
+                  color: cor.onSurface,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: cor.surface, width: 2),
+                ),
+              ),
+            ),
           ]),
         );
       }),
@@ -79,7 +99,7 @@ class SecaoPosicao extends StatelessWidget {
         if (pos.mediaPartido != null && partido != null)
           Linha(
             titulo: 'Média do $partido',
-            subtitulo: 'A linha escura na barra marca a média do partido',
+            subtitulo: 'O ponto marca esta pessoa; a linha, a média do partido',
             valor: rotuloFaixa(pos.faixaPartido),
           ),
         if (p.ideologiaPessoal != null) _LinhaDeclaracao('Declara-se', p.ideologiaPessoal!),

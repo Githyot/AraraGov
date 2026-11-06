@@ -17,11 +17,12 @@ const votoRotulo = {
   'outro': 'Outro',
 };
 
+/// Sim e Não usam azul e roxo de propósito: verde e vermelho sugerem
+/// "certo" e "errado", e o app não julga votos. Os demais tipos ficam em
+/// cinza, porque não são nem a favor nem contra.
 Color votoCor(String voto) => switch (voto) {
-      'sim' => Adw.verde,
-      'nao' => Adw.vermelho,
-      'abstencao' || 'obstrucao' => Adw.amarelo,
-      'presidente' || 'presente_sem_voto' => Adw.azul,
+      'sim' => Adw.azul,
+      'nao' => Adw.roxo,
       _ => Colors.grey,
     };
 

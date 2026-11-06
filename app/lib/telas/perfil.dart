@@ -421,7 +421,9 @@ class _SecaoVotacoes extends StatelessWidget {
     final ordem = ['sim', 'nao', 'abstencao', 'obstrucao', 'ausente', 'licenca', 'missao', 'presidente', 'presente_sem_voto', 'outro'];
     return Grupo(
       titulo: 'Votações',
-      descricao: 'Votações nominais em que o voto de cada parlamentar é registrado',
+      descricao: 'Votações nominais em que o voto de cada parlamentar é registrado. '
+          'Quando a esquerda (PT, PSOL e PCdoB) e a direita (PL e NOVO) votam de lados opostos, '
+          'mostramos com qual dos dois o voto coincidiu, seja qual for.',
       acao: TextButton(
         onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => TodasVotacoes(p, api: api))),
         child: const Text('Ver todas'),
@@ -448,16 +450,16 @@ class LinhaVotacao extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tema = Theme.of(context);
-    final lado = v.ladoDoVoto;
+    final dividida = v.ladoSim != null;
     return ListTile(
       title: Text(v.proposicao ?? v.descricao ?? 'Votação de ${data(v.data)}'),
       subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text([data(v.data), if (v.resultado != null) v.resultado!, if (v.ementa != null) v.ementa!].join(' · ')),
-        if (lado != null || v.atencao != null)
+        if (dividida || v.atencao != null)
           Padding(
             padding: const EdgeInsets.only(top: 6),
             child: Wrap(spacing: 6, runSpacing: 4, children: [
-              if (lado != null) Etiqueta('Votou com o lado da $lado', tema.hintColor),
+              if (dividida) Etiqueta(rotuloLado(v), tema.hintColor),
               if (v.atencao != null) Etiqueta(v.atencao!, Adw.amarelo),
             ]),
           ),
@@ -466,6 +468,14 @@ class LinhaVotacao extends StatelessWidget {
       onTap: v.link == null ? null : () => _abrir(v.link),
     );
   }
+}
+
+/// Rótulo de uma votação em que esquerda e direita se dividiram. É o mesmo
+/// texto, na mesma cor, para os dois lados: só muda o nome do lado.
+String rotuloLado(VotoEmVotacao v) {
+  final lado = v.ladoDoVoto;
+  if (lado == null) return 'Esquerda e direita votaram diferente';
+  return 'Votou como a $lado';
 }
 
 class TodasVotacoes extends StatefulWidget {
