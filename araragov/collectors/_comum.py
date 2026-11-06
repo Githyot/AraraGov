@@ -57,17 +57,24 @@ def substituir_despesas(s: Session, casa: str, ano: int, linhas: Iterable[Dict[s
     total = 0
     lote: List[Dict[str, Any]] = []
     chaves = set()
+
+    def gravar(lote: List[Dict[str, Any]]) -> None:
+        # O arquivo de um ano às vezes traz lançamentos datados de outro ano (já gravados
+        # pelo arquivo daquele ano); a versão mais recente substitui a anterior.
+        s.execute(delete(Despesa).where(Despesa.casa == casa, Despesa.chave_fonte.in_([l["chave_fonte"] for l in lote])))
+        s.execute(insert(Despesa), lote)
+
     for linha in linhas:
         if linha["chave_fonte"] in chaves:
             continue
         chaves.add(linha["chave_fonte"])
         lote.append(linha)
         if len(lote) >= LOTE:
-            s.execute(insert(Despesa), lote)
+            gravar(lote)
             total += len(lote)
             lote = []
     if lote:
-        s.execute(insert(Despesa), lote)
+        gravar(lote)
         total += len(lote)
     return total
 
