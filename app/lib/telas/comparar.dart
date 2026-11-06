@@ -8,8 +8,9 @@ import '../widgets/adw.dart';
 import 'analises.dart';
 import 'perfil.dart';
 
-/// Quantas pessoas cabem numa comparação sem poluir a tela.
-const maxComparados = 6;
+/// Quantas pessoas cabem numa comparação sem poluir a tela: uma para cada
+/// cor que não se confunde com outra coisa no app.
+const maxComparados = 4;
 
 /// Escolhe outro político e abre a comparação.
 Future<void> abrirComparacao(BuildContext context, Api api, Perfil primeiro) async {
@@ -162,7 +163,7 @@ class _ComparacaoTelaState extends State<ComparacaoTela> {
   /// mantém a sua cor quando outra pessoa sai.
   int _corLivre() {
     final usadas = {for (final p in _pessoas) p.cor};
-    return List.generate(maxComparados, (i) => i).firstWhere((i) => !usadas.contains(i), orElse: () => 0);
+    return List.generate(Adw.pessoas.length, (i) => i).firstWhere((i) => !usadas.contains(i), orElse: () => 0);
   }
 
   Future<void> _carregar(String id) async {

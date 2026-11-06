@@ -10,15 +10,15 @@ class Adw {
   static const azul = Color(0xFF3584E4);
   static const roxo = Color(0xFF9141AC);
 
-  /// Cores para distinguir pessoas na comparação. São as cores de destaque
-  /// do libadwaita que não têm outro significado no app (verde, vermelho,
-  /// amarelo e azul já indicam o voto) e não remetem a partido ou lado.
+  /// Cores para distinguir pessoas na comparação: as cores de destaque do
+  /// libadwaita que não têm outro significado no app. Ficam de fora o verde
+  /// (destaque do app), o roxo e o marrom (Sim e Não), o vermelho e o azul
+  /// (esquerda e direita) e o amarelo (abstenção e atenção), e nenhuma
+  /// remete a partido.
   static const pessoas = [
     Color(0xFF2190A4), // teal
     Color(0xFFED5B00), // laranja
-    Color(0xFF9141AC), // roxo
     Color(0xFFD56199), // rosa
-    Color(0xFF986A44), // marrom
     Color(0xFF6F8396), // ardósia
   ];
 

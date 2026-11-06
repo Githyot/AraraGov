@@ -188,7 +188,7 @@ void main() {
   test('cores da comparação não repetem as cores do voto', () {
     expect(Adw.pessoas.length, maxComparados);
     expect(Adw.pessoas.toSet().length, maxComparados);
-    for (final c in [Adw.verde, Adw.vermelho, Adw.amarelo, Adw.azul]) {
+    for (final c in [Adw.verde, Adw.vermelho, Adw.amarelo, Adw.azul, Adw.roxo, const Color(0xFF986A44)]) {
       expect(Adw.pessoas, isNot(contains(c)));
     }
     expect(faixaAnos(2019, 2026), '2019–2026');
