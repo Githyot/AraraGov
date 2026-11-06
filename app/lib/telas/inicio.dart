@@ -5,6 +5,7 @@ import '../dados/modelos.dart';
 import '../formatar.dart';
 import '../tema.dart';
 import '../widgets/adw.dart';
+import 'aparencia.dart';
 import 'municipios.dart';
 import 'perfil.dart';
 import 'sobre.dart';
@@ -67,7 +68,7 @@ class _InicioState extends State<Inicio> {
       if (!largo) return lista;
       return Row(children: [
         SizedBox(width: 380, child: lista),
-        VerticalDivider(width: 1, color: Theme.of(context).dividerTheme.color),
+        Container(width: 1, color: Color.alphaBlend(Theme.of(context).dividerColor, Theme.of(context).scaffoldBackgroundColor)),
         Expanded(
           child: _selecionado == null
               ? const Scaffold(
@@ -94,10 +95,17 @@ class _InicioState extends State<Inicio> {
             icon: const Icon(Icons.location_city_outlined),
             onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MunicipiosTela(api: widget.api))),
           ),
-          IconButton(
-            tooltip: 'Sobre',
-            icon: const Icon(Icons.info_outline),
-            onPressed: () => mostrarSobre(context),
+          PopupMenuButton<VoidCallback>(
+            tooltip: 'Menu principal',
+            icon: Icon(iconeMenu(Visual.of(context).estilo)),
+            onSelected: (acao) => acao(),
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                value: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AparenciaTela())),
+                child: const Text('Aparência'),
+              ),
+              PopupMenuItem(value: () => mostrarSobre(context), child: const Text('Sobre o AraraGov')),
+            ],
           ),
         ],
       ),
