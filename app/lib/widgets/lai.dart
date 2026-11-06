@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import 'adw.dart';
+import '../tema.dart';
 
 /// Pedido de documentos pela Lei de Acesso à Informação (Lei 12.527/2011).
 ///
