@@ -133,6 +133,9 @@ def main(argv: list[str] | None = None) -> int:
     tpe.add_argument("--saida", default="site")
     tpe.add_argument("--anos", type=_anos, default=[date.today().year - 1])
     tpe.add_argument("--limite-municipios", type=int, help="só os N primeiros municípios (teste)")
+    fdc = sub.add_parser("fiorilli-descobrir", help="procura portais Fiorilli das prefeituras (lista .csv)")
+    fdc.add_argument("--saida", default="araragov/referencia/fiorilli.csv")
+    fdc.add_argument("--ufs", default="", help="ex.: GO,MG (padrão: todos)")
     agl = sub.add_parser("agili", help="pagamentos das prefeituras com portal Agili/IPM, quase todas do MT (.md)")
     agl.add_argument("--saida", default="site")
     agl.add_argument("--anos", type=_anos, default=[date.today().year - 1])
@@ -226,6 +229,15 @@ def main(argv: list[str] | None = None) -> int:
         from .municipios import tcepe
 
         return 0 if tcepe.gerar(HttpClient(), Path(args.saida), args.anos, args.limite_municipios) else 1
+
+    if args.comando == "fiorilli-descobrir":
+        from pathlib import Path
+
+        from .municipios import fiorilli
+
+        achados = fiorilli.descobrir([u for u in args.ufs.split(",") if u] or None)
+        Path(args.saida).write_text(fiorilli.escrever_lista(achados), encoding="utf-8")
+        return 0
 
     if args.comando == "agili":
         from pathlib import Path

@@ -5,9 +5,27 @@ name: Sondagem de fontes
 
 on:
   pull_request:
-    paths: [".github/workflows/sondagem.yml"]
+    paths: [".github/workflows/sondagem.yml", "araragov/municipios/fiorilli.py"]
 
 jobs:
+  fiorilli:
+    # Procura os portais Fiorilli das prefeituras dos estados sem dados abertos no tribunal.
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - run: python -m araragov fiorilli-descobrir --ufs GO,MG,PR,RS,MS,TO,SC,BA,ES,MA,PI,RN,AL,SE --saida /tmp/fiorilli.csv
+      - run: cat /tmp/fiorilli.csv; grep -vc '^#' /tmp/fiorilli.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fiorilli
+          path: /tmp/fiorilli.csv
+
   sondar:
     runs-on: ubuntu-latest
     continue-on-error: true
