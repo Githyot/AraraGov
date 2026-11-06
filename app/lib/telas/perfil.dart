@@ -459,7 +459,7 @@ class LinhaVotacao extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(top: 6),
             child: Wrap(spacing: 6, runSpacing: 4, children: [
-              if (dividida) Etiqueta(rotuloLado(v), tema.hintColor),
+              if (dividida) Etiqueta(rotuloLado(v), v.ladoDoVoto == null ? tema.hintColor : Adw.corLado(v.ladoDoVoto!)),
               if (v.atencao != null) Etiqueta(v.atencao!, Adw.amarelo),
             ]),
           ),
@@ -471,7 +471,7 @@ class LinhaVotacao extends StatelessWidget {
 }
 
 /// Rótulo de uma votação em que esquerda e direita se dividiram. É o mesmo
-/// texto, na mesma cor, para os dois lados: só muda o nome do lado.
+/// texto para os dois lados, na cor de cada lado: só muda o nome do lado.
 String rotuloLado(VotoEmVotacao v) {
   final lado = v.ladoDoVoto;
   if (lado == null) return 'Esquerda e direita votaram diferente';
