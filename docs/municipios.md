@@ -304,6 +304,14 @@ fora de SP, no mesmo formato da fase 4:
 - `sem-dados`: contratos pela lei antiga e de quem não publica no PNCP ficam
   de fora (responsável: a prefeitura; Lei 14.133, art. 94 e 174).
 
+Um ano inteiro de contratos do país não cabe no tempo de um job do GitHub. Na
+coleta semanal, quatro jobs (`araragov pncp --parte i/4`) dividem as semanas
+do ano entre si e guardam só as linhas municipais; um último job
+(`araragov pncp --juntar`) soma as partes e escreve os `.md`. Se alguma parte
+falhar, os arquivos dizem que a lista pode estar incompleta, e
+`fontes-brutas/pncp-{ano}.json` registra isso. Um ano fechado só é reaproveitado
+da publicação anterior quando ela saiu completa.
+
 Com isso, `fornecedores.md` passa a existir para todos os estados (sanções,
 campanhas e emendas).
 

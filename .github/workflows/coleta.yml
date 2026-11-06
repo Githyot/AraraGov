@@ -134,7 +134,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        fonte: [tce-sp, tce-ce, tce-pb, tce-pe, tce-rj, agili, fiorilli, pncp, emendas]
+        fonte: [tce-sp, tce-ce, tce-pb, tce-pe, tce-rj, agili, fiorilli, emendas]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -157,9 +157,71 @@ jobs:
           if-no-files-found: ignore
           retention-days: 3
 
+  pncp-partes:
+    # Um ano de contratos do país não cabe num job: cada parte baixa uma fatia das semanas.
+    if: ${{ !cancelled() && !inputs.republicar }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        parte: [0, 1, 2, 3]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - name: PNCP parte ${{ matrix.parte }} de 4
+        timeout-minutes: 290
+        env:
+          PARTE: ${{ matrix.parte }}/4
+        run: scripts/coleta/pncp-parte.sh
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: pncp-parte-${{ matrix.parte }}
+          path: pncp-partes
+          if-no-files-found: ignore
+          retention-days: 3
+
+  pncp:
+    # Junta as partes e escreve os contratos dos municípios (.md).
+    needs: [base, pncp-partes]
+    if: ${{ !cancelled() && !inputs.republicar }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: site-base
+          path: site
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: pncp-parte-*
+          merge-multiple: true
+          path: pncp-partes
+      - name: PNCP (juntar as partes)
+        timeout-minutes: 170
+        run: scripts/coleta/pncp.sh
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: site-pncp
+          path: site
+          if-no-files-found: ignore
+          retention-days: 3
+
   fornecedores:
     # Cruza as empresas que receberam (pagamentos, contratos e emendas) com o CEIS/CNEP e o TSE.
-    needs: [base, municipais]
+    needs: [base, municipais, pncp]
     if: ${{ !cancelled() && !inputs.republicar }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
@@ -220,7 +282,7 @@ jobs:
         run: scripts/coleta/sondar-fontes.sh
 
   montar:
-    needs: [federal, base, siconfi, municipais, fornecedores]
+    needs: [federal, base, siconfi, municipais, pncp, fornecedores]
     if: ${{ !cancelled() && !inputs.republicar }}
     runs-on: ubuntu-latest
     timeout-minutes: 30

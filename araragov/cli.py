@@ -164,6 +164,9 @@ def main(argv: list[str] | None = None) -> int:
     pnc.add_argument("--anos", type=_anos, default=[date.today().year - 1, date.today().year])
     pnc.add_argument("--dias", type=int, help="só os primeiros N dias de cada ano (teste)")
     pnc.add_argument("--limite-itens", type=int, default=3000, help="máximo de compras com itens consultados")
+    pnc.add_argument("--parte", help="i/n: baixa só a parte i de n das semanas e grava em --partes (sem .md)")
+    pnc.add_argument("--juntar", action="store_true", help="junta as partes de --partes e escreve os .md")
+    pnc.add_argument("--partes", default="pncp-partes", help="pasta das partes (padrão: pncp-partes)")
     eme = sub.add_parser("emendas-municipios", help="emendas federais recebidas em cada município (.md)")
     eme.add_argument("--saida", default="site")
     eme.add_argument("--anos", type=_anos, default=_anos(f"2019-{date.today().year}"), help="anos do pagamento")
@@ -315,6 +318,13 @@ def main(argv: list[str] | None = None) -> int:
 
         from .municipios import pncp
 
+        if args.parte:
+            i, n = (int(x) for x in args.parte.split("/"))
+            pncp.baixar_parte(HttpClient(), Path(args.partes), args.anos, i, n, dias=args.dias)
+            return 0
+        if args.juntar:
+            return 0 if pncp.juntar(HttpClient(), Path(args.partes), Path(args.saida), args.anos,
+                                    limite_itens=args.limite_itens) else 1
         return 0 if pncp.gerar(HttpClient(), Path(args.saida), args.anos, dias=args.dias,
                                limite_itens=args.limite_itens) else 1
 
