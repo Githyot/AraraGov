@@ -26,6 +26,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple
 
+from . import publicados
 from . import tcesp
 from .tcesp import ELEMENTO_OBRAS, FORA_DO_RANKING, Favorecido, Municipio, _resumir, so_digitos
 
@@ -179,8 +180,15 @@ def gerar(client, saida: Path, anos: Iterable[int], hoje: Optional[date] = None,
                                            uf="CE", fonte=FONTE, tribunal="TCE-CE (SIM)"), encoding="utf-8")
         return 1
 
-    tarefas = [(c, i, n, a) for a in sorted(anos) for (c, i, n) in lista]
+    total = 0
+    abertos = []
+    for a in sorted(anos):
+        reaproveitados = publicados.ano_ja_publicado(client, saida, "CE", a, hoje, "{ano}-pagamentos.md")
+        total += reaproveitados
+        if not reaproveitados:
+            abertos.append(a)
+    tarefas = [(c, i, n, a) for a in abertos for (c, i, n) in lista]
     with ThreadPoolExecutor(max_workers=max(1, trabalhadores if novo_client else 1)) as ex:
-        total = sum(ex.map(um, tarefas))
+        total += sum(ex.map(um, tarefas))
     logger.info("TCE-CE: %s arquivos de pagamentos", total)
     return total

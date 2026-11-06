@@ -22,6 +22,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from sqlalchemy import select
 
 from . import __version__
+from .collectors import historico
 from .analise import espectro, inflacao
 from .analise.atencao import motivo_atencao
 from .db import Assessor, Beneficio, Despesa, Emenda, Favorecido, Politico, RecursoMensal, Subsidio, Votacao, Voto, sessao
@@ -212,7 +213,13 @@ def _historico() -> Dict[str, Any]:
              "referencia": b.referencia, "fonte": b.fonte, "ano": b.ano, "valor_ano": b.valor_ano}
             for b in s.execute(select(Beneficio).where(Beneficio.ano.is_not(None))).scalars()
         ]
-    return {"recursos": recursos, "beneficios": beneficios}
+        despesas = [
+            [getattr(d, c) for c in historico.CAMPOS_DESPESA]
+            for d in s.execute(select(Despesa).where(Despesa.casa.in_(historico.DESPESAS_REAPROVEITADAS))
+                               .order_by(Despesa.id)).scalars()
+            if historico.ano_fechado(d.ano)
+        ]
+    return {"recursos": recursos, "beneficios": beneficios, "despesas": despesas}
 
 
 def _resumo(p: Politico, doacoes: Optional[Dict[tuple, Dict[str, Any]]] = None) -> Dict[str, Any]:

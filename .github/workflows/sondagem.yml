@@ -8,36 +8,36 @@ on:
     paths: [".github/workflows/sondagem.yml"]
 
 jobs:
-  testar-tces:
+  sondar:
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - run: pip install -e .
-      - name: TCE-RN (contratos por ano)
+      - name: Cabeçalhos dos arquivos brutos (ETag, Last-Modified)
         run: |
           set +e
-          A="AraraGov (dados publicos)"; R="https://apidadosabertos.tce.rn.gov.br/api"
-          for id in 418 337; do
-            curl -sS -m 300 -A "$A" "$R/ContratosApi/Contratos/Json/$id/true" -o /tmp/c.json -w "[$id %{http_code} %{size_download}B %{time_total}s]\n"
-            python3 -c "import json,collections;d=json.load(open('/tmp/c.json'));print(len(d));print(sorted(collections.Counter(r.get('anoContrato') for r in d).items()));print(collections.Counter(r.get('idTipoDocumentoContratado') for r in d))"
+          A="AraraGov (dados publicos; github.com/Githyot/AraraGov)"
+          for u in \
+            "https://transparencia.tce.sp.gov.br/sites/default/files/conjunto-dados/despesas-2026.zip" \
+            "https://download.tce.pb.gov.br/dados-abertos/dados-consolidados/despesas/despesas-2026.zip" \
+            "https://cdn.tse.jus.br/estatistica/sead/odsele/prestacao_contas/prestacao_de_contas_eleitorais_candidatos_2024.zip" ; do
+            echo "== $u"; curl -sSI -L -m 60 -A "$A" "$u" | grep -iE "^(HTTP|etag|last-modified|content-length)"
           done
-          for ano in 2024 2025; do curl -sS -m 120 -A "$A" "$R/EmpenhosLiquidacoesPagamentosApi/Empenhos/Json/$ano/337" -w "[%{http_code} %{size_download}B]\n" | head -c 1500; echo; done
-      - name: TCE-CE (6 municípios, 3 meses)
-        if: false
+      - name: Senado, votações de um período sem filtrar por senador
         run: |
-          python -m araragov tce-ce --saida site --anos 2025 --limite-municipios 6 --meses 3
-          ls site/v1/municipios/ce/
-          f=$(ls site/v1/municipios/ce/*/2025-pagamentos.md | head -1); head -45 "$f"; grep -A6 "tabela: obras" "$f" || true
-      - name: TCE-PB (300 mil linhas)
-        if: false
-        run: |
-          python -m araragov tce-pb --saida site --anos 2025 --limite-linhas 300000
-          ls site/v1/municipios/pb/ | wc -l
-          f=$(ls site/v1/municipios/pb/*/2025-pagamentos.md | head -1); head -45 "$f"; grep -A6 "tabela: obras" "$f" || true
-          curl -sS -m 300 -A "AraraGov (dados publicos)" https://download.tce.pb.gov.br/dados-abertos/dados-consolidados/despesas/despesas-2025.zip -o /tmp/pb.zip
-          unzip -p /tmp/pb.zip | head -200000 | cut -d';' -f11 | awk '/,/{v++} /^[0-9]+\.[0-9]+$/{p++} END{print "virgula",v,"so_ponto",p}'
-          unzip -p /tmp/pb.zip | head -200000 | cut -d';' -f11 | grep ',' | head -5
+          set +e
+          A="AraraGov (dados publicos; github.com/Githyot/AraraGov)"
+          curl -sS -m 120 -A "$A" -H "Accept: application/json" \
+            "https://legis.senado.leg.br/dadosabertos/votacao?dataInicio=2025-03-01&dataFim=2025-03-31&v=1" -o /tmp/s.json \
+            -w "[%{http_code} %{size_download}B %{time_total}s]\n"
+          python3 - <<'PY'
+          import json
+          d = json.load(open("/tmp/s.json"))
+          lista = d if isinstance(d, list) else next((v for v in d.values() if isinstance(v, list)), d)
+          print(type(d).__name__, "itens:", len(lista) if isinstance(lista, list) else "?")
+          if isinstance(lista, list) and lista:
+              e = lista[0]
+              print("chaves:", sorted(e.keys())[:40])
+              votos = e.get("votos") or e.get("Votos") or []
+              print("votos na primeira:", len(votos))
+              print("votos por votação:", [len(x.get("votos") or x.get("Votos") or []) for x in lista[:15]])
+          PY

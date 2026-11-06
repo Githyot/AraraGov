@@ -34,6 +34,7 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, List, Optional, Set, Tuple
 
+from . import publicados
 from . import md
 
 logger = logging.getLogger(__name__)
@@ -234,14 +235,24 @@ def gerar(client, saida: Path, anos: Iterable[int], limite_linhas: Optional[int]
     pasta_tmp.mkdir(parents=True, exist_ok=True)
     total = 0
     for ano in sorted(anos):
+        reaproveitados = publicados.ano_ja_publicado(client, saida, "SP", ano, hoje, "{ano}-pagamentos.md")
+        if reaproveitados:
+            total += reaproveitados
+            continue
+        url = DESPESAS_URL.format(ano=ano)
+        reaproveitados, assinatura = publicados.sem_mudanca(client, saida, "SP", url, f"{ano}-pagamentos.md")
+        if reaproveitados:
+            total += reaproveitados
+            continue
         arquivo = pasta_tmp / f"tcesp-despesas-{ano}.zip"
-        baixar(client, DESPESAS_URL.format(ano=ano), arquivo)
+        baixar(client, url, arquivo)
         municipios = agregar(linhas_despesas(arquivo), limite_linhas)
         for ibge, m in municipios.items():
             caminho = saida / "v1" / "municipios" / "sp" / str(ibge) / f"{ano}-pagamentos.md"
             caminho.parent.mkdir(parents=True, exist_ok=True)
             caminho.write_text(documento(ibge, ano, m, hoje, _governo(saida, ibge, ano)), encoding="utf-8")
         arquivo.unlink(missing_ok=True)
+        publicados.registrar(saida, url, assinatura)
         logger.info("TCE-SP %s: %s municípios", ano, len(municipios))
         total += len(municipios)
     return total
