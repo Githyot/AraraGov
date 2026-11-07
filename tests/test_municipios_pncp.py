@@ -166,3 +166,12 @@ def test_juntar_com_parte_faltando_marca_incompleto(tmp_path):
     assert pncp.juntar(_PorConsulta(), pasta, saida, [2025], hoje=hoje) == 1
     texto = (saida / "v1/municipios/sc/4208203/2025-contratos.md").read_text(encoding="utf-8")
     assert "contratacoes-diretas" in texto and "incompleta" in texto
+
+
+def test_parte_com_prazo_esgotado_grava_o_que_leu(tmp_path):
+    pasta = tmp_path / "partes"
+    pncp.baixar_parte(_PorConsulta(), pasta, [2025], 0, 1, hoje=date(2025, 1, 20), minutos=-1)
+    import json
+
+    resumo = json.loads((pasta / "2025-0.json").read_text())
+    assert resumo["contratos_completos"] is False and resumo["diretas_completas"] is False

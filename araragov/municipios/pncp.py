@@ -139,10 +139,11 @@ def _semanas(inicio: date, fim: date, parte: int = 0, partes: int = 1) -> List[T
     return [j for i, j in enumerate(_janelas(inicio, fim)) if i % partes == parte]
 
 
-def contratos(client, inicio: date, fim: date, parte: int = 0, partes: int = 1) -> Tuple[List[Dict[str, Any]], bool]:
+def contratos(client, inicio: date, fim: date, parte: int = 0, partes: int = 1,
+              prazo: Optional[float] = None) -> Tuple[List[Dict[str, Any]], bool]:
     consultas = [{"dataInicial": a.strftime("%Y%m%d"), "dataFinal": b.strftime("%Y%m%d")}
                  for a, b in _semanas(inicio, fim, parte, partes)]
-    linhas, completo = _em_paralelo(client, "contratos", consultas)
+    linhas, completo = _em_paralelo(client, "contratos", consultas, prazo)
     if not completo:
         logger.warning("PNCP: alguma semana de contratos não respondeu; os arquivos podem estar incompletos")
     return linhas, completo
@@ -154,13 +155,15 @@ MINUTOS_DIRETAS = float(os.environ.get("ARARAGOV_PNCP_MINUTOS_DIRETAS", "60"))
 
 
 def compras_diretas(client, inicio: date, fim: date, minutos: Optional[float] = None, parte: int = 0,
-                    partes: int = 1) -> Tuple[Dict[str, str], bool]:
+                    partes: int = 1, prazo_max: Optional[float] = None) -> Tuple[Dict[str, str], bool]:
     """Número de controle da compra -> modalidade, para dispensas e inexigibilidades municipais.
 
     Devolve também se a lista está completa (False quando o prazo acabou antes).
     """
     minutos = MINUTOS_DIRETAS if minutos is None else minutos
     prazo = time.monotonic() + minutos * 60
+    if prazo_max is not None:
+        prazo = min(prazo, prazo_max)
     saida: Dict[str, str] = {}
     completo = True
     for cod, nome in MODALIDADES_DIRETAS.items():
@@ -351,10 +354,17 @@ def _ano_completo_publicado(client, ano: int, hoje: date) -> bool:
     return bool(marca.get("contratos_completos") and marca.get("diretas_completas"))
 
 
+# Tempo total de uma parte. Passado o prazo, a parte grava o que já leu (marcado como
+# incompleto) em vez de ser derrubada pelo limite do job sem gravar nada.
+MINUTOS_PARTE = float(os.environ.get("ARARAGOV_PNCP_MINUTOS_PARTE", "0")) or None
+
+
 def baixar_parte(client, pasta: Path, anos: Iterable[int], parte: int, partes: int, hoje: Optional[date] = None,
-                 dias: Optional[int] = None) -> int:
+                 dias: Optional[int] = None, minutos: Optional[float] = None) -> int:
     """Baixa as semanas da parte e grava `{ano}-{parte}.jsonl.gz` e `{ano}-{parte}.json` em `pasta`."""
     hoje = hoje or date.today()
+    minutos = MINUTOS_PARTE if minutos is None else minutos
+    prazo = time.monotonic() + minutos * 60 if minutos else None
     pasta.mkdir(parents=True, exist_ok=True)
     total = 0
     for ano in sorted(anos):
@@ -362,8 +372,8 @@ def baixar_parte(client, pasta: Path, anos: Iterable[int], parte: int, partes: i
             logger.info("PNCP %s: ano fechado e já publicado completo; a parte %s não baixa nada", ano, parte)
             continue
         inicio, fim = _periodo(ano, hoje, dias)
-        diretas, diretas_completas = compras_diretas(client, inicio, fim, parte=parte, partes=partes)
-        linhas, contratos_completos = contratos(client, inicio, fim, parte=parte, partes=partes)
+        diretas, diretas_completas = compras_diretas(client, inicio, fim, parte=parte, partes=partes, prazo_max=prazo)
+        linhas, contratos_completos = contratos(client, inicio, fim, parte=parte, partes=partes, prazo=prazo)
         n = 0
         with gzip.open(pasta / f"{ano}-{parte}.jsonl.gz", "wt", encoding="utf-8") as f:
             for r in linhas:
