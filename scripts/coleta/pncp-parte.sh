@@ -4,6 +4,7 @@ set -e
 if [ "$EVENTO" = "pull_request" ]; then
   python -m araragov pncp --parte "$PARTE" --partes pncp-partes --anos 2025 --dias 21
 else
-  python -m araragov pncp --parte "$PARTE" --partes pncp-partes
+  # O job tem 290 min; a parte para de ler aos 250 e grava o que tiver.
+  ARARAGOV_PNCP_MINUTOS_PARTE=250 python -m araragov pncp --parte "$PARTE" --partes pncp-partes
 fi
 ls -la pncp-partes || true
