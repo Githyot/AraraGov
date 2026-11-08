@@ -113,6 +113,8 @@ def main(argv: list[str] | None = None) -> int:
     mun.add_argument("--ufs", default="", help="só estes estados, ex.: PR,SC (padrão: todos)")
     mun.add_argument("--financas", type=_anos, default=[], help="anos de arrecadação e gastos (Siconfi), ex.: 2019-2025")
     mun.add_argument("--limite-siconfi", type=int, help="máximo de pares município-ano buscados no Siconfi nesta execução")
+    mun.add_argument("--mensal", type=_anos, default=[], help="anos de arrecadação e gastos mês a mês (Siconfi, MSC)")
+    mun.add_argument("--limite-msc", type=int, help="máximo de pedidos município-mês à MSC nesta execução")
     mun.add_argument("--sem-eleitos", action="store_true", help="não gera os resumos com prefeitos e vereadores")
     cus = sub.add_parser("custos", help="gera os custos de referência por estado (.md)")
     cus.add_argument("--saida", default="site")
@@ -356,7 +358,7 @@ def main(argv: list[str] | None = None) -> int:
         from pathlib import Path
 
         from .collectors.tse import UFS
-        from .municipios import eleitos, financas
+        from .municipios import eleitos, financas, mensal
 
         ufs = [u.strip().upper() for u in args.ufs.split(",") if u.strip()] or list(UFS)
         ok = True
@@ -367,6 +369,9 @@ def main(argv: list[str] | None = None) -> int:
             r = financas.gerar(HttpClient, Path(args.saida), anos=args.financas, ufs=ufs,
                                limite_siconfi=args.limite_siconfi)
             ok = ok and (r["siconfi"] + r["reaproveitados"]) > 0
+        if args.mensal:
+            r = mensal.gerar(HttpClient, Path(args.saida), anos=args.mensal, ufs=ufs, limite=args.limite_msc)
+            ok = ok and r["arquivos"] > 0
         return 0 if ok else 1
 
     client = HttpClient()

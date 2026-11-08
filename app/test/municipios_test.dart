@@ -88,7 +88,51 @@ populacao: 1000
 | 10 |  | Saúde | 800 | 800 | 800 |
 ''';
 
+const _mensal = '''---
+formato: araragov-md/1
+tipo: municipio-mensal
+ano: 2026
+---
+
+<!-- tabela: meses -->
+| mes | arrecadado | impostos | repasses | outras | gasto |
+|---|---|---|---|---|---|
+| 1 | 300 | 100 | 150 | 50 | 200 |
+| 2 | 400 | 100 | 250 | 50 | 350 |
+
+<!-- tabela: areas-mes -->
+| mes | funcao | area | pago |
+|---|---|---|---|
+| 1 | 10 | Saúde | 200 |
+| 2 | 10 | Saúde | 300 |
+| 2 | 12 | Educação | 50 |
+''';
+
+const _emendas = '''---
+formato: araragov-md/1
+tipo: municipio-emendas
+---
+
+<!-- tabela: resumo -->
+| ano | emendas | autores | valor | para_prefeitura | para_outros |
+|---|---|---|---|---|---|
+| 2025 | 1 | 1 | 500 | 500 | 0 |
+
+<!-- tabela: autores -->
+| autor | tipo | emendas | valor |
+|---|---|---|---|
+| DEPUTADA EXEMPLO | Emenda Individual - Transferências Especiais | 1 | 300 |
+| DEPUTADA EXEMPLO | Emenda Individual - Transferências com Finalidade Definida | 1 | 200 |
+
+<!-- tabela: autores-ano -->
+| ano | autor | tipo | emendas | valor |
+|---|---|---|---|---|
+| 2025 | DEPUTADA EXEMPLO | Emenda Individual - Transferências Especiais | 1 | 500 |
+''';
+
 const _arquivos = {
+  'municipios/sp/3500105/2026-mensal.md': _mensal,
+  'municipios/sp/3500105/emendas.md': _emendas,
   'municipios/sp/3500105/2024.md': _financas,
   'municipios/indice.md': _indice,
   'municipios/sp/3500105/resumo.md': _resumo,
@@ -127,10 +171,25 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Dinheiro'));
     await tester.pumpAndSettle();
+    await tester.tap(find.text('2024'));
+    await tester.pumpAndSettle();
     expect(find.text('Total arrecadado'), findsOneWidget);
     expect(find.text('R\$ 1.000,00'), findsOneWidget);
     expect(find.text('Total gasto (pago)'), findsOneWidget);
     expect(find.text('70,0%'), findsWidgets); // repasses
+
+    // 2026 só tem a matriz mensal: soma dos meses e, por mês, o mês escolhido.
+    await tester.tap(find.text('2026'));
+    await tester.pumpAndSettle();
+    expect(find.text('Resumo de 2026, até fevereiro'), findsOneWidget);
+    expect(find.text('R\$ 700,00'), findsOneWidget);
+    await tester.tap(find.text('Por mês'));
+    await tester.pumpAndSettle();
+    expect(find.text('Resumo de fevereiro de 2026'), findsOneWidget);
+    await tester.tap(find.widgetWithText(ChoiceChip, 'jan'));
+    await tester.pumpAndSettle();
+    expect(find.text('Resumo de janeiro de 2026'), findsOneWidget);
+    expect(find.text('R\$ 300,00'), findsWidgets);
 
     await tester.tap(find.text('Obras'));
     await tester.pumpAndSettle();
@@ -144,7 +203,11 @@ void main() {
 
     await tester.tap(find.text('Emendas'));
     await tester.pumpAndSettle();
-    expect(find.text('Não há dados'), findsOneWidget);
+    expect(find.text('1 emenda de 1 autor · governo municipal R\$ 500,00'), findsOneWidget);
+    expect(find.text('DEPUTADA EXEMPLO'), findsOneWidget); // os dois tipos numa linha só
+    await tester.tap(find.text('2025').last);
+    await tester.pumpAndSettle();
+    expect(find.text('DEPUTADA EXEMPLO'), findsNWidgets(2));
   });
 
   test('endereços do TSE e nome para ligar mandatos', () {

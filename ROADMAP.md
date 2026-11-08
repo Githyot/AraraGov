@@ -121,6 +121,7 @@ sem acusar ninguém.
 - 🔄 Fase 6: emendas federais recebidas em cada município, por autor e favorecido (prefeitura, entidade ou empresa)
 - 🔄 Fase 7: telas do app: busca de municípios e abas Quem governa, Dinheiro, Obras, Fornecedores e Emendas
 - ✅ Aba Dinheiro: resumo do ano (arrecadado, gasto, diferença, por habitante, repasses, não pago, comparação com o ano anterior descontada a inflação), gráfico de evolução, receitas por origem e gastos por área com a parte de cada um no total, e valores de hoje pelo IPCA
+- ✅ Mês a mês (Siconfi, Matriz de Saldos Contábeis): arrecadação e gastos de cada mês, inclusive do ano corrente; no app, Ano inteiro / Por mês. Emendas: autores de cada ano
 - 🔄 Fase 8: contratos de todos os municípios pelo PNCP; depois outros TCEs e portais Fiorilli, Betha, IPM
 
 ## Pendências de configuração (HP)
