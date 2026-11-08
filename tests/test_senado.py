@@ -58,10 +58,14 @@ def test_senadores_de_legislaturas_anteriores(client):
 
     client.json(f"{senado.API}/senador/lista/legislatura/56/57", "senado_lista_legislatura.json")
     client.json(f"{senado.API}/senador/lista/atual", "senado_lista_atual.json")
-    assert senado.coletar_senadores_anteriores(client) == 2
+    assert senado.coletar_senadores_anteriores(client) == 3
     senado.coletar_senadores(client)
     with db.sessao() as s:
-        situacao = {p.codigo: p.em_exercicio for p in s.execute(select(db.Politico)).scalars()}
+        todos = {p.codigo: p for p in s.execute(select(db.Politico)).scalars()}
+        situacao = {c: p.em_exercicio for c, p in todos.items()}
+        suplente = todos[5918]
+        assert suplente.uf == "PE"  # na lista por legislatura a UF vem no mandato
+        assert suplente.url_foto == senado.FOTO.format(cod=5918)
     assert situacao[4000] is False  # saiu do Senado
     assert situacao[475] is True  # continua no mandato
 

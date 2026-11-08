@@ -29,6 +29,7 @@ API = "https://legis.senado.leg.br/dadosabertos"
 CEAPS_URL = "https://adm.senado.gov.br/adm-dadosabertos/api/v1/senadores/despesas_ceaps/{ano}"
 CEAPS_LINK = "https://www6g.senado.leg.br/transparencia/sen/{cod}/?ano={ano}"
 CASA = "senado"
+FOTO = "https://www.senado.leg.br/senadores/img/fotos-oficiais/senador{cod}.jpg"
 
 
 def _lista(valor: Any) -> List[Any]:
@@ -63,6 +64,17 @@ def coletar_senadores(client: HttpClient) -> int:
     return _gravar_senadores(parlamentares, em_exercicio=True)
 
 
+def _uf_do_mandato(p: Dict[str, Any]) -> Optional[str]:
+    """Na lista por legislatura a UF fica no mandato, não na identificação.
+    Vale a do mandato mais recente."""
+    mandatos = _lista((p.get("Mandatos") or {}).get("Mandato")) or _lista(p.get("Mandato"))
+    for m in reversed(mandatos):
+        uf = n.texto((m or {}).get("UfParlamentar"))
+        if uf:
+            return uf
+    return None
+
+
 def _gravar_senadores(parlamentares: List[Dict[str, Any]], em_exercicio: bool) -> int:
     with sessao() as s:
         for p in parlamentares:
@@ -79,9 +91,11 @@ def _gravar_senadores(parlamentares: List[Dict[str, Any]], em_exercicio: bool) -
                     "nome": n.texto(ident.get("NomeParlamentar")) or str(codigo),
                     "nome_civil": n.texto(ident.get("NomeCompletoParlamentar")),
                     "partido": n.texto(ident.get("SiglaPartidoParlamentar")),
-                    "uf": n.texto(ident.get("UfParlamentar")),
+                    "uf": n.texto(ident.get("UfParlamentar")) or _uf_do_mandato(p),
                     "sexo": n.texto(ident.get("SexoParlamentar")),
-                    "url_foto": n.texto(ident.get("UrlFotoParlamentar")),
+                    # Quem já saiu (suplentes, sobretudo) vem sem a URL, mas o
+                    # Senado publica a foto oficial no mesmo endereço pelo código.
+                    "url_foto": n.texto(ident.get("UrlFotoParlamentar")) or FOTO.format(cod=codigo),
                     "email": n.texto(ident.get("EmailParlamentar")),
                     "em_exercicio": em_exercicio,
                 },

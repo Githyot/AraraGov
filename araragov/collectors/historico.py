@@ -12,11 +12,11 @@ import logging
 import os
 from datetime import date
 from decimal import Decimal
-from typing import Optional
+from typing import List, Optional, Tuple
 
-from sqlalchemy import insert
+from sqlalchemy import insert, select
 
-from ..db import Beneficio, Despesa, RecursoMensal, sessao
+from ..db import Assessor, AssessorAnterior, Beneficio, Despesa, RecursoMensal, sessao
 from ..http import HttpClient
 
 logger = logging.getLogger(__name__)
@@ -26,6 +26,7 @@ ARQUIVO = "historico/recursos.json"
 CAMPOS_RECURSO = ("casa", "codigo_politico", "tipo", "ano", "mes", "valor")
 CAMPOS_DESPESA = ("casa", "chave_fonte", "codigo_politico", "nome_politico", "ano", "mes", "categoria",
                   "fornecedor", "cnpj_cpf", "data_documento", "valor", "url_documento")
+CAMPOS_GABINETE = ("casa", "codigo_politico", "nome", "cargo", "funcao", "desde", "ate")
 # Despesas que só se conseguem com um pedido por deputado e mês (ALMG: 77 deputados x 12 meses
 # por ano). As outras casas publicam o ano inteiro num arquivo só e são baixadas de novo.
 DESPESAS_REAPROVEITADAS = ("al-mg",)
@@ -39,6 +40,37 @@ def ano_fechado(ano: int, hoje: Optional[date] = None) -> bool:
     """O ano não muda mais a partir de abril do ano seguinte."""
     hoje = hoje or date.today()
     return ano < hoje.year - 1 or (ano == hoje.year - 1 and hoje.month >= MES_FECHAMENTO)
+
+
+def gabinetes(hoje: Optional[date] = None) -> Tuple[List[list], List[list]]:
+    """Equipe atual e quem já saiu, para publicar e para a próxima coleta.
+
+    Quem estava na equipe da coleta anterior e não está na de hoje sai com a
+    data de hoje. Se a casa inteira veio vazia (fonte fora do ar), ninguém sai:
+    a lista anterior continua valendo até a próxima coleta.
+    """
+    from .gabinete import _chave_nome
+
+    hoje = hoje or date.today()
+    with sessao() as s:
+        atuais = [a for a in s.execute(select(Assessor).where(Assessor.codigo_politico.is_not(None))).scalars()]
+        guardados = list(s.execute(select(AssessorAnterior).order_by(AssessorAnterior.id)).scalars())
+    presentes = {(a.casa, a.codigo_politico, _chave_nome(a.nome)) for a in atuais}
+    casas = {a.casa for a in atuais}
+    linhas_atuais = [[a.casa, a.codigo_politico, a.nome, a.cargo, a.funcao, a.desde] for a in atuais]
+    anteriores, vistos = [], set()
+    for g in guardados:
+        chave = (g.casa, g.codigo_politico, _chave_nome(g.nome))
+        if chave in presentes:
+            continue  # continua (ou voltou) na equipe
+        if g.ate is None and g.casa not in casas:
+            linhas_atuais.append([g.casa, g.codigo_politico, g.nome, g.cargo, g.funcao, g.desde])
+            continue
+        if (chave, g.desde) in vistos:
+            continue
+        vistos.add((chave, g.desde))
+        anteriores.append([g.casa, g.codigo_politico, g.nome, g.cargo, g.funcao, g.desde, g.ate or hoje])
+    return linhas_atuais, anteriores
 
 
 def carregar(client: HttpClient, base: str = API_PUBLICA) -> int:
@@ -60,13 +92,23 @@ def carregar(client: HttpClient, base: str = API_PUBLICA) -> int:
         d["data_documento"] = date.fromisoformat(d["data_documento"]) if d["data_documento"] else None
         despesas.append(d)
         anos_carregados.add((d["casa"], d["ano"]))
+    gabinetes = dados.get("gabinetes") or {}
+    pessoas = []
+    for linha in (gabinetes.get("atuais") or []) + (gabinetes.get("anteriores") or []):
+        g = dict(zip(CAMPOS_GABINETE, linha))
+        g.setdefault("ate", None)
+        for k in ("desde", "ate"):
+            g[k] = date.fromisoformat(g[k]) if g[k] else None
+        pessoas.append(g)
     with sessao() as s:
+        if pessoas:
+            s.execute(insert(AssessorAnterior), pessoas)
         if despesas:
             s.execute(insert(Despesa), despesas)
         if recursos:
             s.execute(insert(RecursoMensal), recursos)
         if beneficios:
             s.execute(insert(Beneficio), beneficios)
-    logger.info("Histórico: %s valores mensais, %s benefícios e %s despesas da coleta anterior",
-                len(recursos), len(beneficios), len(despesas))
+    logger.info("Histórico: %s valores mensais, %s benefícios, %s despesas e %s pessoas de gabinete da coleta anterior",
+                len(recursos), len(beneficios), len(despesas), len(pessoas))
     return len(recursos)

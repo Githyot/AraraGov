@@ -10,7 +10,7 @@ readme = "README.md"
 license = { text = "AGPL-3.0-or-later" }
 requires-python = ">=3.11"
 dependencies = [
-  "requests>=2.31",
+  "requests[socks]>=2.31",  # socks: saída com IP brasileiro por SOCKS5 (ARARAGOV_PROXY_BR)
   "sqlalchemy>=2.0",
   "openpyxl>=3.1",
 ]

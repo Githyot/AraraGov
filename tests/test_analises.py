@@ -81,3 +81,27 @@ def test_motivo_atencao():
     assert motivo_atencao("Dispõe sobre emendas de relator ao orçamento.") is not None
     assert motivo_atencao("Institui o dia nacional do café.") is None
     assert motivo_atencao(None) is None
+
+
+def test_alinhamento_nao_conta_o_proprio_voto():
+    """Num partido de uma pessoa, o alinhamento com ele não pode ser 100% só
+    porque a maioria do partido é ela mesma."""
+    votos = []
+    for j in range(20):
+        votos.append(VotoSimples(f"v{j}", 1, "SOLO", "sim" if j % 2 else "nao"))
+        for cod in range(10, 14):
+            votos.append(VotoSimples(f"v{j}", cod, "PX", "sim"))
+    alinh = espectro.alinhamento_partidos(votos)
+    assert "SOLO" not in {a["partido"] for a in alinh[1]}
+    px = next(a for a in alinh[1] if a["partido"] == "PX")
+    assert px["pct"] == 50.0 and px["votacoes"] == 20
+
+
+def test_calcular_com_lados_dados_so_recalcula_percentual():
+    votos = _simular()
+    tudo = espectro.calcular(votos)
+    metade = [v for v in votos if int(v.votacao_id[1:].split(":")[0]) < 30]
+    r = espectro.calcular(metade, lados=tudo.votacoes)
+    assert set(r.votacoes) <= {v.votacao_id for v in metade}
+    assert all(r.votacoes[vid] is tudo.votacoes[vid] for vid in r.votacoes)
+    assert r.pct_esquerda[0][1] < tudo.pct_esquerda[0][1]

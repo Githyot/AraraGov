@@ -32,8 +32,18 @@ class ValorInflacao {
   final String? desde;
   final int? ano;
 
+  /// Gastos: ano usado como base e quantos meses entram em cada lado da conta
+  /// (o primeiro ano do mandato e o ano em andamento podem ter menos de 12).
+  final int? anoBase;
+  final int meses, mesesBase;
+  final bool parcial;
+
   ValorInflacao.fromJson(Map<String, dynamic> j)
-      : valorInicial = _n(j['valor_inicial']),
+      : anoBase = j['ano_base'] ?? int.tryParse((j['desde'] as String? ?? '').split('-').first),
+        meses = j['meses'] ?? 12,
+        mesesBase = j['meses_base'] ?? 12,
+        parcial = j['parcial'] ?? false,
+        valorInicial = _n(j['valor_inicial']),
         valorAtual = _n(j['valor_atual'] ?? j['valor']),
         corrigido = _n(j['corrigido_pela_inflacao']),
         acimaPct = _n(j['acima_da_inflacao_pct']),
@@ -69,6 +79,10 @@ class Gastos {
   final List<ValorInflacao> vsInflacao;
   final List<Map<String, dynamic>> documentos;
 
+  /// Cada categoria por ano e mês a mês, para comparar períodos.
+  final Map<int, List<NomeValor>> categoriasPorAno;
+  final Map<int, Map<String, List<double>>> categoriasPorMes;
+
   Gastos.fromJson(Map<String, dynamic> j)
       : total = _n(j['total']),
         porAno = [for (final a in (j['por_ano'] as List? ?? [])) (ano: a['ano'] as int, valor: _n(a['valor']))],
@@ -77,7 +91,21 @@ class Gastos {
           for (final c in (j['maiores_fornecedores'] as List? ?? [])) (nome: c['nome'] as String, valor: _n(c['valor']))
         ],
         vsInflacao = [for (final v in (j['vs_inflacao'] as List? ?? [])) ValorInflacao.fromJson(v)],
-        documentos = [for (final d in (j['documentos_recentes'] as List? ?? [])) Map<String, dynamic>.from(d)];
+        documentos = [for (final d in (j['documentos_recentes'] as List? ?? [])) Map<String, dynamic>.from(d)],
+        categoriasPorAno = {
+          for (final e in (j['anos'] as Map? ?? {}).entries)
+            int.parse(e.key as String): [
+              for (final c in (e.value['por_categoria'] as List? ?? [])) (nome: c['nome'] as String, valor: _n(c['valor']))
+            ]
+        },
+        categoriasPorMes = {
+          for (final e in (j['anos'] as Map? ?? {}).entries)
+            if (e.value['por_categoria_mes'] != null)
+              int.parse(e.key as String): {
+                for (final c in (e.value['por_categoria_mes'] as List))
+                  c['nome'] as String: [for (final v in (c['meses'] as List)) _n(v)]
+              }
+        };
 }
 
 class VotoEmVotacao {
@@ -158,10 +186,14 @@ class Alinhamento {
 class Assessor {
   final String nome;
   final String? cargo, nivel, desde;
+
+  /// Ex-membros: data da coleta em que a pessoa deixou de aparecer na equipe.
+  final String? ate;
   final double? remuneracao;
 
   Assessor.fromJson(Map<String, dynamic> j)
       : nome = j['nome'],
+        ate = j['ate'],
         cargo = j['cargo'],
         nivel = j['nivel'],
         desde = j['desde'],
@@ -261,6 +293,93 @@ class DoacaoSalario {
   }
 }
 
+/// Mesmo método do servidor (analise/espectro.py), sem a média do partido.
+Map<String, dynamic>? _posicaoLocal(List<VotoEmVotacao> votos) {
+  final lados = [for (final v in votos) if (v.ladoDoVoto != null) v.ladoDoVoto!];
+  if (lados.length < 10) return null;
+  final pct = (1000 * lados.where((l) => l == 'esquerda').length / lados.length).round() / 10;
+  final faixa = pct >= 65
+      ? 'esquerda'
+      : pct >= 55
+          ? 'centro-esquerda'
+          : pct > 45
+              ? 'centro'
+              : pct > 35
+                  ? 'centro-direita'
+                  : 'direita';
+  return {
+    'pct_esquerda': pct,
+    'pct_direita': ((1000 - pct * 10).round()) / 10,
+    'faixa': faixa,
+    'votacoes_consideradas': lados.length,
+  };
+}
+
+/// Registro oficial ligado ao político (TSE, CGU, TCU ou decisão de tribunal).
+class Ocorrencia {
+  final String fonte, tipo, titulo, situacao;
+  final String? descricao, data, orgao, processo, link, conferencia;
+
+  Ocorrencia.fromJson(Map<String, dynamic> j)
+      : fonte = j['fonte'] ?? '',
+        tipo = j['tipo'] ?? '',
+        titulo = j['titulo'] ?? '',
+        situacao = j['situacao'] ?? 'informativo',
+        descricao = j['descricao'],
+        data = j['data'],
+        orgao = j['orgao'],
+        processo = j['processo'],
+        link = j['link'],
+        conferencia = j['conferencia'];
+
+  /// Situação em palavras simples, sem julgamento.
+  String get situacaoRotulo => switch (situacao) {
+        'em_andamento' => 'Em andamento',
+        'recurso' => 'Com recurso',
+        'condenado' => 'Condenação, cabe recurso',
+        'condenado_definitivo' => 'Decisão definitiva',
+        'absolvido' => 'Absolvido',
+        'arquivado' => 'Arquivado',
+        'extinto' => 'Extinto',
+        'sancao_vigente' => 'Sanção em vigor',
+        'sancao_encerrada' => 'Sanção encerrada',
+        'decidido' => 'Decidido',
+        _ => 'Informativo',
+      };
+}
+
+class FonteConsultada {
+  final String fonte, nome;
+  final String? link, consultadoEm;
+
+  /// Falso quando a fonte foi consultada, mas não deu para conferir esta
+  /// pessoa nela (ex.: sem CPF no TSE para separar de homônimos).
+  final bool conferido;
+
+  FonteConsultada.fromJson(Map<String, dynamic> j)
+      : fonte = j['fonte'] ?? '',
+        nome = j['nome'] ?? '',
+        link = j['link'],
+        consultadoEm = j['consultado_em'],
+        conferido = j['conferido'] ?? false;
+}
+
+class Ocorrencias {
+  final List<Ocorrencia> itens;
+  final List<({String titulo, String? descricao, String? link})> certidoes;
+  final List<FonteConsultada> fontes;
+  final String? aviso;
+
+  Ocorrencias.fromJson(Map<String, dynamic> j)
+      : itens = [for (final i in (j['itens'] as List? ?? [])) Ocorrencia.fromJson(i)],
+        certidoes = [
+          for (final c in (j['certidoes'] as List? ?? []))
+            (titulo: c['titulo'] as String? ?? '', descricao: c['descricao'] as String?, link: c['link'] as String?)
+        ],
+        fontes = [for (final f in (j['fontes'] as List? ?? [])) FonteConsultada.fromJson(f)],
+        aviso = j['aviso'];
+}
+
 List<VotoEmVotacao> _lerVotos(Map<String, dynamic> j) {
   final inline = {for (final v in (j['votacoes'] as List? ?? [])) v['id'] as String: Map<String, dynamic>.from(v)};
   final votos = j['votos'] as List?;
@@ -287,12 +406,13 @@ class Perfil {
   final Gastos gastos;
   final Map<String, int> presenca;
   final List<VotoEmVotacao> votacoes;
-  final List<Assessor> gabinete;
+  final List<Assessor> gabinete, gabineteAnteriores;
   final CustoGabinete? custoGabinete;
   final ValoresMensais? verbaGabinete, salarioPago;
   final List<Beneficio> beneficios;
   final Emendas? emendas;
   final DoacaoSalario? doacaoSalario;
+  final Ocorrencias? ocorrencias;
   final Declaracao? ideologiaPartido, ideologiaPessoal;
   final Posicao? posicao;
   final Alinhamento? alinhamento;
@@ -313,12 +433,14 @@ class Perfil {
         presenca = {for (final e in (j['presenca'] as Map? ?? {}).entries) e.key as String: e.value as int},
         votacoes = _lerVotos(j),
         gabinete = [for (final a in (j['gabinete'] as List? ?? [])) Assessor.fromJson(a)],
+        gabineteAnteriores = [for (final a in (j['gabinete_anteriores'] as List? ?? [])) Assessor.fromJson(a)],
         custoGabinete = j['custo_gabinete'] == null ? null : CustoGabinete.fromJson(j['custo_gabinete']),
         verbaGabinete = j['verba_gabinete'] == null ? null : ValoresMensais.fromJson(j['verba_gabinete']),
         salarioPago = j['salario_pago'] == null ? null : ValoresMensais.fromJson(j['salario_pago']),
         beneficios = [for (final b in (j['beneficios'] as List? ?? [])) Beneficio.fromJson(b)],
         emendas = j['emendas'] == null ? null : Emendas.fromJson(j['emendas']),
         doacaoSalario = j['doacao_salario'] == null ? null : DoacaoSalario.fromJson(j['doacao_salario']),
+        ocorrencias = j['ocorrencias'] == null ? null : Ocorrencias.fromJson(j['ocorrencias']),
         ideologiaPartido = j['ideologia_declarada']?['partido'] == null ? null : Declaracao.fromJson(j['ideologia_declarada']['partido']),
         ideologiaPessoal = j['ideologia_declarada']?['pessoal'] == null ? null : Declaracao.fromJson(j['ideologia_declarada']['pessoal']),
         posicao = j['posicao'] == null ? null : Posicao.fromJson(j['posicao']),
@@ -330,6 +452,9 @@ class Perfil {
                 votouSim: j['atencao']['votou_sim'] as int,
                 votouNao: j['atencao']['votou_nao'] as int,
               );
+
+  /// Se os dados publicados trazem posição e alinhamento calculados por ano.
+  bool get temAnalisesPorAno => _json['analises_anos'] != null;
 
   /// Anos que têm algum dado (votações, gastos ou emendas), do mais recente.
   List<int> get anosDisponiveis {
@@ -345,7 +470,8 @@ class Perfil {
   }
 
   /// O mesmo perfil, só com o que aconteceu em [ano] (null = todo o período).
-  /// Posição e alinhamento continuam calculados sobre todo o período.
+  /// Posição e alinhamento são os recalculados com os votos do ano; equipe do
+  /// gabinete, custo mensal dela e tabela de salário são sempre os atuais.
   Perfil noAno(int? ano) {
     if (ano == null) return Perfil.fromJson(_json);
     final j = Map<String, dynamic>.from(_json);
@@ -367,6 +493,17 @@ class Perfil {
       presenca[v.voto] = (presenca[v.voto] ?? 0) + 1;
     }
     j['presenca'] = presenca;
+    final analisesAno = j['analises_anos'] as Map?;
+    if (analisesAno != null) {
+      final a = analisesAno[chave] as Map?;
+      j['posicao'] = a?['posicao'];
+      j['alinhamento'] = a?['alinhamento'];
+    } else {
+      // Dados publicados antes do cálculo por ano: a posição sai dos lados das
+      // votações que já vêm em cada voto; o alinhamento precisa do servidor.
+      j['posicao'] = _posicaoLocal(votosAno);
+      j['alinhamento'] = null;
+    }
     final comAtencao = votosAno.where((v) => v.atencao != null).toList();
     j['atencao'] = comAtencao.isEmpty
         ? null
@@ -382,6 +519,7 @@ class Perfil {
       'por_ano': [for (final a in (g['por_ano'] as List? ?? [])) if (a['ano'] == ano) a],
       'por_categoria': doAno?['por_categoria'] ?? [],
       'maiores_fornecedores': doAno?['maiores_fornecedores'] ?? [],
+      'anos': {chave: ?doAno},
       'vs_inflacao': [for (final v in (g['vs_inflacao'] as List? ?? [])) if (v['ano'] == ano) v],
       'documentos_recentes': [
         for (final d in (g['documentos_recentes'] as List? ?? []))

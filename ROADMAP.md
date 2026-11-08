@@ -5,7 +5,7 @@ o que falta. Este arquivo é atualizado a cada entrega.
 
 Legenda: ✅ pronto (no `main`) · 🔄 em revisão (PR aberto) · ⬜ falta fazer · ➖ não disponível na fonte · ⏸️ só quando pedido
 
-_Última atualização: 5 de novembro de 2026 (madrugada do dia 6)_
+_Última atualização: 6 de novembro de 2026_
 
 ## Visão geral
 
@@ -18,6 +18,7 @@ _Última atualização: 5 de novembro de 2026 (madrugada do dia 6)_
 | Benefícios e custo dos gabinetes | ✅ Senado |
 | Emendas parlamentares | ✅ |
 | Período, comparação e doação do salário | ✅ |
+| Processos e ocorrências (TSE, CGU, TCU, decisões de tribunais) | 🔄 |
 | Base federal completa | ✅ |
 | 5. Municípios | 🔄 fases 0 a 8: plano, prefeitos e vereadores, finanças, custos de referência, piloto de SP, fornecedores, emendas e telas do app |
 
@@ -44,6 +45,8 @@ _Última atualização: 5 de novembro de 2026 (madrugada do dia 6)_
 - ✅ Legislatura anterior (2019-2022): deputados e senadores que saíram, votos e gastos desde 2019
 - ✅ API mais leve: votos compactos nos perfis e detalhes das votações por ano, para caber no limite de 1 GB do GitHub Pages
 - ✅ Emendas parlamentares: quanto cada um indicou, quanto foi pago, para onde e quem recebeu
+- 🔄 Processos e ocorrências: candidatura indeferida ou cassada (TSE), sanções (CGU), inabilitação (TCU) e certidões criminais, sempre com situação atual e fonte oficial
+- ⬜ Lista curada de decisões de tribunais (prisão, condenação, absolvição), só com link oficial
 
 ## 2. Análises ✅
 
@@ -62,7 +65,7 @@ _Última atualização: 5 de novembro de 2026 (madrugada do dia 6)_
 ## 3. App ✅
 
 - ✅ Flutter: um código para iOS, Android, Windows, Linux (e web)
-- ✅ Visual no estilo GNOME, sem poluição visual
+- ✅ Visual limpo, sem poluição visual, com temas GNOME, Android (Material 3), Apple e Windows 11: segue o aparelho ou é escolhido em Aparência; as cores com significado são iguais em todos
 - ✅ Ícone: cabeça da Arara sobre a bandeira do Brasil
 - ✅ Busca por nome, partido, estado e casa; perfil completo com gráficos
 - ✅ Telas de posição política, alinhamento e votações de atenção
@@ -117,6 +120,7 @@ sem acusar ninguém.
 - 🔄 Fase 5: fornecedores com empresas punidas (CEIS/CNEP) e serviço a campanhas no município (TSE); sócios da Receita ainda faltam (servidor não responde ao GitHub)
 - 🔄 Fase 6: emendas federais recebidas em cada município, por autor e favorecido (prefeitura, entidade ou empresa)
 - 🔄 Fase 7: telas do app: busca de municípios e abas Quem governa, Dinheiro, Obras, Fornecedores e Emendas
+- ✅ Aba Dinheiro: resumo do ano (arrecadado, gasto, diferença, por habitante, repasses, não pago, comparação com o ano anterior descontada a inflação), gráfico de evolução, receitas por origem e gastos por área com a parte de cada um no total, e valores de hoje pelo IPCA
 - 🔄 Fase 8: contratos de todos os municípios pelo PNCP; depois outros TCEs e portais Fiorilli, Betha, IPM
 
 ## Pendências de configuração (HP)

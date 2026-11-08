@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../dados/modelos.dart';
 import '../formatar.dart';
+import '../tema.dart';
 import '../widgets/adw.dart';
 
 const _rotuloFaixa = {
@@ -15,7 +16,8 @@ const _rotuloFaixa = {
 
 String rotuloFaixa(String? f) => _rotuloFaixa[f] ?? '—';
 
-/// Barra horizontal esquerda x direita, com cores neutras.
+/// Barra esquerda x direita: vermelho para a esquerda e azul para a direita,
+/// o mesmo tratamento para os dois lados.
 class BarraEspectro extends StatelessWidget {
   final double pctEsquerda;
   final double? marcador; // média do partido, em % à esquerda
@@ -34,8 +36,8 @@ class BarraEspectro extends StatelessWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(9),
               child: Row(children: [
-                Expanded(flex: (pctEsquerda * 10).round().clamp(1, 1000), child: Container(color: cor.primary)),
-                Expanded(flex: ((100 - pctEsquerda) * 10).round().clamp(1, 1000), child: Container(color: cor.outlineVariant)),
+                Expanded(flex: (pctEsquerda * 10).round().clamp(1, 1000), child: Container(color: Adw.corEsquerda)),
+                Expanded(flex: ((100 - pctEsquerda) * 10).round().clamp(1, 1000), child: Container(color: Adw.corDireita)),
               ]),
             ),
             if (marcador != null)
@@ -65,11 +67,15 @@ class SecaoPosicao extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pos = p.posicao;
-    if (pos == null) return const SizedBox();
+    if (pos == null) {
+      return _semVotosNoAno(p, 'Posição nas votações', 'Menos de 10 votações em que esquerda e direita se dividiram');
+    }
     final partido = p.resumo.partido;
     return Grupo(
       titulo: 'Posição nas votações',
-      descricao: 'Calculada pelos votos; abaixo, o que a pessoa ou o partido declaram',
+      descricao: p.ano == null
+          ? 'Calculada pelos votos; abaixo, o que a pessoa ou o partido declaram'
+          : 'Calculada só pelos votos de ${p.ano}; abaixo, o que a pessoa ou o partido declaram',
       filhos: [
         Linha(titulo: 'Na prática, vota mais com', valor: rotuloFaixa(pos.faixa)),
         Padding(
@@ -79,7 +85,9 @@ class SecaoPosicao extends StatelessWidget {
         if (pos.mediaPartido != null && partido != null)
           Linha(
             titulo: 'Média do $partido',
-            subtitulo: 'A linha escura na barra marca a média do partido',
+            subtitulo: p.ano == null
+                ? 'A linha escura na barra marca a média do partido'
+                : 'A linha escura na barra marca a média do partido em ${p.ano}',
             valor: rotuloFaixa(pos.faixaPartido),
           ),
         if (p.ideologiaPessoal != null) _LinhaDeclaracao('Declara-se', p.ideologiaPessoal!),
@@ -90,7 +98,7 @@ class SecaoPosicao extends StatelessWidget {
           childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           children: [
             Text(
-              'Usamos ${pos.votacoes} votações em que a esquerda (PT, PSOL e PCdoB) e a direita '
+              'Usamos ${pos.votacoes} votações${p.ano == null ? '' : ' de ${p.ano}'} em que a esquerda (PT, PSOL e PCdoB) e a direita '
               '(PL e NOVO) votaram em lados opostos. O percentual mostra em quantas delas esta pessoa '
               'votou como cada lado. Votações em que os dois lados concordam ficam de fora. '
               'É um retrato dos votos, não um julgamento.',
@@ -151,10 +159,17 @@ class SecaoAlinhamento extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final al = p.alinhamento;
-    if (al == null || al.maisAlinhados.isEmpty) return const SizedBox();
+    if (al == null || al.maisAlinhados.isEmpty) {
+      return _semVotosNoAno(
+        p,
+        'Com quem vota junto',
+        p.temAnalisesPorAno ? 'Poucas votações em comum com cada partido' : 'Chega na próxima atualização dos dados',
+      );
+    }
     return Grupo(
       titulo: 'Com quem vota junto',
-      descricao: '% das votações em que votou igual à maioria de cada partido',
+      descricao: '% das votações${p.ano == null ? '' : ' de ${p.ano}'} em que votou igual à maioria de cada partido '
+          '(sem contar o próprio voto), com o partido de cada um na época',
       filhos: [
         if (al.proprioPartido != null)
           Linha(titulo: 'Com o próprio partido (${al.proprioPartido!.partido})', valor: porcentagem(al.proprioPartido!.pct)),
@@ -168,6 +183,13 @@ class SecaoAlinhamento extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Com o filtro de ano, avisa que a seção não tem dados suficientes no ano,
+/// em vez de sumir sem explicação.
+Widget _semVotosNoAno(Perfil p, String titulo, String motivo) {
+  if (p.ano == null || p.votacoes.isEmpty) return const SizedBox();
+  return Grupo(titulo: titulo, filhos: [Linha(titulo: 'Sem cálculo para ${p.ano}', subtitulo: motivo)]);
 }
 
 class SecaoAtencao extends StatelessWidget {

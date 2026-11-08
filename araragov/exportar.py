@@ -25,7 +25,8 @@ from . import __version__
 from .collectors import historico
 from .analise import espectro, inflacao
 from .analise.atencao import motivo_atencao
-from .db import Assessor, Beneficio, Despesa, Emenda, Favorecido, Politico, RecursoMensal, Subsidio, Votacao, Voto, sessao
+from .normalizar import nome_proprio
+from .db import Assessor, Beneficio, ConsultaOcorrencia, Despesa, Ocorrencia, VerificacaoOcorrencia, Emenda, Favorecido, Politico, RecursoMensal, Subsidio, Votacao, Voto, sessao
 
 logger = logging.getLogger(__name__)
 
@@ -177,6 +178,83 @@ def _doacao(p: Politico, doacoes: Dict[tuple, Dict[str, Any]]) -> Optional[Dict[
     return doacoes.get((p.casa, _chave_nome(p.nome or "")))
 
 
+PROCESSOS_CSV = Path(__file__).parent / "referencia" / "processos.csv"
+
+# Só sites oficiais (tribunais, Ministério Público, governo, Legislativo).
+# Reportagens ficam de fora até haver uma regra aprovada para elas.
+DOMINIOS_OFICIAIS = (".jus.br", ".mp.br", ".gov.br", ".leg.br", ".def.br")
+
+AVISO_OCORRENCIAS = (
+    "Registros oficiais, com a situação atual e o link da fonte. Processo em andamento "
+    "não é condenação: todos são considerados inocentes até a decisão final "
+    "(Constituição, art. 5º, LVII). O AraraGov apenas organiza dados públicos e não faz acusações."
+)
+
+FONTES_OCORRENCIAS = {
+    "tse": ("TSE: situação das candidaturas de 2018 e 2022", "https://dadosabertos.tse.jus.br"),
+    "cgu": ("CGU: sanções no CEIS e no CNEP", "https://portaldatransparencia.gov.br/sancoes"),
+    "tcu": ("TCU: inabilitados para função pública", "https://contas.tcu.gov.br/ords/f?p=1660:1"),
+    "curado": ("Decisões de tribunais publicadas em sites oficiais", None),
+}
+
+
+def _oficial(url: str) -> bool:
+    from urllib.parse import urlsplit
+
+    host = (urlsplit(url).hostname or "").lower()
+    return url.startswith("https://") and any(host.endswith(d) for d in DOMINIOS_OFICIAIS)
+
+
+def processos_curados(caminho: Path = PROCESSOS_CSV) -> Dict[tuple, List[Dict[str, Any]]]:
+    """Decisões judiciais (prisão, condenação, absolvição, arquivamento) que
+    não estão em cadastro aberto, mantidas à mão. Cada linha precisa da
+    situação atual e de um link para página oficial; as outras são ignoradas."""
+    from .collectors.gabinete import _chave_nome
+    from .collectors.ocorrencias import SITUACOES
+
+    por: Dict[tuple, List[Dict[str, Any]]] = defaultdict(list)
+    for l in _ler_curado(caminho):
+        if l.get("situacao") not in SITUACOES or not _oficial(l["fonte"]):
+            logger.warning("processos.csv: linha ignorada (situação ou fonte não oficial): %s", l.get("nome"))
+            continue
+        por[(l["casa"], _chave_nome(l["nome"]))].append({
+            "fonte": "curado", "tipo": l.get("tipo") or "processo", "titulo": l["titulo"],
+            "descricao": l.get("descricao") or None, "situacao": l["situacao"], "data": l.get("data") or None,
+            "orgao": l.get("orgao") or None, "processo": l.get("processo") or None, "link": l["fonte"],
+            "conferencia": "Lista curada; cada item tem link para página oficial",
+        })
+    return por
+
+
+def _ocorrencias(p: Politico, linhas: List[Ocorrencia], verificadas: set, consultas: Dict[str, Any],
+                 curados: Dict[tuple, List[Dict[str, Any]]]) -> Dict[str, Any]:
+    from .collectors.gabinete import _chave_nome
+
+    itens = [
+        {"fonte": o.fonte, "tipo": o.tipo, "titulo": o.titulo, "descricao": o.descricao, "situacao": o.situacao,
+         "data": o.data, "orgao": o.orgao, "processo": o.processo, "link": o.link, "conferencia": o.conferencia}
+        for o in linhas if o.tipo != "certidoes"
+    ] + curados.get((p.casa, _chave_nome(p.nome or "")), [])
+    itens.sort(key=lambda i: str(i["data"] or ""), reverse=True)
+    fontes = []
+    for fonte, (nome, link) in FONTES_OCORRENCIAS.items():
+        if fonte == "curado":
+            continue
+        c = consultas.get(fonte)
+        fontes.append({
+            "fonte": fonte, "nome": nome, "link": link,
+            "consultado_em": c.consultado_em if c else None,
+            # False: a fonte foi consultada, mas não deu para conferir esta pessoa nela.
+            "conferido": bool(c) and fonte in verificadas,
+        })
+    return {
+        "itens": itens,
+        "certidoes": [{"titulo": o.titulo, "descricao": o.descricao, "link": o.link} for o in linhas if o.tipo == "certidoes"],
+        "fontes": fontes,
+        "aviso": AVISO_OCORRENCIAS,
+    }
+
+
 VOTOS_INLINE = 8
 
 
@@ -219,7 +297,11 @@ def _historico() -> Dict[str, Any]:
                                .order_by(Despesa.id)).scalars()
             if historico.ano_fechado(d.ano)
         ]
-    return {"recursos": recursos, "beneficios": beneficios, "despesas": despesas}
+    atuais, anteriores = historico.gabinetes()
+    return {
+        "recursos": recursos, "beneficios": beneficios, "despesas": despesas,
+        "gabinetes": {"atuais": atuais, "anteriores": anteriores},
+    }
 
 
 def _resumo(p: Politico, doacoes: Optional[Dict[tuple, Dict[str, Any]]] = None) -> Dict[str, Any]:
@@ -228,7 +310,7 @@ def _resumo(p: Politico, doacoes: Optional[Dict[tuple, Dict[str, Any]]] = None) 
         "casa": p.casa,
         **orgao(p.casa),
         "cargo": p.cargo,
-        "nome": p.nome,
+        "nome": nome_proprio(p.nome),
         "partido": p.partido,
         "uf": p.uf,
         "foto": p.url_foto,
@@ -435,8 +517,12 @@ def _gastos(despesas: List[Despesa], politico: Politico) -> Dict[str, Any]:
     # Para o filtro de período do app: categoria e fornecedor de cada ano.
     cat_ano: Dict[int, Dict[str, Decimal]] = defaultdict(lambda: defaultdict(Decimal))
     forn_ano: Dict[int, Dict[str, Decimal]] = defaultdict(lambda: defaultdict(Decimal))
+    # Para comparar cada categoria mês a mês dentro do ano.
+    cat_mes: Dict[int, Dict[str, List[Decimal]]] = defaultdict(lambda: defaultdict(lambda: [Decimal(0)] * 12))
     for d in despesas:
         cat_ano[d.ano][d.categoria or "Outros"] += d.valor
+        if 1 <= d.mes <= 12:
+            cat_mes[d.ano][d.categoria or "Outros"][d.mes - 1] += d.valor
         forn_ano[d.ano][d.fornecedor or "Não informado"] += d.valor
         por_ano[d.ano] += d.valor
         por_mes[f"{d.ano}-{d.mes:02d}"] += d.valor
@@ -450,6 +536,10 @@ def _gastos(despesas: List[Despesa], politico: Politico) -> Dict[str, Any]:
             "valor": c.valor_real,
             "corrigido_pela_inflacao": c.valor_corrigido,
             "acima_da_inflacao_pct": round(c.acima_da_inflacao_pct, 2),
+            "ano_base": c.referencia.year,
+            "meses": c.meses,
+            "meses_base": c.meses_base,
+            "parcial": c.parcial,
         }
         for c in inflacao.gastos_vs_inflacao(politico.casa, politico.codigo)
     ]
@@ -461,7 +551,12 @@ def _gastos(despesas: List[Despesa], politico: Politico) -> Dict[str, Any]:
         "por_categoria": top(por_categoria, 20),
         "maiores_fornecedores": top(por_fornecedor, 10),
         "anos": {
-            str(a): {"total": por_ano[a], "por_categoria": top(cat_ano[a], 20), "maiores_fornecedores": top(forn_ano[a], 10)}
+            str(a): {
+                "total": por_ano[a],
+                "por_categoria": top(cat_ano[a], 20),
+                "maiores_fornecedores": top(forn_ano[a], 10),
+                "por_categoria_mes": [{"nome": k, "meses": v} for k, v in sorted(cat_mes[a].items())],
+            }
             for a in sorted(por_ano)
         },
         "vs_inflacao": vs_inflacao,
@@ -476,6 +571,40 @@ def _gastos(despesas: List[Despesa], politico: Politico) -> Dict[str, Any]:
             for d in sorted(despesas, key=lambda d: (d.ano, d.mes), reverse=True)[:30]
         ],
     }
+
+
+def _medias_partido(r: espectro.Resultado, partido_atual, casa: str) -> Dict[str, List[float]]:
+    """% à esquerda de cada parlamentar, agrupado pelo partido atual."""
+    por_partido: Dict[str, List[float]] = defaultdict(list)
+    for cod, (pct, _) in r.pct_esquerda.items():
+        partido = partido_atual.get((casa, cod))
+        if partido:
+            por_partido[partido].append(pct)
+    return por_partido
+
+
+def _posicao_alinhamento(r: espectro.Resultado, alinh, medias, partido: Optional[str], cod) -> Dict[str, Any]:
+    item: Dict[str, Any] = {}
+    if cod in r.pct_esquerda:
+        pct, n = r.pct_esquerda[cod]
+        media = medias.get(partido or "")
+        item["posicao"] = {
+            "pct_esquerda": pct,
+            "pct_direita": round(100 - pct, 1),
+            "faixa": espectro.faixa(pct),
+            "votacoes_consideradas": n,
+            "media_do_partido": round(sum(media) / len(media), 1) if media else None,
+            "faixa_do_partido": espectro.faixa(sum(media) / len(media)) if media else None,
+        }
+    if alinh.get(cod):
+        sigla = (partido or "").upper().replace(" ", "")
+        todos = alinh[cod]
+        item["alinhamento"] = {
+            "mais_alinhados": todos[:5],
+            "menos_alinhados": todos[-3:][::-1] if len(todos) > 5 else [],
+            "proprio_partido": next((a for a in todos if a["partido"] == sigla), None),
+        }
+    return item
 
 
 def _analises(politicos, votos_por, votacoes) -> Dict[Any, Any]:
@@ -511,43 +640,35 @@ def _analises(politicos, votos_por, votacoes) -> Dict[Any, Any]:
             casa, len(r.votacoes), len(r.pct_esquerda),
         )
 
-        por_partido: Dict[str, List[float]] = defaultdict(list)
-        for cod, (pct, _) in r.pct_esquerda.items():
-            partido = partido_atual.get((casa, cod))
-            if partido:
-                por_partido[partido].append(pct)
-
-        medias = sorted(
-            ((sum(v) / len(v), k, len(v)) for k, v in por_partido.items() if len(v) >= 3), reverse=True
-        )
+        medias = _medias_partido(r, partido_atual, casa)
         logger.info(
             "%s: %% médio à esquerda por partido: %s",
-            casa, ", ".join(f"{k} {m:.0f}% (n={n})" for m, k, n in medias),
+            casa, ", ".join(f"{k} {sum(v) / len(v):.0f}% (n={len(v)})" for k, v in medias.items() if len(v) >= 3),
         )
+
+        # O mesmo cálculo só com os votos de cada ano, para o filtro de período
+        # do app. O lado de cada votação continua o calculado sobre tudo.
+        ano_de = {vid: v.data.year for vid, v in votacoes.items() if v.data}
+        por_ano_votos: Dict[int, List[espectro.VotoSimples]] = defaultdict(list)
+        for v in simples:
+            if v.votacao_id in ano_de:
+                por_ano_votos[ano_de[v.votacao_id]].append(v)
+        por_ano = {}
+        for ano, lista_ano in por_ano_votos.items():
+            r_ano = espectro.calcular(lista_ano, lados=r.votacoes)
+            por_ano[ano] = (r_ano, espectro.alinhamento_partidos(lista_ano), _medias_partido(r_ano, partido_atual, casa))
+
         for (c, cod), lista in votos_por.items():
             if c != casa:
                 continue
-            item: Dict[str, Any] = {}
-            if cod in r.pct_esquerda:
-                pct, n = r.pct_esquerda[cod]
-                partido = partido_atual.get((casa, cod))
-                media = por_partido.get(partido or "")
-                item["posicao"] = {
-                    "pct_esquerda": pct,
-                    "pct_direita": round(100 - pct, 1),
-                    "faixa": espectro.faixa(pct),
-                    "votacoes_consideradas": n,
-                    "media_do_partido": round(sum(media) / len(media), 1) if media else None,
-                    "faixa_do_partido": espectro.faixa(sum(media) / len(media)) if media else None,
-                }
-            if cod in alinh:
-                partido = (partido_atual.get((casa, cod)) or "").upper().replace(" ", "")
-                todos = alinh[cod]
-                item["alinhamento"] = {
-                    "mais_alinhados": todos[:5],
-                    "menos_alinhados": todos[-3:][::-1] if len(todos) > 5 else [],
-                    "proprio_partido": next((a for a in todos if a["partido"] == partido), None),
-                }
+            item: Dict[str, Any] = _posicao_alinhamento(r, alinh, medias, partido_atual.get((casa, cod)), cod)
+            anos = {}
+            for ano, (r_ano, alinh_ano, medias_ano) in sorted(por_ano.items()):
+                do_ano = _posicao_alinhamento(r_ano, alinh_ano, medias_ano, partido_atual.get((casa, cod)), cod)
+                if do_ano:
+                    anos[str(ano)] = do_ano
+            if anos:
+                item["analises_anos"] = anos
             de_atencao = [v for v in lista if v.votacao_id in saida["_atencao"]]
             if de_atencao:
                 item["atencao"] = {
@@ -557,6 +678,18 @@ def _analises(politicos, votos_por, votacoes) -> Dict[Any, Any]:
                 }
             saida[(casa, cod)] = item
     return saida
+
+
+def _partido_pelos_votos(politicos: List[Politico], votos_por: Dict[tuple, List[Voto]], votacoes: Dict[str, Votacao]) -> None:
+    """A lista de legislaturas do Senado não traz o partido de quem já saiu
+    (ex.: suplentes). Nesse caso usa o partido do voto mais recente, que a
+    própria fonte publica em cada votação."""
+    for p in politicos:
+        if p.partido:
+            continue
+        com_partido = [v for v in votos_por[(p.casa, p.codigo)] if v.partido and v.votacao_id in votacoes]
+        if com_partido:
+            p.partido = max(com_partido, key=lambda v: votacoes[v.votacao_id].data or datetime.min).partido
 
 
 def exportar(saida: Path) -> int:
@@ -580,6 +713,9 @@ def exportar(saida: Path) -> int:
                     "remuneracao": a.remuneracao, "remuneracao_ref": a.remuneracao_ref,
                 }
             )
+        ex_gabinetes = defaultdict(list)
+        for casa, cod, nome, cargo, nivel, desde, ate in historico.gabinetes()[1]:
+            ex_gabinetes[(casa, cod)].append({"nome": nome, "cargo": cargo, "nivel": nivel, "desde": desde, "ate": ate})
         emendas_por = defaultdict(list)
         for e in s.execute(select(Emenda).where(Emenda.codigo_politico.is_not(None))).scalars():
             emendas_por[(e.casa, e.codigo_politico)].append(e)
@@ -592,6 +728,14 @@ def exportar(saida: Path) -> int:
                 {"tipo": b.tipo, "descricao": b.descricao, "valor_mensal": b.valor_mensal,
                  "valor_ano": b.valor_ano, "ano": b.ano, "referencia": b.referencia, "fonte": b.fonte}
             )
+        _partido_pelos_votos(politicos, votos_por, votacoes)
+        ocorrencias = defaultdict(list)
+        for o in s.execute(select(Ocorrencia).order_by(Ocorrencia.id)).scalars():
+            ocorrencias[(o.casa, o.codigo_politico)].append(o)
+        verificadas = defaultdict(set)
+        for v in s.execute(select(VerificacaoOcorrencia)).scalars():
+            verificadas[(v.casa, v.codigo_politico)].add(v.fonte)
+        consultas = {c.fonte: c for c in s.execute(select(ConsultaOcorrencia)).scalars()}
         recursos = defaultdict(lambda: defaultdict(list))
         for r in s.execute(select(RecursoMensal)).scalars():
             recursos[(r.casa, r.codigo_politico)][r.tipo].append(r)
@@ -601,6 +745,7 @@ def exportar(saida: Path) -> int:
     salarios = {(c, uf): _salario(c, subsidios, uf, estaduais) for c, uf in {(p.cargo, p.uf) for p in politicos}}
     doacoes = doacoes_salario()
     declaradas = ideologias_declaradas()
+    curados = processos_curados()
 
     for p in politicos:
         ben_atuais, ben_anos = _beneficios_por_ano(beneficios[(p.casa, p.codigo)])
@@ -619,6 +764,7 @@ def exportar(saida: Path) -> int:
             "salario": salarios[(p.cargo, p.uf)],
             "gastos": _gastos(despesas_por[(p.casa, p.codigo)], p),
             "gabinete": gabinetes[(p.casa, p.codigo)],
+            "gabinete_anteriores": sorted(ex_gabinetes[(p.casa, p.codigo)], key=lambda g: (g["ate"], g["nome"]), reverse=True),
             "custo_gabinete": _custo_gabinete(
                 gabinetes[(p.casa, p.codigo)], _ultimo_mes(recursos[(p.casa, p.codigo)]["verba_gabinete"])
             ),
@@ -627,6 +773,7 @@ def exportar(saida: Path) -> int:
             "beneficios": ben_atuais,
             "beneficios_anos": ben_anos,
             "emendas": _emendas(emendas_por[(p.casa, p.codigo)], favorecidos_por[(p.casa, p.codigo)]),
+            "ocorrencias": _ocorrencias(p, ocorrencias[(p.casa, p.codigo)], verificadas[(p.casa, p.codigo)], consultas, curados),
             "presenca": dict(Counter(v.voto for v in votos)),
             **analises.get((p.casa, p.codigo), {}),
             # Todos os votos em formato compacto; detalhes de cada votação ficam

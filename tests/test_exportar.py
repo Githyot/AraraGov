@@ -132,3 +132,45 @@ def test_ideologia_declarada(tmp_path):
     assert a["ideologia_declarada"]["partido"]["declaracao"] == "Comunismo"
     assert a["ideologia_declarada"]["pessoal"] is None
     assert json.loads((tmp_path / "v1/politicos/camara-2.json").read_text())["ideologia_declarada"] is None
+
+
+def test_analises_por_ano():
+    """O filtro de ano do app usa posição e alinhamento recalculados por ano."""
+    from datetime import datetime
+    from types import SimpleNamespace as NS
+
+    from araragov.exportar import _analises
+
+    partidos = {**{c: "PT" for c in range(1, 5)}, **{c: "PL" for c in range(5, 9)}, 9: "PSD"}
+    politicos = [NS(casa="camara", codigo=c, partido=p) for c, p in partidos.items()]
+    votacoes, votos_por = {}, {("camara", c): [] for c in partidos}
+    for ano in (2021, 2022):
+        for j in range(12):
+            vid = f"{ano}-{j}"
+            votacoes[vid] = NS(data=datetime(ano, 3, 1), ementa="", descricao="")
+            for c, p in partidos.items():
+                sim = p == "PT" if p != "PSD" else ano == 2021  # PSD: esquerda em 2021, direita em 2022
+                votos_por[("camara", c)].append(NS(votacao_id=vid, codigo_politico=c, partido=p, voto="sim" if sim else "nao"))
+    saida = _analises(politicos, votos_por, votacoes)
+    psd = saida[("camara", 9)]
+    assert psd["posicao"]["pct_esquerda"] == 50.0
+    assert psd["analises_anos"]["2021"]["posicao"]["pct_esquerda"] == 100.0
+    assert psd["analises_anos"]["2022"]["posicao"]["pct_esquerda"] == 0.0
+    assert psd["analises_anos"]["2022"]["alinhamento"]["mais_alinhados"][0]["partido"] == "PL"
+
+
+def test_senador_sem_partido_usa_o_do_ultimo_voto_e_nome_em_maiusculas(tmp_path):
+    from datetime import datetime
+
+    from araragov import db
+
+    with db.sessao() as s:
+        s.add(db.Politico(casa="senado", cargo="Senador", codigo=5918, nome="Adilson Gomes", uf="PE"))
+        s.add(db.Politico(casa="camara", cargo="Deputado Federal", codigo=1, nome="ANDRÉ ABDON", partido="PP", uf="AP"))
+        for i, (dia, partido) in enumerate([(datetime(2020, 1, 1), "PSB"), (datetime(2022, 1, 1), "PDT")]):
+            s.add(db.Votacao(id=f"senado-{i}", casa="senado", codigo=str(i), data=dia))
+            s.add(db.Voto(votacao_id=f"senado-{i}", casa="senado", codigo_politico=5918, partido=partido, voto="sim"))
+    exportar(tmp_path)
+    resumo = {p["id"]: p for p in json.loads((tmp_path / "v1/politicos.json").read_text())}
+    assert resumo["senado-5918"]["partido"] == "PDT"
+    assert resumo["camara-1"]["nome"] == "André Abdon"

@@ -9,6 +9,7 @@ import 'dart:io';
 import 'package:araragov/dados/modelos.dart';
 import 'package:araragov/telas/comparar.dart';
 import 'package:araragov/telas/perfil.dart';
+import 'package:araragov/tema.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -27,6 +28,68 @@ void main() {
     expect(reaisCurto(1250000), 'R\$ 1,3 mi');
     expect(porcentagem(-18.96, sinal: true), '−19,0%');
     expect(semAcento('Fictício'), 'Ficticio');
+    expect(reaisEixo(40e6), 'R\$ 40 mi');
+    expect(reaisEixo(500e3), 'R\$ 500 mil');
+    expect(reaisEixo(1.5e6), 'R\$ 1,5 mi');
+  });
+
+  test('nomes em maiúsculas ficam legíveis', () {
+    expect(nomeLegivel('PASSAGEM AÉREA - RPA'), 'Passagem aérea - RPA');
+    expect(nomeLegivel('DIVULGAÇÃO DA ATIVIDADE PARLAMENTAR.'), 'Divulgação da atividade parlamentar');
+    expect(nomeLegivel('Passagens aéreas'), 'Passagens aéreas');
+    expect(nomePessoa('IAN GARCEZ DE OLIVEIRA'), 'Ian Garcez de Oliveira');
+    expect(nomePessoa('Maria Souza'), 'Maria Souza');
+  });
+
+  testWidgets('salário e gastos dizem claramente se ficaram acima ou abaixo da inflação', (tester) async {
+    final json = File('assets/amostra/v1/politicos/camara-9001.json').readAsBytesSync();
+    final client = MockClient((req) async => http.Response.bytes(json, 200));
+    tester.view.physicalSize = const Size(800, 8000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(MaterialApp(home: PerfilTela(api: Api(client: client), id: 'camara-9001')));
+    await tester.pumpAndSettle();
+    // Salário: subiu 37,3% com preços subindo mais; o texto diz "menor", nunca "subiu" quando caiu.
+    expect(find.text('Abaixo da inflação'), findsWidgets);
+    expect(find.textContaining('menor do que seria só com a inflação'), findsOneWidget);
+    expect(find.text('Se tivesse só acompanhado a inflação'), findsOneWidget);
+    // Gastos: diz o ano-base e marca o ano em andamento.
+    expect(find.textContaining('comparado com 2023, o primeiro ano com gastos'), findsOneWidget);
+    expect(find.text('2026 (jan–out, ano em andamento)'), findsOneWidget);
+    // Categoria abre a comparação entre anos e meses.
+    await tester.tap(find.text('Por categoria'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Passagem aérea - RPA'));
+    await tester.pumpAndSettle();
+    expect(find.text('Por ano'), findsOneWidget);
+    await tester.tap(find.text('Por mês'));
+    await tester.pumpAndSettle();
+    expect(find.text('Total em 2026'), findsOneWidget);
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pumpAndSettle();
+    // Gabinete: quem já saiu, com nome legível.
+    await tester.tap(find.text('Ver equipe'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Já saíram (2)'));
+    await tester.pumpAndSettle();
+    expect(find.text('Ex Assessor de Exemplo 1'), findsOneWidget);
+    expect(find.textContaining('até 02 out 2026'), findsOneWidget);
+  });
+
+  test('gasto que caiu e ano incompleto', () {
+    final v = ValorInflacao.fromJson({
+      'ano': 2026, 'valor_inicial': 100, 'valor': 50, 'corrigido_pela_inflacao': 90,
+      'acima_da_inflacao_pct': -44.4, 'ano_base': 2019, 'meses': 10, 'meses_base': 11, 'parcial': true,
+    });
+    expect(v.parcial, isTrue);
+    expect(v.anoBase, 2019);
+    final g = Gastos.fromJson({
+      'anos': {
+        '2025': {'por_categoria': [{'nome': 'TELEFONIA', 'valor': 10}], 'por_categoria_mes': [{'nome': 'TELEFONIA', 'meses': List.filled(12, 1)}]},
+      },
+    });
+    expect(g.categoriasPorMes[2025]!['TELEFONIA']!.length, 12);
+    expect(g.categoriasPorAno[2025]!.single.valor, 10);
   });
 
   testWidgets('lista e filtra políticos', (tester) async {
@@ -46,7 +109,17 @@ void main() {
     expect(find.text('Carla Inventada'), findsNothing);
     expect(find.text('Bruno Fictício'), findsOneWidget);
 
-    await tester.tap(find.text('Todos'));
+    // Federal mistura duas casas: dá para ver só senadores ou só deputados.
+    await tester.tap(find.text('Senadores'));
+    await tester.pumpAndSettle();
+    expect(find.text('Bruno Fictício'), findsOneWidget);
+    expect(find.text('Ana Exemplo'), findsNothing);
+    await tester.tap(find.text('Deputados'));
+    await tester.pumpAndSettle();
+    expect(find.text('Ana Exemplo'), findsOneWidget);
+    expect(find.text('Bruno Fictício'), findsNothing);
+
+    await tester.tap(find.text('Todos').first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Doa o salário'));
     await tester.pumpAndSettle();
@@ -79,7 +152,10 @@ void main() {
     expect(find.textContaining('se declara: Ideologia de exemplo'), findsOneWidget);
     expect(find.text('Com quem vota junto'), findsOneWidget);
     expect(find.text('Votações que merecem atenção'), findsOneWidget);
-    expect(find.textContaining('Votou com o lado da'), findsWidgets);
+    // o rótulo é simétrico: aparece para os dois lados, e para quem não votou Sim/Não
+    expect(find.text('Votou como a esquerda'), findsWidgets);
+    expect(find.text('Votou como a direita'), findsWidgets);
+    expect(find.text('Esquerda e direita votaram diferente'), findsWidgets);
     expect(find.text('Custo mensal com salários'), findsOneWidget);
     expect(find.text('Ocupa imóvel funcional em Brasília'), findsOneWidget);
     expect(find.text('Emendas parlamentares'), findsOneWidget);
@@ -90,7 +166,7 @@ void main() {
         jsonDecode(File('assets/amostra/v1/politicos/$id.json').readAsStringSync()) as Map<String, dynamic>;
     final a = Perfil.fromJson(ler('camara-9001'));
     final b = Perfil.fromJson(ler('camara-9002'));
-    expect(a.anosDisponiveis, [2025, 2024, 2023]);
+    expect(a.anosDisponiveis, [2026, 2025, 2024, 2023]);
     expect(a.votacoes.length, 14); // compactos
     expect(a.votacoes.where((v) => v.temDetalhe).length, lessThan(14));
     final de2024 = a.noAno(2024);
@@ -104,6 +180,41 @@ void main() {
     expect(a.doacaoSalario!.titulo, 'Declara doar 20% do salário');
     expect(DoacaoSalario.fromJson({'parte': '30%', 'periodo': '2020', 'descricao': '', 'fonte': ''}).titulo,
         'Declarou doar 30% do salário em 2020');
+  });
+
+  test('filtro de ano recalcula posição e alinhamento', () {
+    Map<String, dynamic> ler() =>
+        jsonDecode(File('assets/amostra/v1/politicos/camara-9001.json').readAsStringSync()) as Map<String, dynamic>;
+    // Dados sem cálculo por ano: posição sai dos lados dos votos; alinhamento some.
+    final antigo = Perfil.fromJson(ler()).noAno(2025);
+    expect(antigo.temAnalisesPorAno, isFalse);
+    expect(antigo.posicao, isNull); // menos de 10 votos com lado na amostra
+    expect(antigo.alinhamento, isNull);
+    final muitos = ler()
+      ..['votacoes'] = []
+      ..['votos'] = [
+        for (var i = 0; i < 12; i++) ['v$i', '2025-03-10', 'sim', i < 9 ? 'esquerda' : 'direita', 0]
+      ];
+    expect(Perfil.fromJson(muitos).noAno(2025).posicao!.pctEsquerda, 75);
+
+    final j = ler()
+      ..['analises_anos'] = {
+        '2025': {
+          'posicao': {'pct_esquerda': 30, 'pct_direita': 70, 'faixa': 'centro-direita', 'votacoes_consideradas': 12},
+          'alinhamento': {
+            'mais_alinhados': [
+              {'partido': 'PAM', 'pct': 80, 'votacoes': 12}
+            ]
+          },
+        }
+      };
+    final p = Perfil.fromJson(j);
+    expect(p.posicao!.pctEsquerda, 52);
+    expect(p.noAno(2025).posicao!.pctEsquerda, 30);
+    expect(p.noAno(2025).alinhamento!.maisAlinhados.single.partido, 'PAM');
+    expect(p.noAno(2024).posicao, isNull);
+    expect(p.noAno(2024).alinhamento, isNull);
+    expect(p.noAno(null).posicao!.pctEsquerda, 52);
   });
 
   test('salário estadual vindo da imprensa é marcado como referência', () {
@@ -165,5 +276,32 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Lado a lado'), findsOneWidget);
     expect(find.text('Doação do salário'), findsOneWidget);
+    expect(find.text('Mostrando só 2024'), findsOneWidget);
+    expect(find.text('Gastos da cota parlamentar (soma do período)'), findsOneWidget);
+    expect(find.byTooltip(RegExp('^Tirar ')), findsNothing); // com dois, ninguém sai
+
+    // Terceira pessoa: entra com outra cor e as duplas de votos em comum aparecem.
+    await tester.tap(find.text('Adicionar político'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(ListTile).first);
+    await tester.pumpAndSettle();
+    expect(find.byTooltip(RegExp('^Tirar ')), findsNWidgets(3));
+    final nomes = find.descendant(of: find.byType(Wrap), matching: find.byType(Text));
+    final cores = {for (final e in nomes.evaluate()) (e.widget as Text).style?.color}..remove(null);
+    expect(cores.length, greaterThanOrEqualTo(3));
+
+    await tester.tap(find.byTooltip(RegExp('^Tirar ')).last);
+    await tester.pumpAndSettle();
+    expect(find.byTooltip(RegExp('^Tirar ')), findsNothing);
+  });
+
+  test('cores da comparação não repetem as cores do voto', () {
+    expect(Adw.pessoas.length, maxComparados);
+    expect(Adw.pessoas.toSet().length, maxComparados);
+    for (final c in [Adw.verde, Adw.vermelho, Adw.amarelo, Adw.azul, Adw.roxo, const Color(0xFF986A44)]) {
+      expect(Adw.pessoas, isNot(contains(c)));
+    }
+    expect(faixaAnos(2019, 2026), '2019–2026');
+    expect(faixaAnos(2024, 2024), '2024');
   });
 }
