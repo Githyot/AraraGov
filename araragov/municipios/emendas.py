@@ -38,6 +38,7 @@ PESSOAS_FISICAS = "Pessoas físicas (somadas, sem nome)"
 
 COLUNAS_RESUMO = ["ano", "emendas", "autores", "valor", "para_prefeitura", "para_outros"]
 COLUNAS_AUTORES = ["autor", "tipo", "emendas", "valor"]
+COLUNAS_AUTORES_ANO = ["ano", "autor", "tipo", "emendas", "valor"]
 COLUNAS_RECEBIDO = ["ano", "emenda", "autor", "tipo", "funcao", "acao", "favorecido", "cnpj", "natureza", "valor"]
 
 
@@ -125,6 +126,14 @@ def documento(cod: int, mun: str, uf: str, linhas: Dict[Tuple, Dict[str, Any]], 
         a["emendas"].add(l["emenda"])
         a["valor"] += l["valor"]
     tab_autores = sorted(({**a, "emendas": len(a["emendas"])} for a in autores.values()), key=lambda a: -a["valor"])
+    por_ano: Dict[Tuple, Dict[str, Any]] = {}
+    for l in todas:
+        a = por_ano.setdefault((l["ano"], l["autor"], l["tipo"]),
+                               {"ano": l["ano"], "autor": l["autor"], "tipo": l["tipo"], "emendas": set(), "valor": Decimal(0)})
+        a["emendas"].add(l["emenda"])
+        a["valor"] += l["valor"]
+    autores_ano = sorted(({**a, "emendas": len(a["emendas"])} for a in por_ano.values()),
+                         key=lambda a: (-a["ano"], -a["valor"]))
     recebido = sorted(todas, key=lambda l: (-l["ano"], -l["valor"]))[:TOP_LINHAS]
     sem = [{
         "secao": "destino-final", "esfera": "municipal", "responsavel": "Prefeitura",
@@ -137,9 +146,9 @@ def documento(cod: int, mun: str, uf: str, linhas: Dict[Tuple, Dict[str, Any]], 
             "fonte": EMENDAS_URL}
     return md.escrever(
         meta,
-        {"resumo": resumo, "autores": tab_autores, "recebido": [{k: l[k] for k in COLUNAS_RECEBIDO} for l in recebido],
+        {"resumo": resumo, "autores": tab_autores, "autores-ano": autores_ano, "recebido": [{k: l[k] for k in COLUNAS_RECEBIDO} for l in recebido],
          "sem-dados": sem},
-        colunas={"resumo": COLUNAS_RESUMO, "autores": COLUNAS_AUTORES, "recebido": COLUNAS_RECEBIDO,
+        colunas={"resumo": COLUNAS_RESUMO, "autores": COLUNAS_AUTORES, "autores-ano": COLUNAS_AUTORES_ANO, "recebido": COLUNAS_RECEBIDO,
                  "sem-dados": COLUNAS_SEM_DADOS},
         titulo=f"{mun} ({uf}), emendas parlamentares",
         textos={
@@ -147,6 +156,7 @@ def documento(cod: int, mun: str, uf: str, linhas: Dict[Tuple, Dict[str, Any]], 
             "pelo Portal da Transparência. \"Para a prefeitura\" inclui os fundos municipais (saúde, "
             "assistência social…); \"para outros\" são entidades e empresas.",
             "autores": "## Quem mandou",
+            "autores-ano": "## Quem mandou, por ano",
             "recebido": f"## Quem recebeu\n\nAs {TOP_LINHAS} maiores linhas (ano, emenda e favorecido). "
             "Receber emenda não é irregular; a lista mostra o caminho do dinheiro.",
             "sem-dados": "## O que ainda não há",

@@ -35,6 +35,8 @@ def test_emendas_do_municipio():
     pf = rec[2]
     assert pf["favorecido"] == em.PESSOAS_FISICAS and pf["cnpj"] is None and "FULANO" not in str(doc.tabelas)
     assert doc.tabelas["autores"][0]["valor"] == "45500"
+    aa = doc.tabelas["autores-ano"][0]
+    assert (aa["ano"], aa["autor"], aa["valor"]) == ("2025", "CONFÚCIO MOURA", "45500")
     assert doc.tabelas["sem-dados"][0]["esfera"] == "municipal"
 
 
