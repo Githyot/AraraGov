@@ -9,6 +9,7 @@ import 'dart:io';
 import 'package:araragov/dados/modelos.dart';
 import 'package:araragov/telas/comparar.dart';
 import 'package:araragov/telas/perfil.dart';
+import 'package:araragov/tema.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -203,5 +204,32 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Lado a lado'), findsOneWidget);
     expect(find.text('Doação do salário'), findsOneWidget);
+    expect(find.text('Mostrando só 2024'), findsOneWidget);
+    expect(find.text('Gastos da cota parlamentar (soma do período)'), findsOneWidget);
+    expect(find.byTooltip(RegExp('^Tirar ')), findsNothing); // com dois, ninguém sai
+
+    // Terceira pessoa: entra com outra cor e as duplas de votos em comum aparecem.
+    await tester.tap(find.text('Adicionar político'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(ListTile).first);
+    await tester.pumpAndSettle();
+    expect(find.byTooltip(RegExp('^Tirar ')), findsNWidgets(3));
+    final nomes = find.descendant(of: find.byType(Wrap), matching: find.byType(Text));
+    final cores = {for (final e in nomes.evaluate()) (e.widget as Text).style?.color}..remove(null);
+    expect(cores.length, greaterThanOrEqualTo(3));
+
+    await tester.tap(find.byTooltip(RegExp('^Tirar ')).last);
+    await tester.pumpAndSettle();
+    expect(find.byTooltip(RegExp('^Tirar ')), findsNothing);
+  });
+
+  test('cores da comparação não repetem as cores do voto', () {
+    expect(Adw.pessoas.length, maxComparados);
+    expect(Adw.pessoas.toSet().length, maxComparados);
+    for (final c in [Adw.verde, Adw.vermelho, Adw.amarelo, Adw.azul, Adw.roxo, const Color(0xFF986A44)]) {
+      expect(Adw.pessoas, isNot(contains(c)));
+    }
+    expect(faixaAnos(2019, 2026), '2019–2026');
+    expect(faixaAnos(2024, 2024), '2024');
   });
 }
