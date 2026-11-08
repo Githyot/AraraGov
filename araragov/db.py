@@ -241,6 +241,23 @@ class RecursoMensal(Base):
     disponivel: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 2))
 
 
+class Atividade(Base):
+    """Atuação parlamentar publicada pela Câmara: propostas de autoria,
+    relatorias, presença no Plenário, discursos, comissões e frentes.
+    `dados` guarda o bloco já no formato da API; `ano` é nulo para o que vale
+    pela legislatura (comissões e frentes)."""
+
+    __tablename__ = "atividade"
+    __table_args__ = (Index("ix_atividade_politico", "casa", "codigo_politico"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    casa: Mapped[str] = mapped_column(String(10))
+    codigo_politico: Mapped[int] = mapped_column(Integer)
+    ano: Mapped[Optional[int]] = mapped_column(Integer)
+    tipo: Mapped[str] = mapped_column(String(30))
+    dados: Mapped[dict] = mapped_column(JSON)
+
+
 class Ocorrencia(Base):
     """Registro oficial ligado ao político: situação de candidatura no TSE,
     sanção no CEIS/CNEP (CGU), inabilitação no TCU, ou o link das certidões

@@ -15,7 +15,7 @@ from datetime import date
 from sqlalchemy import func, select
 
 from . import db
-from .collectors import alba, alece, alepa, alero, alesc, assembleias, beneficios, camara, camara_recursos, emendas, gabinete, historico, ocorrencias, referencia, senado, tse
+from .collectors import alba, alece, alepa, alero, alesc, assembleias, beneficios, camara, camara_atividade, camara_recursos, emendas, gabinete, historico, ocorrencias, referencia, senado, tse
 from .http import HttpClient
 
 ALVOS = {
@@ -35,6 +35,10 @@ ALVOS = {
     "camara-recursos": lambda c, a: camara_recursos.coletar_recursos(
         c, a.ano, a.limite, so_faltantes=a.ano < a.ano_final - 1
     ),
+    # Atuação parlamentar: propostas, relatorias, presença e discursos (por ano);
+    # comissões e frentes (pela legislatura).
+    "camara-atividade": lambda c, a: camara_atividade.coletar_atividade(c, a.ano, a.ano_final, a.limite),
+    "camara-comissoes": lambda c, a: camara_atividade.coletar_comissoes(c, a.limite),
     "senado-gabinetes": lambda c, a: gabinete.coletar_senado(c),
     "senado-moradia": lambda c, a: beneficios.coletar_moradia_senado(c),
     "emendas": lambda c, a: emendas.coletar_emendas(c, a.ano, a.limite),
@@ -70,6 +74,7 @@ COM_RESERVA = {"historico", "ocorrencias", "almg-deputados", "almg-despesas", "a
 POR_ANO = {
     "camara-votacoes", "camara-despesas", "senado-votacoes", "senado-despesas",
     "almg-despesas", "alesp-despesas", "alesc-despesas", "alba-despesas", "alece-despesas", "emendas", "camara-recursos",
+    "camara-atividade",
 }
 
 
