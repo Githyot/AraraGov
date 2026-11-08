@@ -5,7 +5,7 @@ o que falta. Este arquivo é atualizado a cada entrega.
 
 Legenda: ✅ pronto (no `main`) · 🔄 em revisão (PR aberto) · ⬜ falta fazer · ➖ não disponível na fonte · ⏸️ só quando pedido
 
-_Última atualização: 6 de novembro de 2026_
+_Última atualização: 8 de novembro de 2026_
 
 ## Visão geral
 
@@ -37,6 +37,9 @@ _Última atualização: 6 de novembro de 2026_
 - ✅ Câmara: verba de gabinete gasta por mês e custo mensal do gabinete
 - ✅ Câmara: imóvel funcional, auxílio-moradia com o valor do ano, viagens em missão e passaporte diplomático
 - ✅ Câmara: salário bruto pago a cada mês
+- 🔄 Câmara: quadro de recursos completo como na página do deputado (pessoal de gabinete no ano e ativo hoje, inclusive "não faz uso" e 0 viagens)
+- 🔄 Câmara: atuação parlamentar por ano: propostas de autoria (com a situação de cada uma), relatorias com o parecer, emendas, requerimentos e pedidos de informação, presença no Plenário, discursos, comissões e frentes parlamentares
+- ➖ Câmara: faltas justificadas no Plenário não estão nos dados abertos; o app mostra só a presença registrada
 - ➖ Câmara: salário de cada assessor. O robots.txt da Câmara pede para não coletar essas páginas; o custo total vem da verba de gabinete e o nível (SP01 a SP25) aparece na equipe
 - ➖ Plano de saúde e reembolsos médicos: a Câmara e o Senado não publicam por parlamentar
 - ✅ Histórico entre as coletas: os recursos da Câmara de anos fechados ficam guardados e só o que falta é buscado

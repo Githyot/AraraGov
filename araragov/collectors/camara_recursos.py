@@ -80,12 +80,16 @@ def ler_pagina(pagina: str, ano: int) -> Dict[str, Any]:
             valor = _reais(linha[1])
             if valor is not None:
                 verba.append((MESES[linha[0].upper()], valor))
-    pessoas = _beneficio(pagina, "Pessoal de gabinete")
+    pessoas = _beneficio(pagina, "Pessoal de gabinete") or ""
     viagens = _beneficio(pagina, "Viagens em missão oficial")
+    # "9 pessoas" (ano fechado) ou "22 pessoas neste ano, sendo 15 ativas atualmente".
+    total = re.match(r"\s*(\d+)", pessoas)
+    ativas = re.search(r"sendo\s+(\d+)\s+ativ", pessoas)
     return {
         "ano": ano,
         "verba_gabinete": verba,
-        "pessoas": int(re.sub(r"\D", "", pessoas)) if pessoas and re.search(r"\d", pessoas) else None,
+        "pessoas": int(total.group(1)) if total else None,
+        "pessoas_ativas": int(ativas.group(1)) if ativas else None,
         "imovel": _beneficio(pagina, "Imóvel funcional"),
         "auxilio": _beneficio(pagina, "Auxílio-moradia"),
         "viagens": int(viagens) if viagens and viagens.isdigit() else None,
@@ -118,6 +122,33 @@ def _beneficios(cod: int, dados: Dict[str, Any], fonte: str) -> List[Dict[str, A
         saida.append({**base, "tipo": "viagem_missao", "descricao": f"{n} viage{'m' if n == 1 else 'ns'} em missão oficial"})
     if (dados.get("passaporte") or "").lower().startswith("possui"):
         saida.append({**base, "tipo": "passaporte_diplomatico", "descricao": "Tem passaporte diplomático"})
+    return saida
+
+
+# Quadro "recursos" da página, como a Câmara mostra, inclusive o que o deputado
+# não usa ("Não faz uso", "0 viagens"). Fica em Beneficio com tipo "quadro_*"
+# para passar pelo histórico entre coletas; a exportação separa esses itens.
+QUADRO = "quadro_"
+
+
+def _quadro(cod: int, dados: Dict[str, Any], fonte: str) -> List[Dict[str, Any]]:
+    base = {"casa": "camara", "codigo_politico": cod, "ano": dados["ano"], "referencia": str(dados["ano"]),
+            "fonte": fonte, "valor_mensal": None, "valor_ano": None}
+    itens = {
+        "pessoal": None if dados.get("pessoas") is None else str(dados["pessoas"]),
+        "pessoal_ativo": None if dados.get("pessoas_ativas") is None else str(dados["pessoas_ativas"]),
+        "imovel": dados.get("imovel"),
+        "auxilio": dados.get("auxilio"),
+        "viagens": None if dados.get("viagens") is None else str(dados["viagens"]),
+        "passaporte": dados.get("passaporte"),
+    }
+    saida = []
+    for chave, texto in itens.items():
+        if texto:
+            linha = {**base, "tipo": QUADRO + chave, "descricao": texto[:300]}
+            if chave == "auxilio":
+                linha["valor_ano"] = _reais(texto) if texto.lower().startswith("recebeu") else None
+            saida.append(linha)
     return saida
 
 
@@ -169,6 +200,7 @@ def coletar_recursos(client: HttpClient, ano: int, limite: Optional[int] = None,
         ok += 1
         fonte = f"{PAGINA.format(id=cod)}?ano={ano}"
         beneficios.extend(_beneficios(cod, dados, fonte))
+        beneficios.extend(_quadro(cod, dados, fonte))
         base = {"casa": "camara", "codigo_politico": cod, "ano": ano}
         mensais += [{**base, "tipo": "verba_gabinete", "mes": m, "valor": v, "disponivel": None} for m, v in dados["verba_gabinete"]]
         mensais += [{**base, "tipo": "salario", "mes": m, "valor": v, "disponivel": None} for m, v in salario]

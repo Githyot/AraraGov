@@ -26,7 +26,7 @@ from .collectors import historico
 from .analise import espectro, inflacao
 from .analise.atencao import motivo_atencao
 from .normalizar import nome_proprio
-from .db import Assessor, Beneficio, ConsultaOcorrencia, Despesa, Ocorrencia, VerificacaoOcorrencia, Emenda, Favorecido, Politico, RecursoMensal, Subsidio, Votacao, Voto, sessao
+from .db import Assessor, Atividade, Beneficio, ConsultaOcorrencia, Despesa, Ocorrencia, VerificacaoOcorrencia, Emenda, Favorecido, Politico, RecursoMensal, Subsidio, Votacao, Voto, sessao
 
 logger = logging.getLogger(__name__)
 
@@ -486,6 +486,50 @@ def _beneficios_por_ano(itens: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any
     return atuais, {str(a): sem_ano + anos[a] for a in sorted(anos)}
 
 
+QUADRO = "quadro_"
+
+
+def _quadro_recursos(itens: List[Dict[str, Any]]) -> Optional[Dict[str, Dict[str, Any]]]:
+    """Quadro "recursos" da página do deputado na Câmara, por ano, inclusive o
+    que ele não usa ("Não faz uso", 0 viagens)."""
+    anos: Dict[str, Dict[str, Any]] = {}
+    for b in itens:
+        if not b["tipo"].startswith(QUADRO) or b.get("ano") is None:
+            continue
+        ano = anos.setdefault(str(b["ano"]), {"fonte": b.get("fonte")})
+        chave = b["tipo"][len(QUADRO):]
+        texto = b["descricao"]
+        if chave in ("pessoal", "pessoal_ativo", "viagens"):
+            ano[chave] = int(texto) if texto.isdigit() else None
+        else:
+            ano[chave] = texto
+        if chave == "auxilio":
+            ano["auxilio_valor"] = b.get("valor_ano")
+    return dict(sorted(anos.items())) or None
+
+
+def _atividade(linhas: List[Atividade]) -> Optional[Dict[str, Any]]:
+    """Atuação parlamentar: por ano (produção, presença, discursos) e pela
+    legislatura (comissões e frentes)."""
+    if not linhas:
+        return None
+    saida: Dict[str, Any] = {"anos": {}}
+    for l in linhas:
+        if l.ano is None:
+            saida[l.tipo] = l.dados
+        else:
+            saida["anos"].setdefault(str(l.ano), {})[l.tipo] = l.dados
+    saida["anos"] = dict(sorted(saida["anos"].items()))
+    saida["formato"] = {
+        "propostas": ["id", "rotulo", "ementa", "data", "situacao", "primeiro_autor"],
+        "relatorias": ["id", "rotulo", "ementa", "data", "conclusao", "situacao"],
+        "discursos": ["data", "tipo", "trecho", "link"],
+        "comissoes": ["sigla", "nome", "cargo", "inicio", "fim"],
+        "frentes": ["id", "titulo", "coordena"],
+    }
+    return saida
+
+
 def _custo_gabinete(pessoas: List[Dict[str, Any]], verba: Optional[RecursoMensal] = None) -> Optional[Dict[str, Any]]:
     """Custo mensal do gabinete: soma das remunerações, quando a casa publica
     (Senado), ou a verba de gabinete gasta no último mês (Câmara)."""
@@ -736,6 +780,9 @@ def exportar(saida: Path) -> int:
         for v in s.execute(select(VerificacaoOcorrencia)).scalars():
             verificadas[(v.casa, v.codigo_politico)].add(v.fonte)
         consultas = {c.fonte: c for c in s.execute(select(ConsultaOcorrencia)).scalars()}
+        atividades = defaultdict(list)
+        for a in s.execute(select(Atividade).order_by(Atividade.id)).scalars():
+            atividades[(a.casa, a.codigo_politico)].append(a)
         recursos = defaultdict(lambda: defaultdict(list))
         for r in s.execute(select(RecursoMensal)).scalars():
             recursos[(r.casa, r.codigo_politico)][r.tipo].append(r)
@@ -748,7 +795,8 @@ def exportar(saida: Path) -> int:
     curados = processos_curados()
 
     for p in politicos:
-        ben_atuais, ben_anos = _beneficios_por_ano(beneficios[(p.casa, p.codigo)])
+        todos_beneficios = beneficios[(p.casa, p.codigo)]
+        ben_atuais, ben_anos = _beneficios_por_ano([b for b in todos_beneficios if not b["tipo"].startswith(QUADRO)])
         votos = sorted(
             votos_por[(p.casa, p.codigo)],
             key=lambda v: votacoes[v.votacao_id].data or datetime.min,
@@ -772,6 +820,8 @@ def exportar(saida: Path) -> int:
             "salario_pago": _mensais(recursos[(p.casa, p.codigo)]["salario"]),
             "beneficios": ben_atuais,
             "beneficios_anos": ben_anos,
+            "quadro_recursos": _quadro_recursos(todos_beneficios),
+            "atividade": _atividade(atividades[(p.casa, p.codigo)]),
             "emendas": _emendas(emendas_por[(p.casa, p.codigo)], favorecidos_por[(p.casa, p.codigo)]),
             "ocorrencias": _ocorrencias(p, ocorrencias[(p.casa, p.codigo)], verificadas[(p.casa, p.codigo)], consultas, curados),
             "presenca": dict(Counter(v.voto for v in votos)),

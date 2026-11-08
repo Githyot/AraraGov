@@ -98,3 +98,31 @@ def test_historico_entre_coletas(client, tmp_path):
         tipos = {(b.codigo_politico, b.tipo) for b in s.execute(select(db.Beneficio)).scalars()}
     assert (62881, "imovel_funcional") in tipos  # veio do histórico
     assert (160976, "auxilio_moradia") in tipos  # coletado agora
+
+
+def test_pessoal_de_gabinete_do_ano_em_andamento():
+    pagina = (PAGINAS / "deputado_160976.html").read_text().replace(
+        "9 pessoas", "22 pessoas neste ano, sendo 15 ativas atualmente"
+    )
+    d = cr.ler_pagina(pagina, 2026)
+    assert d["pessoas"] == 22  # antes juntava os dois números (2215)
+    assert d["pessoas_ativas"] == 15
+
+
+def test_quadro_de_recursos_inclui_o_que_nao_usa(client, tmp_path):
+    with db.sessao() as s:
+        s.add(db.Politico(casa="camara", cargo="Deputado Federal", codigo=160976, nome="Deputada A", uf="SP"))
+    url = cr.PAGINA.format(id=160976)
+    client.bytes(url, (PAGINAS / "deputado_160976.html").read_bytes())
+    client.bytes(f"{url}/remuneracao", (PAGINAS / "remuneracao.html").read_bytes())
+    cr.coletar_recursos(client, 2025)
+    exportar(tmp_path)
+    a = json.loads((tmp_path / "v1/politicos/camara-160976.json").read_text())
+    q = a["quadro_recursos"]["2025"]
+    assert q["pessoal"] == 9 and "pessoal_ativo" not in q
+    assert q["imovel"] == "Não fez uso"
+    assert q["auxilio"] == "Recebeu R$ 29.771" and q["auxilio_valor"] == 29771.0
+    assert q["viagens"] == 0
+    assert q["passaporte"] == "Possui"
+    # O quadro não se mistura com a lista de benefícios.
+    assert not any(b["tipo"].startswith("quadro_") for b in a["beneficios"])

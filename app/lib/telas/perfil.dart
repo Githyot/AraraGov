@@ -10,6 +10,7 @@ import '../widgets/adw.dart';
 import '../widgets/inflacao.dart';
 import '../widgets/voto.dart';
 import 'analises.dart';
+import 'atuacao.dart';
 import 'comparar.dart';
 
 class PerfilTela extends StatefulWidget {
@@ -102,7 +103,7 @@ class _PerfilTelaState extends State<PerfilTela> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Votos, posição, alinhamento, cota, verba e emendas são só de $_ano. '
+                      'Votos, posição, alinhamento, cota, verba, emendas e atuação são só de $_ano. '
                       'Tabela de salário e equipe do gabinete são as atuais.',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).hintColor),
@@ -111,10 +112,21 @@ class _PerfilTelaState extends State<PerfilTela> {
                   const SizedBox(height: 24),
                   SecaoPosicao(p),
                   SecaoAlinhamento(p),
-                  _SecaoSalario(p.salario, r: p.resumo, beneficios: p.beneficios, doacao: p.doacaoSalario, pago: p.salarioPago),
+                  _SecaoSalario(
+                    p.salario,
+                    r: p.resumo,
+                    // O quadro de recursos já mostra os benefícios da Câmara daquele ano.
+                    beneficios: anoDoQuadro(p) == null
+                        ? p.beneficios
+                        : p.beneficios.where((b) => !tiposDoQuadro.contains(b.tipo)).toList(),
+                    doacao: p.doacaoSalario,
+                    pago: p.salarioPago,
+                  ),
+                  SecaoRecursos(p),
                   _SecaoGastos(p.gastos, r: p.resumo, estadual: p.resumo.esfera == 'estadual'),
                   if (p.emendas != null) _SecaoEmendas(p.emendas!),
                   if (!executivo(p.resumo)) _SecaoVotacoes(p, widget.api),
+                  SecaoAtuacao(p),
                   SecaoAtencao(
                     p,
                     aoVer: () => Navigator.of(context).push(

@@ -1,4 +1,10 @@
 /// Modelos da API estática gerada por `araragov exportar`.
+library;
+
+import 'atividade.dart';
+
+export 'atividade.dart';
+
 double _n(dynamic v) => v == null ? 0 : (v as num).toDouble();
 double? _nn(dynamic v) => v == null ? null : (v as num).toDouble();
 
@@ -410,6 +416,12 @@ class Perfil {
   final CustoGabinete? custoGabinete;
   final ValoresMensais? verbaGabinete, salarioPago;
   final List<Beneficio> beneficios;
+
+  /// Quadro de recursos da página do deputado na Câmara, por ano.
+  final Map<int, QuadroRecursos> quadroRecursos;
+
+  /// Propostas, relatorias, presença, discursos, comissões e frentes (Câmara).
+  final Atividade? atividade;
   final Emendas? emendas;
   final DoacaoSalario? doacaoSalario;
   final Ocorrencias? ocorrencias;
@@ -438,6 +450,8 @@ class Perfil {
         verbaGabinete = j['verba_gabinete'] == null ? null : ValoresMensais.fromJson(j['verba_gabinete']),
         salarioPago = j['salario_pago'] == null ? null : ValoresMensais.fromJson(j['salario_pago']),
         beneficios = [for (final b in (j['beneficios'] as List? ?? [])) Beneficio.fromJson(b)],
+        quadroRecursos = QuadroRecursos.lerAnos(j['quadro_recursos'] as Map?),
+        atividade = j['atividade'] == null ? null : Atividade.fromJson(j['atividade'] as Map),
         emendas = j['emendas'] == null ? null : Emendas.fromJson(j['emendas']),
         doacaoSalario = j['doacao_salario'] == null ? null : DoacaoSalario.fromJson(j['doacao_salario']),
         ocorrencias = j['ocorrencias'] == null ? null : Ocorrencias.fromJson(j['ocorrencias']),
@@ -465,6 +479,7 @@ class Perfil {
       for (final a in base.gastos.porAno) a.ano,
       for (final a in base.emendas?.porAno ?? const <({int ano, double valor})>[]) a.ano,
       ...?base.verbaGabinete?.anos.keys,
+      ...?base.atividade?.anos.keys,
     };
     return anos.toList()..sort((a, b) => b.compareTo(a));
   }
