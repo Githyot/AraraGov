@@ -357,6 +357,7 @@ def _ano_completo_publicado(client, ano: int, hoje: date) -> bool:
 # Tempo total de uma parte. Passado o prazo, a parte grava o que já leu (marcado como
 # incompleto) em vez de ser derrubada pelo limite do job sem gravar nada.
 MINUTOS_PARTE = float(os.environ.get("ARARAGOV_PNCP_MINUTOS_PARTE", "0")) or None
+FRACAO_DIRETAS = 0.4
 
 
 def baixar_parte(client, pasta: Path, anos: Iterable[int], parte: int, partes: int, hoje: Optional[date] = None,
@@ -367,13 +368,21 @@ def baixar_parte(client, pasta: Path, anos: Iterable[int], parte: int, partes: i
     prazo = time.monotonic() + minutos * 60 if minutos else None
     pasta.mkdir(parents=True, exist_ok=True)
     total = 0
-    for ano in sorted(anos):
-        if not dias and _ano_completo_publicado(client, ano, hoje):
-            logger.info("PNCP %s: ano fechado e já publicado completo; a parte %s não baixa nada", ano, parte)
-            continue
+    pendentes = [a for a in sorted(anos) if dias or not _ano_completo_publicado(client, a, hoje)]
+    for ano in sorted(set(anos) - set(pendentes)):
+        logger.info("PNCP %s: ano fechado e já publicado completo; a parte %s não baixa nada", ano, parte)
+    for i, ano in enumerate(pendentes):
+        # Cada ano fica com a sua fatia do tempo que sobra (um ano lento não deixa o outro vazio),
+        # e as contratações diretas, que nunca terminam, com no máximo 40% dessa fatia.
+        prazo_ano = prazo_diretas = None
+        if prazo is not None:
+            agora = time.monotonic()
+            prazo_ano = agora + max(0.0, prazo - agora) / (len(pendentes) - i)
+            prazo_diretas = agora + (prazo_ano - agora) * FRACAO_DIRETAS
         inicio, fim = _periodo(ano, hoje, dias)
-        diretas, diretas_completas = compras_diretas(client, inicio, fim, parte=parte, partes=partes, prazo_max=prazo)
-        linhas, contratos_completos = contratos(client, inicio, fim, parte=parte, partes=partes, prazo=prazo)
+        diretas, diretas_completas = compras_diretas(client, inicio, fim, parte=parte, partes=partes,
+                                                     prazo_max=prazo_diretas)
+        linhas, contratos_completos = contratos(client, inicio, fim, parte=parte, partes=partes, prazo=prazo_ano)
         n = 0
         with gzip.open(pasta / f"{ano}-{parte}.jsonl.gz", "wt", encoding="utf-8") as f:
             for r in linhas:
