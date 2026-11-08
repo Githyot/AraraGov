@@ -15,7 +15,7 @@ from datetime import date
 from sqlalchemy import func, select
 
 from . import db
-from .collectors import alba, alece, alepa, alero, alesc, assembleias, beneficios, camara, camara_recursos, emendas, gabinete, historico, referencia, senado, tse
+from .collectors import alba, alece, alepa, alero, alesc, assembleias, beneficios, camara, camara_recursos, emendas, gabinete, historico, ocorrencias, referencia, senado, tse
 from .http import HttpClient
 
 ALVOS = {
@@ -57,12 +57,14 @@ ALVOS = {
     "alero-gabinetes": lambda c, a: alero.coletar_gabinetes(c),
     "ipca": lambda c, a: referencia.coletar_ipca(c),
     "subsidios": lambda c, a: referencia.carregar_subsidios(),
+    # Por último: precisa de todos os políticos já gravados para cruzar.
+    "ocorrencias": lambda c, a: ocorrencias.coletar(c),
 }
 
 
 # Fontes com reserva: se falharem, o TSE já cobre o estado e a coleta segue
 # sem marcar erro (o aviso aparece no log e no resumo).
-COM_RESERVA = {"historico", "almg-deputados", "almg-despesas", "alesp-deputados", "alesp-despesas", "alesc-deputados", "alesc-despesas", "alesc-gabinetes", "alba-deputados", "alba-despesas", "alece-deputados", "alece-despesas", "alepa-gabinetes", "alero-gabinetes"}
+COM_RESERVA = {"historico", "ocorrencias", "almg-deputados", "almg-despesas", "alesp-deputados", "alesp-despesas", "alesc-deputados", "alesc-despesas", "alesc-gabinetes", "alba-deputados", "alba-despesas", "alece-deputados", "alece-despesas", "alepa-gabinetes", "alero-gabinetes"}
 
 
 POR_ANO = {
@@ -86,7 +88,7 @@ def _anos(texto: str) -> list[int]:
 
 def resumo() -> None:
     with db.sessao() as s:
-        for modelo in (db.Politico, db.Votacao, db.Voto, db.Despesa, db.Assessor, db.Beneficio, db.RecursoMensal, db.Emenda, db.Favorecido, db.Ipca, db.Subsidio):
+        for modelo in (db.Politico, db.Votacao, db.Voto, db.Despesa, db.Assessor, db.Beneficio, db.RecursoMensal, db.Emenda, db.Favorecido, db.Ocorrencia, db.Ipca, db.Subsidio):
             total = s.execute(select(func.count()).select_from(modelo)).scalar_one()
             print(f"{modelo.__tablename__:10} {total:>10}")
 

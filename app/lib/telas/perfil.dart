@@ -121,6 +121,7 @@ class _PerfilTelaState extends State<PerfilTela> {
                       MaterialPageRoute(builder: (_) => TodasVotacoes(p, api: widget.api, soAtencao: true)),
                     ),
                   ),
+                  _SecaoOcorrencias(p),
                   _SecaoGabinete(p),
                   _Rodape(p),
                 ]),
@@ -838,6 +839,113 @@ class _TodasVotacoesState extends State<TodasVotacoes> {
           );
         },
       ),
+    );
+  }
+}
+
+/// Processos e ocorrências: só registros oficiais, cada um com a situação
+/// atual e o link da fonte. Sem nota, ranking ou cor de alarme.
+class _SecaoOcorrencias extends StatelessWidget {
+  final Perfil p;
+  const _SecaoOcorrencias(this.p);
+
+  static const _encerradas = {'absolvido', 'arquivado', 'extinto', 'sancao_encerrada', 'informativo'};
+
+  String _consultadas(List<FonteConsultada> fontes) {
+    final nomes = fontes.map((f) => f.nome.split(':').first).toList();
+    if (nomes.length <= 1) return nomes.join();
+    return '${nomes.sublist(0, nomes.length - 1).join(', ')} e ${nomes.last}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tema = Theme.of(context);
+    final o = p.ocorrencias;
+    const titulo = 'Processos e ocorrências';
+    const descricao = 'Registros oficiais da Justiça Eleitoral, CGU, TCU e tribunais';
+    if (o == null) {
+      return Grupo(titulo: titulo, descricao: descricao, filhos: [
+        const Linha(
+          prefixo: Icon(Icons.info_outline),
+          titulo: 'Sem dados',
+          subtitulo: 'As fontes ainda não foram consultadas para este político.',
+        ),
+      ]);
+    }
+    final conferidas = o.fontes.where((f) => f.conferido).toList();
+    final semConferir = o.fontes.where((f) => !f.conferido && f.consultadoEm != null).toList();
+    return Grupo(
+      titulo: titulo,
+      descricao: descricao,
+      filhos: [
+        for (final i in o.itens)
+          ListTile(
+            title: Text(i.titulo),
+            subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Wrap(spacing: 6, runSpacing: 4, children: [
+                  Etiqueta(i.situacaoRotulo, _encerradas.contains(i.situacao) ? Colors.grey : Adw.amarelo),
+                ]),
+              ),
+              Text([
+                if (i.data != null) data(i.data),
+                ?i.orgao,
+                if (i.processo != null) 'Processo ${i.processo}',
+              ].join(' · ')),
+              if (i.descricao != null) Text(i.descricao!),
+              if (i.conferencia != null)
+                Text(i.conferencia!, style: tema.textTheme.bodySmall?.copyWith(color: tema.hintColor)),
+            ]),
+            trailing: i.link == null ? null : const Icon(Icons.open_in_new),
+            onTap: i.link == null ? null : () => _abrir(i.link),
+          ),
+        if (o.itens.isEmpty)
+          Linha(
+            prefixo: const Icon(Icons.info_outline),
+            titulo: conferidas.isEmpty ? 'Não foi possível conferir' : 'Nada encontrado nas fontes consultadas',
+            subtitulo: conferidas.isEmpty
+                ? 'A candidatura deste político não foi localizada no TSE.'
+                : 'Conferido em: ${_consultadas(conferidas)}. '
+                    'Isso não quer dizer que não existam processos em outros tribunais.',
+          ),
+        if (semConferir.isNotEmpty)
+          Linha(
+            prefixo: const Icon(Icons.help_outline),
+            titulo: 'Não conferido em ${_consultadas(semConferir)}',
+            subtitulo: 'Para não confundir com homônimos, esses cadastros só são cruzados quando o CPF '
+                'da candidatura no TSE confere. Não foi possível fazer essa conferência para este político.',
+          ),
+        if (o.certidoes.isNotEmpty)
+          ExpansionTile(
+            title: const Text('Certidões criminais entregues ao TSE'),
+            subtitle: const Text('Todo candidato entrega; podem ser negativas ou positivas'),
+            shape: const Border(),
+            children: [
+              for (final c in o.certidoes)
+                Linha(titulo: c.titulo, subtitulo: c.descricao, aoTocar: c.link == null ? null : () => _abrir(c.link)),
+            ],
+          ),
+        ExpansionTile(
+          title: const Text('Fontes consultadas'),
+          shape: const Border(),
+          children: [
+            for (final f in o.fontes)
+              Linha(
+                titulo: f.nome,
+                subtitulo: f.consultadoEm == null
+                    ? 'Não consultada nesta atualização'
+                    : '${f.conferido ? 'Conferido' : 'Não conferido'} · consultado em ${data(f.consultadoEm)}',
+                aoTocar: f.link == null ? null : () => _abrir(f.link),
+              ),
+          ],
+        ),
+        if (o.aviso != null)
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Text(o.aviso!, style: tema.textTheme.bodySmall?.copyWith(color: tema.hintColor)),
+          ),
+      ],
     );
   }
 }

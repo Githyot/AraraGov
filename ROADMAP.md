@@ -5,7 +5,7 @@ o que falta. Este arquivo é atualizado a cada entrega.
 
 Legenda: ✅ pronto (no `main`) · 🔄 em revisão (PR aberto) · ⬜ falta fazer · ➖ não disponível na fonte · ⏸️ só quando pedido
 
-_Última atualização: 5 de novembro de 2026 (madrugada do dia 6)_
+_Última atualização: 6 de novembro de 2026_
 
 ## Visão geral
 
@@ -18,6 +18,7 @@ _Última atualização: 5 de novembro de 2026 (madrugada do dia 6)_
 | Benefícios e custo dos gabinetes | ✅ Senado |
 | Emendas parlamentares | ✅ |
 | Período, comparação e doação do salário | ✅ |
+| Processos e ocorrências (TSE, CGU, TCU, decisões de tribunais) | 🔄 |
 | Base federal completa | ✅ |
 | 5. Municípios | 🔄 fases 0 a 8: plano, prefeitos e vereadores, finanças, custos de referência, piloto de SP, fornecedores, emendas e telas do app |
 
@@ -44,6 +45,8 @@ _Última atualização: 5 de novembro de 2026 (madrugada do dia 6)_
 - ✅ Legislatura anterior (2019-2022): deputados e senadores que saíram, votos e gastos desde 2019
 - ✅ API mais leve: votos compactos nos perfis e detalhes das votações por ano, para caber no limite de 1 GB do GitHub Pages
 - ✅ Emendas parlamentares: quanto cada um indicou, quanto foi pago, para onde e quem recebeu
+- 🔄 Processos e ocorrências: candidatura indeferida ou cassada (TSE), sanções (CGU), inabilitação (TCU) e certidões criminais, sempre com situação atual e fonte oficial
+- ⬜ Lista curada de decisões de tribunais (prisão, condenação, absolvição), só com link oficial
 
 ## 2. Análises ✅
 

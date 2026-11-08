@@ -26,7 +26,7 @@ from .collectors import historico
 from .analise import espectro, inflacao
 from .analise.atencao import motivo_atencao
 from .normalizar import nome_proprio
-from .db import Assessor, Beneficio, Despesa, Emenda, Favorecido, Politico, RecursoMensal, Subsidio, Votacao, Voto, sessao
+from .db import Assessor, Beneficio, ConsultaOcorrencia, Despesa, Ocorrencia, VerificacaoOcorrencia, Emenda, Favorecido, Politico, RecursoMensal, Subsidio, Votacao, Voto, sessao
 
 logger = logging.getLogger(__name__)
 
@@ -176,6 +176,83 @@ def _doacao(p: Politico, doacoes: Dict[tuple, Dict[str, Any]]) -> Optional[Dict[
     from .collectors.gabinete import _chave_nome
 
     return doacoes.get((p.casa, _chave_nome(p.nome or "")))
+
+
+PROCESSOS_CSV = Path(__file__).parent / "referencia" / "processos.csv"
+
+# Só sites oficiais (tribunais, Ministério Público, governo, Legislativo).
+# Reportagens ficam de fora até haver uma regra aprovada para elas.
+DOMINIOS_OFICIAIS = (".jus.br", ".mp.br", ".gov.br", ".leg.br", ".def.br")
+
+AVISO_OCORRENCIAS = (
+    "Registros oficiais, com a situação atual e o link da fonte. Processo em andamento "
+    "não é condenação: todos são considerados inocentes até a decisão final "
+    "(Constituição, art. 5º, LVII). O AraraGov apenas organiza dados públicos e não faz acusações."
+)
+
+FONTES_OCORRENCIAS = {
+    "tse": ("TSE: situação das candidaturas de 2018 e 2022", "https://dadosabertos.tse.jus.br"),
+    "cgu": ("CGU: sanções no CEIS e no CNEP", "https://portaldatransparencia.gov.br/sancoes"),
+    "tcu": ("TCU: inabilitados para função pública", "https://contas.tcu.gov.br/ords/f?p=1660:1"),
+    "curado": ("Decisões de tribunais publicadas em sites oficiais", None),
+}
+
+
+def _oficial(url: str) -> bool:
+    from urllib.parse import urlsplit
+
+    host = (urlsplit(url).hostname or "").lower()
+    return url.startswith("https://") and any(host.endswith(d) for d in DOMINIOS_OFICIAIS)
+
+
+def processos_curados(caminho: Path = PROCESSOS_CSV) -> Dict[tuple, List[Dict[str, Any]]]:
+    """Decisões judiciais (prisão, condenação, absolvição, arquivamento) que
+    não estão em cadastro aberto, mantidas à mão. Cada linha precisa da
+    situação atual e de um link para página oficial; as outras são ignoradas."""
+    from .collectors.gabinete import _chave_nome
+    from .collectors.ocorrencias import SITUACOES
+
+    por: Dict[tuple, List[Dict[str, Any]]] = defaultdict(list)
+    for l in _ler_curado(caminho):
+        if l.get("situacao") not in SITUACOES or not _oficial(l["fonte"]):
+            logger.warning("processos.csv: linha ignorada (situação ou fonte não oficial): %s", l.get("nome"))
+            continue
+        por[(l["casa"], _chave_nome(l["nome"]))].append({
+            "fonte": "curado", "tipo": l.get("tipo") or "processo", "titulo": l["titulo"],
+            "descricao": l.get("descricao") or None, "situacao": l["situacao"], "data": l.get("data") or None,
+            "orgao": l.get("orgao") or None, "processo": l.get("processo") or None, "link": l["fonte"],
+            "conferencia": "Lista curada; cada item tem link para página oficial",
+        })
+    return por
+
+
+def _ocorrencias(p: Politico, linhas: List[Ocorrencia], verificadas: set, consultas: Dict[str, Any],
+                 curados: Dict[tuple, List[Dict[str, Any]]]) -> Dict[str, Any]:
+    from .collectors.gabinete import _chave_nome
+
+    itens = [
+        {"fonte": o.fonte, "tipo": o.tipo, "titulo": o.titulo, "descricao": o.descricao, "situacao": o.situacao,
+         "data": o.data, "orgao": o.orgao, "processo": o.processo, "link": o.link, "conferencia": o.conferencia}
+        for o in linhas if o.tipo != "certidoes"
+    ] + curados.get((p.casa, _chave_nome(p.nome or "")), [])
+    itens.sort(key=lambda i: str(i["data"] or ""), reverse=True)
+    fontes = []
+    for fonte, (nome, link) in FONTES_OCORRENCIAS.items():
+        if fonte == "curado":
+            continue
+        c = consultas.get(fonte)
+        fontes.append({
+            "fonte": fonte, "nome": nome, "link": link,
+            "consultado_em": c.consultado_em if c else None,
+            # False: a fonte foi consultada, mas não deu para conferir esta pessoa nela.
+            "conferido": bool(c) and fonte in verificadas,
+        })
+    return {
+        "itens": itens,
+        "certidoes": [{"titulo": o.titulo, "descricao": o.descricao, "link": o.link} for o in linhas if o.tipo == "certidoes"],
+        "fontes": fontes,
+        "aviso": AVISO_OCORRENCIAS,
+    }
 
 
 VOTOS_INLINE = 8
@@ -652,6 +729,13 @@ def exportar(saida: Path) -> int:
                  "valor_ano": b.valor_ano, "ano": b.ano, "referencia": b.referencia, "fonte": b.fonte}
             )
         _partido_pelos_votos(politicos, votos_por, votacoes)
+        ocorrencias = defaultdict(list)
+        for o in s.execute(select(Ocorrencia).order_by(Ocorrencia.id)).scalars():
+            ocorrencias[(o.casa, o.codigo_politico)].append(o)
+        verificadas = defaultdict(set)
+        for v in s.execute(select(VerificacaoOcorrencia)).scalars():
+            verificadas[(v.casa, v.codigo_politico)].add(v.fonte)
+        consultas = {c.fonte: c for c in s.execute(select(ConsultaOcorrencia)).scalars()}
         recursos = defaultdict(lambda: defaultdict(list))
         for r in s.execute(select(RecursoMensal)).scalars():
             recursos[(r.casa, r.codigo_politico)][r.tipo].append(r)
@@ -661,6 +745,7 @@ def exportar(saida: Path) -> int:
     salarios = {(c, uf): _salario(c, subsidios, uf, estaduais) for c, uf in {(p.cargo, p.uf) for p in politicos}}
     doacoes = doacoes_salario()
     declaradas = ideologias_declaradas()
+    curados = processos_curados()
 
     for p in politicos:
         ben_atuais, ben_anos = _beneficios_por_ano(beneficios[(p.casa, p.codigo)])
@@ -688,6 +773,7 @@ def exportar(saida: Path) -> int:
             "beneficios": ben_atuais,
             "beneficios_anos": ben_anos,
             "emendas": _emendas(emendas_por[(p.casa, p.codigo)], favorecidos_por[(p.casa, p.codigo)]),
+            "ocorrencias": _ocorrencias(p, ocorrencias[(p.casa, p.codigo)], verificadas[(p.casa, p.codigo)], consultas, curados),
             "presenca": dict(Counter(v.voto for v in votos)),
             **analises.get((p.casa, p.codigo), {}),
             # Todos os votos em formato compacto; detalhes de cada votação ficam
