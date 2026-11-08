@@ -7,6 +7,7 @@ import '../dados/modelos.dart';
 import '../formatar.dart';
 import '../tema.dart';
 import '../widgets/adw.dart';
+import '../widgets/inflacao.dart';
 import '../widgets/voto.dart';
 import 'analises.dart';
 import 'comparar.dart';
@@ -165,30 +166,6 @@ class _Cabecalho extends StatelessWidget {
   }
 }
 
-/// Compara quanto um valor subiu com quanto a inflação subiu no mesmo período.
-class _LinhaInflacao extends StatelessWidget {
-  final String titulo;
-  final ValorInflacao v;
-  const _LinhaInflacao({required this.titulo, required this.v});
-
-  @override
-  Widget build(BuildContext context) {
-    final subiu = v.valorInicial == 0 ? 0 : (v.valorAtual / v.valorInicial - 1) * 100;
-    final inflacao = v.valorInicial == 0 ? 0 : (v.corrigido / v.valorInicial - 1) * 100;
-    final acima = v.acimaPct;
-    return Linha(
-      titulo: titulo,
-      subtitulo: 'Subiu ${porcentagem(subiu)}; a inflação foi ${porcentagem(inflacao)}. '
-          'Só com a inflação seria ${reais(v.corrigido)}.',
-      sufixo: Etiqueta(
-        acima.abs() < 0.5 ? 'Igual à inflação' : '${porcentagem(acima, sinal: true)} vs inflação',
-        // Cores neutras: destaca só quando subiu acima da inflação, sem julgar.
-        acima > 0.5 ? Adw.amarelo : Colors.grey,
-      ),
-    );
-  }
-}
-
 class _SecaoSalario extends StatelessWidget {
   final Salario s;
   final List<Beneficio> beneficios;
@@ -236,8 +213,7 @@ class _SecaoSalario extends StatelessWidget {
           valor: reais(s.atual),
           aoTocar: s.historico.isEmpty || s.historico.last.fonte == null ? null : () => _abrir(s.historico.last.fonte),
         ),
-        if (s.vsInflacao != null)
-          _LinhaInflacao(titulo: 'Desde ${mesAno(s.vsInflacao!.desde)}', v: s.vsInflacao!),
+        if (s.vsInflacao != null) ComparacaoInflacao(s.vsInflacao!, oQue: s.teto ? 'o teto do salário' : 'o salário'),
         if (doacao != null) _linhaDoacao(doacao!),
         ?_linhaPago(),
         for (final b in beneficios)
@@ -288,17 +264,21 @@ class _SecaoGastos extends StatelessWidget {
           : 'Verba para despesas do mandato, como passagens, escritório e divulgação',
       filhos: [
         Linha(titulo: 'Total no período', valor: reais(g.total)),
-        if (g.porAno.length > 1) Padding(padding: const EdgeInsets.fromLTRB(12, 16, 16, 8), child: _GraficoAnos(g.porAno)),
-        for (final v in g.vsInflacao) _LinhaInflacao(titulo: 'Gasto em ${v.ano}', v: v),
-        ExpansionTile(
-          title: const Text('Por categoria'),
-          shape: const Border(),
-          children: [for (final c in g.porCategoria.take(8)) Linha(titulo: c.nome, valor: reaisCurto(c.valor))],
-        ),
+        if (g.porAno.length > 1)
+          Padding(padding: const EdgeInsets.fromLTRB(12, 16, 16, 8), child: _GraficoAnos(g.porAno, inflacao: g.vsInflacao)),
+        if (g.vsInflacao.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 4, 16, 8),
+            child: Text(explicacaoBase(g.vsInflacao),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).hintColor)),
+          ),
+          for (final v in g.vsInflacao) LinhaInflacaoAno(v),
+        ],
+        _PorCategoria(g),
         ExpansionTile(
           title: const Text('Maiores fornecedores'),
           shape: const Border(),
-          children: [for (final c in g.maioresFornecedores.take(8)) Linha(titulo: c.nome, valor: reaisCurto(c.valor))],
+          children: [for (final c in g.maioresFornecedores.take(8)) Linha(titulo: nomeLegivel(c.nome), valor: reaisCurto(c.valor))],
         ),
         ExpansionTile(
           title: const Text('Notas recentes'),
@@ -306,8 +286,8 @@ class _SecaoGastos extends StatelessWidget {
           children: [
             for (final d in g.documentos.take(10))
               Linha(
-                titulo: d['fornecedor'] ?? 'Não informado',
-                subtitulo: '${data(d['data'])} · ${d['categoria'] ?? ''}',
+                titulo: nomeLegivel(d['fornecedor'] ?? 'Não informado'),
+                subtitulo: '${data(d['data'])} · ${nomeLegivel(d['categoria'] ?? '')}',
                 valor: reais(d['valor']),
                 aoTocar: d['url'] == null ? null : () => _abrir(d['url']),
               ),
@@ -334,12 +314,12 @@ class _SecaoEmendas extends StatelessWidget {
         ExpansionTile(
           title: const Text('Por área'),
           shape: const Border(),
-          children: [for (final a in e.porArea) Linha(titulo: a.nome, valor: reaisCurto(a.valor))],
+          children: [for (final a in e.porArea) Linha(titulo: nomeLegivel(a.nome), valor: reaisCurto(a.valor))],
         ),
         ExpansionTile(
           title: const Text('Para onde foi'),
           shape: const Border(),
-          children: [for (final a in e.porLocal) Linha(titulo: a.nome, valor: reaisCurto(a.valor))],
+          children: [for (final a in e.porLocal) Linha(titulo: nomeLegivel(a.nome), valor: reaisCurto(a.valor))],
         ),
         if (e.favorecidos.isNotEmpty)
           ExpansionTile(
@@ -360,55 +340,396 @@ class _SecaoEmendas extends StatelessWidget {
 }
 
 class _GraficoAnos extends StatelessWidget {
-  final List<({int ano, double valor})> anos;
-  const _GraficoAnos(this.anos);
+  /// Se vier, cada ano ganha uma segunda barra contornada: o gasto do ano-base
+  /// corrigido pela inflação. A barra do gasto fica amarela quando passa dela.
+  final List<ValorInflacao> inflacao;
+
+  /// Mostra no eixo os anos do meio que não têm dados, sem barra, e avisa abaixo.
+  final bool marcarAnosSemDados;
+  const _GraficoAnos(List<({int ano, double valor})> anos, {this.inflacao = const [], this.marcarAnosSemDados = false})
+    : _anos = anos;
+  final List<({int ano, double valor})> _anos;
+
+  List<({int ano, double valor})> get anos => _anos;
+
+  List<int> get anosSemDados {
+    if (!marcarAnosSemDados || _anos.length < 2) return const [];
+    final tem = {for (final a in _anos) a.ano};
+    return [
+      for (var a = _anos.first.ano; a <= _anos.last.ano; a++)
+        if (!tem.contains(a)) a,
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
     final tema = Theme.of(context);
-    final maximo = anos.map((a) => a.valor).reduce((a, b) => a > b ? a : b);
-    return SizedBox(
+    final faltam = anosSemDados;
+    final anos = faltam.isEmpty
+        ? _anos
+        : ([..._anos, for (final a in faltam) (ano: a, valor: double.nan)]..sort((x, y) => x.ano.compareTo(y.ano)));
+    final porAno = {for (final v in inflacao) v.ano: v};
+    final comInflacao = porAno.isNotEmpty;
+    final maximo = [..._anos.map((a) => a.valor), ...inflacao.map((v) => v.corrigido)].reduce((a, b) => a > b ? a : b);
+    final largura = comInflacao ? 14.0 : 28.0;
+
+    Color corGasto(int ano) {
+      final v = porAno[ano];
+      if (v == null) return tema.hintColor; // ano-base
+      return Veredito.de(v.acimaPct).cor;
+    }
+
+    final grafico = SizedBox(
       height: 160,
-      child: BarChart(BarChartData(
-        maxY: maximo * 1.15,
-        gridData: const FlGridData(show: false),
-        borderData: FlBorderData(show: false),
-        barTouchData: BarTouchData(
-          touchTooltipData: BarTouchTooltipData(
-            getTooltipItem: (g, _, rod, _) => BarTooltipItem(reais(rod.toY), const TextStyle(color: Colors.white)),
-          ),
-        ),
-        titlesData: FlTitlesData(
-          topTitles: const AxisTitles(),
-          rightTitles: const AxisTitles(),
-          leftTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 64,
-              getTitlesWidget: (v, meta) => v == meta.max || v == 0
-                  ? const SizedBox()
-                  : Text(reaisCurto(v), style: tema.textTheme.bodySmall?.copyWith(color: tema.hintColor)),
+      child: BarChart(
+        BarChartData(
+          maxY: maximo * 1.15,
+          gridData: const FlGridData(show: false),
+          borderData: FlBorderData(show: false),
+          barTouchData: BarTouchData(
+            touchTooltipData: BarTouchTooltipData(
+              fitInsideVertically: true,
+              fitInsideHorizontally: true,
+              getTooltipItem: (g, _, rod, i) {
+                if (anos[g.x].valor.isNaN) return null;
+                final rotulo = !comInflacao ? '' : i == 0 ? 'Gasto\n' : 'Só com a inflação\n';
+                return BarTooltipItem('$rotulo${reais(rod.toY)}', const TextStyle(color: Colors.white));
+              },
             ),
           ),
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              getTitlesWidget: (v, _) => Text('${anos[v.toInt()].ano}', style: tema.textTheme.bodySmall),
-            ),
-          ),
-        ),
-        barGroups: [
-          for (var i = 0; i < anos.length; i++)
-            BarChartGroupData(x: i, barRods: [
-              BarChartRodData(
-                toY: anos[i].valor,
-                width: 28,
-                color: tema.colorScheme.primary,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+          titlesData: FlTitlesData(
+            topTitles: const AxisTitles(),
+            rightTitles: const AxisTitles(),
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 72,
+                getTitlesWidget: (v, meta) => v == meta.max || v == 0
+                    ? const SizedBox()
+                    : Text(
+                        reaisEixo(v),
+                        softWrap: false,
+                        style: tema.textTheme.bodySmall?.copyWith(color: tema.hintColor),
+                      ),
               ),
-            ]),
-        ],
-      )),
+            ),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                getTitlesWidget: (v, _) {
+                  final a = anos[v.toInt()].ano;
+                  if (faltam.contains(a)) {
+                    return Text('$a', style: tema.textTheme.bodySmall?.copyWith(color: tema.hintColor));
+                  }
+                  return Text(porAno[a]?.parcial == true ? '$a*' : '$a', style: tema.textTheme.bodySmall);
+                },
+              ),
+            ),
+          ),
+          barGroups: [
+            for (var i = 0; i < anos.length; i++)
+              if (anos[i].valor.isNaN)
+                BarChartGroupData(
+                  x: i,
+                  barRods: [BarChartRodData(toY: 0, width: largura, color: Colors.transparent)],
+                )
+              else
+                BarChartGroupData(
+                  x: i,
+                  barsSpace: 3,
+                  barRods: [
+                    BarChartRodData(
+                      toY: anos[i].valor,
+                      width: largura,
+                      color: comInflacao ? corGasto(anos[i].ano) : tema.colorScheme.primary,
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+                    ),
+                    if (porAno[anos[i].ano] != null)
+                      BarChartRodData(
+                        toY: porAno[anos[i].ano]!.corrigido,
+                        width: largura,
+                        color: tema.hintColor.withValues(alpha: 0.12),
+                        borderSide: BorderSide(color: tema.hintColor, width: 1.5),
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+                      ),
+                  ],
+                ),
+          ],
+        ),
+      ),
+    );
+    final aviso = faltam.isEmpty
+        ? null
+        : Text(
+            'Sem dados publicados para ${faltam.length == 1 ? faltam.first : '${faltam.sublist(0, faltam.length - 1).join(', ')} e ${faltam.last}'}.',
+            style: tema.textTheme.bodySmall?.copyWith(color: tema.hintColor),
+          );
+    if (!comInflacao) {
+      return aviso == null
+          ? grafico
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [grafico, const SizedBox(height: 8), aviso],
+            );
+    }
+
+    Widget legenda(Color cor, String texto, {bool contorno = false}) => Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: contorno ? cor.withValues(alpha: 0.12) : cor,
+            border: contorno ? Border.all(color: cor, width: 1.5) : null,
+            borderRadius: BorderRadius.circular(3),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(texto, style: tema.textTheme.bodySmall),
+      ],
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        grafico,
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 16,
+          runSpacing: 6,
+          children: [
+            legenda(tema.hintColor, 'Ano-base (${inflacao.first.anoBase ?? anos.first.ano})'),
+            legenda(Adw.amarelo, 'Gastou acima da inflação'),
+            legenda(Adw.azul, 'Gastou abaixo da inflação'),
+            legenda(tema.hintColor, 'Só com a inflação', contorno: true),
+            if (inflacao.any((v) => v.parcial))
+              Text('* ano em andamento', style: tema.textTheme.bodySmall?.copyWith(color: tema.hintColor)),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// "Por categoria": lista o total de cada categoria e, ao tocar, compara a
+/// categoria entre os anos ou entre os meses de um ano.
+class _PorCategoria extends StatelessWidget {
+  final Gastos g;
+  const _PorCategoria(this.g);
+
+  @override
+  Widget build(BuildContext context) {
+    final podeComparar = g.categoriasPorAno.length > 1 || g.categoriasPorMes.isNotEmpty;
+    return ExpansionTile(
+      title: const Text('Por categoria'),
+      subtitle: podeComparar ? const Text('Toque numa categoria para comparar anos e meses') : null,
+      shape: const Border(),
+      children: [
+        for (final c in g.porCategoria.take(8))
+          Linha(
+            titulo: nomeLegivel(c.nome),
+            valor: reaisCurto(c.valor),
+            aoTocar: podeComparar
+                ? () => showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    showDragHandle: true,
+                    builder: (_) => _CompararCategoria(g: g, categoria: c.nome),
+                  )
+                : null,
+          ),
+      ],
+    );
+  }
+}
+
+class _CompararCategoria extends StatefulWidget {
+  final Gastos g;
+  final String categoria;
+  const _CompararCategoria({required this.g, required this.categoria});
+
+  @override
+  State<_CompararCategoria> createState() => _CompararCategoriaState();
+}
+
+class _CompararCategoriaState extends State<_CompararCategoria> {
+  late bool porMes;
+  late int ano;
+
+  Gastos get g => widget.g;
+
+  List<int> get anos => {...g.categoriasPorAno.keys, ...g.categoriasPorMes.keys}.toList()..sort();
+  List<int> get anosComMeses => g.categoriasPorMes.keys.toList()..sort();
+
+  double totalAno(int a) {
+    final meses = g.categoriasPorMes[a]?[widget.categoria];
+    if (meses != null) return meses.fold(0.0, (x, y) => x + y);
+    for (final c in g.categoriasPorAno[a] ?? const <NomeValor>[]) {
+      if (c.nome == widget.categoria) return c.valor;
+    }
+    return 0;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    porMes = anos.length < 2 && anosComMeses.isNotEmpty;
+    ano = anosComMeses.isEmpty ? anos.last : anosComMeses.last;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tema = Theme.of(context);
+    final List<({String rotulo, double valor})> barras = porMes
+        ? [
+            for (var m = 0; m < 12; m++)
+              (rotulo: mesesCurtos[m], valor: g.categoriasPorMes[ano]?[widget.categoria]?[m] ?? 0),
+          ]
+        : [for (final a in anos) (rotulo: '$a', valor: totalAno(a))];
+    final total = barras.fold(0.0, (x, b) => x + b.valor);
+    final comValor = barras.where((b) => b.valor > 0).toList();
+
+    // Ano em andamento: comparar com um ano inteiro engana, então só avisa.
+    final parciais = {for (final v in g.vsInflacao) if (v.parcial) '${v.ano}': v.meses};
+    String variacao(int i) {
+      if (!porMes && parciais.containsKey(barras[i].rotulo)) {
+        return 'Ano em andamento (${intervaloMeses(1, parciais[barras[i].rotulo]!)})';
+      }
+      if (i == 0 || barras[i - 1].valor == 0 || barras[i].valor == 0) return '';
+      final pct = (barras[i].valor / barras[i - 1].valor - 1) * 100;
+      return '${porcentagem(pct, sinal: true)} vs ${barras[i - 1].rotulo}';
+    }
+
+    return SafeArea(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: Adw.larguraMax),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    nomeLegivel(widget.categoria),
+                    style: tema.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  if (anosComMeses.isNotEmpty && anos.length > 1)
+                    SegmentedButton<bool>(
+                      segments: const [
+                        ButtonSegment(value: false, label: Text('Por ano')),
+                        ButtonSegment(value: true, label: Text('Por mês')),
+                      ],
+                      selected: {porMes},
+                      onSelectionChanged: (v) => setState(() => porMes = v.first),
+                    ),
+                  if (porMes && anosComMeses.length > 1) ...[
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        for (final a in anosComMeses)
+                          ChoiceChip(label: Text('$a'), selected: a == ano, onSelected: (_) => setState(() => ano = a)),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  if (total == 0)
+                    Text(
+                      'Nenhum gasto nesta categoria no período.',
+                      style: tema.textTheme.bodyMedium?.copyWith(color: tema.hintColor),
+                    )
+                  else ...[
+                    SizedBox(
+                      height: 160,
+                      child: BarChart(
+                        BarChartData(
+                          maxY: barras.map((b) => b.valor).reduce((a, b) => a > b ? a : b) * 1.15,
+                          gridData: const FlGridData(show: false),
+                          borderData: FlBorderData(show: false),
+                          barTouchData: BarTouchData(
+                            touchTooltipData: BarTouchTooltipData(
+                              fitInsideVertically: true,
+                              fitInsideHorizontally: true,
+                              getTooltipItem: (g, _, rod, _) =>
+                                  BarTooltipItem(reais(rod.toY), const TextStyle(color: Colors.white)),
+                            ),
+                          ),
+                          titlesData: FlTitlesData(
+                            topTitles: const AxisTitles(),
+                            rightTitles: const AxisTitles(),
+                            leftTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                reservedSize: 72,
+                                getTitlesWidget: (v, meta) => v == meta.max || v == 0
+                                    ? const SizedBox()
+                                    : Text(
+                                        reaisEixo(v),
+                                        softWrap: false,
+                                        style: tema.textTheme.bodySmall?.copyWith(color: tema.hintColor),
+                                      ),
+                              ),
+                            ),
+                            bottomTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                getTitlesWidget: (v, _) =>
+                                    Text(!porMes && parciais.containsKey(barras[v.toInt()].rotulo) ? '${barras[v.toInt()].rotulo}*' : barras[v.toInt()].rotulo, style: tema.textTheme.bodySmall),
+                              ),
+                            ),
+                          ),
+                          barGroups: [
+                            for (var i = 0; i < barras.length; i++)
+                              BarChartGroupData(
+                                x: i,
+                                barRods: [
+                                  BarChartRodData(
+                                    toY: barras[i].valor,
+                                    width: porMes ? 14 : 28,
+                                    color: tema.colorScheme.primary,
+                                    borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                                  ),
+                                ],
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Card(
+                      child: Column(
+                        children: [
+                          for (var i = 0; i < barras.length; i++)
+                            if (barras[i].valor > 0 || !porMes)
+                              Linha(
+                                titulo: porMes ? '${barras[i].rotulo}/$ano' : barras[i].rotulo,
+                                subtitulo: variacao(i).isEmpty ? null : variacao(i),
+                                valor: reais(barras[i].valor),
+                              ),
+                          Linha(
+                            titulo: porMes ? 'Total em $ano' : 'Total no período',
+                            subtitulo: porMes ? '${comValor.length} meses com gasto' : null,
+                            valor: reais(total),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Valores sem correção pela inflação.',
+                      style: tema.textTheme.bodySmall?.copyWith(color: tema.hintColor),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -554,23 +875,74 @@ class _SecaoGabinete extends StatelessWidget {
             shape: const Border(),
             children: [
               if (verba.porAno.length > 1)
-                Padding(padding: const EdgeInsets.fromLTRB(12, 16, 16, 8), child: _GraficoAnos(verba.porAno)),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 16, 16, 8),
+                  child: _GraficoAnos(verba.porAno, marcarAnosSemDados: true),
+                ),
               for (final m in verba.anos[anoVerba]!.porMes) Linha(titulo: _nomeMes(m.mes), valor: reais(m.valor)),
             ],
           ),
-        if (p.gabinete.isNotEmpty)
-        ExpansionTile(
-          title: const Text('Ver equipe'),
-          shape: const Border(),
-          children: [
-            for (final a in p.gabinete)
-              Linha(
-                titulo: a.nome,
-                subtitulo: [a.nivel ?? a.cargo, if (a.desde != null) 'desde ${data(a.desde)}'].whereType<String>().join(' · '),
-                valor: a.remuneracao == null ? null : reais(a.remuneracao),
-              ),
-          ],
+        if (p.gabinete.isNotEmpty || p.gabineteAnteriores.isNotEmpty) _Equipe(p),
+      ],
+    );
+  }
+}
+
+/// "Ver equipe", com abas para quem está no gabinete hoje e quem já saiu.
+class _Equipe extends StatefulWidget {
+  final Perfil p;
+  const _Equipe(this.p);
+
+  @override
+  State<_Equipe> createState() => _EquipeState();
+}
+
+class _EquipeState extends State<_Equipe> {
+  bool anteriores = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final tema = Theme.of(context);
+    final p = widget.p;
+    final lista = anteriores ? p.gabineteAnteriores : p.gabinete;
+    return ExpansionTile(
+      title: const Text('Ver equipe'),
+      shape: const Border(),
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+          child: SegmentedButton<bool>(
+            segments: [
+              ButtonSegment(value: false, label: Text('Atual (${p.gabinete.length})')),
+              ButtonSegment(value: true, label: Text('Já saíram (${p.gabineteAnteriores.length})')),
+            ],
+            selected: {anteriores},
+            onSelectionChanged: (v) => setState(() => anteriores = v.first),
+          ),
         ),
+        if (anteriores)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+            child: Text(
+              'A fonte oficial só lista quem está no gabinete hoje. O AraraGov guarda a lista a cada coleta '
+              'semanal desde novembro de 2026; a data de saída é a da coleta em que a pessoa deixou de aparecer.',
+              style: tema.textTheme.bodySmall?.copyWith(color: tema.hintColor),
+            ),
+          ),
+        if (lista.isEmpty)
+          Linha(titulo: anteriores ? 'Ninguém saiu desde o início do acompanhamento' : 'Nenhuma pessoa na equipe hoje'),
+        for (final a in lista)
+          Linha(
+            titulo: nomePessoa(a.nome),
+            subtitulo: [
+              a.nivel ?? a.cargo,
+              if (anteriores)
+                '${a.desde == null ? 'entrada não informada' : data(a.desde)} até ${data(a.ate)}'
+              else if (a.desde != null)
+                'desde ${data(a.desde)}',
+            ].whereType<String>().join(' · '),
+            valor: a.remuneracao == null ? null : reais(a.remuneracao),
+          ),
       ],
     );
   }

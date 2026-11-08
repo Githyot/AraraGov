@@ -28,6 +28,68 @@ void main() {
     expect(reaisCurto(1250000), 'R\$ 1,3 mi');
     expect(porcentagem(-18.96, sinal: true), '−19,0%');
     expect(semAcento('Fictício'), 'Ficticio');
+    expect(reaisEixo(40e6), 'R\$ 40 mi');
+    expect(reaisEixo(500e3), 'R\$ 500 mil');
+    expect(reaisEixo(1.5e6), 'R\$ 1,5 mi');
+  });
+
+  test('nomes em maiúsculas ficam legíveis', () {
+    expect(nomeLegivel('PASSAGEM AÉREA - RPA'), 'Passagem aérea - RPA');
+    expect(nomeLegivel('DIVULGAÇÃO DA ATIVIDADE PARLAMENTAR.'), 'Divulgação da atividade parlamentar');
+    expect(nomeLegivel('Passagens aéreas'), 'Passagens aéreas');
+    expect(nomePessoa('IAN GARCEZ DE OLIVEIRA'), 'Ian Garcez de Oliveira');
+    expect(nomePessoa('Maria Souza'), 'Maria Souza');
+  });
+
+  testWidgets('salário e gastos dizem claramente se ficaram acima ou abaixo da inflação', (tester) async {
+    final json = File('assets/amostra/v1/politicos/camara-9001.json').readAsBytesSync();
+    final client = MockClient((req) async => http.Response.bytes(json, 200));
+    tester.view.physicalSize = const Size(800, 8000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(MaterialApp(home: PerfilTela(api: Api(client: client), id: 'camara-9001')));
+    await tester.pumpAndSettle();
+    // Salário: subiu 37,3% com preços subindo mais; o texto diz "menor", nunca "subiu" quando caiu.
+    expect(find.text('Abaixo da inflação'), findsWidgets);
+    expect(find.textContaining('menor do que seria só com a inflação'), findsOneWidget);
+    expect(find.text('Se tivesse só acompanhado a inflação'), findsOneWidget);
+    // Gastos: diz o ano-base e marca o ano em andamento.
+    expect(find.textContaining('comparado com 2023, o primeiro ano com gastos'), findsOneWidget);
+    expect(find.text('2026 (jan–out, ano em andamento)'), findsOneWidget);
+    // Categoria abre a comparação entre anos e meses.
+    await tester.tap(find.text('Por categoria'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Passagem aérea - RPA'));
+    await tester.pumpAndSettle();
+    expect(find.text('Por ano'), findsOneWidget);
+    await tester.tap(find.text('Por mês'));
+    await tester.pumpAndSettle();
+    expect(find.text('Total em 2026'), findsOneWidget);
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pumpAndSettle();
+    // Gabinete: quem já saiu, com nome legível.
+    await tester.tap(find.text('Ver equipe'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Já saíram (2)'));
+    await tester.pumpAndSettle();
+    expect(find.text('Ex Assessor de Exemplo 1'), findsOneWidget);
+    expect(find.textContaining('até 02 out 2026'), findsOneWidget);
+  });
+
+  test('gasto que caiu e ano incompleto', () {
+    final v = ValorInflacao.fromJson({
+      'ano': 2026, 'valor_inicial': 100, 'valor': 50, 'corrigido_pela_inflacao': 90,
+      'acima_da_inflacao_pct': -44.4, 'ano_base': 2019, 'meses': 10, 'meses_base': 11, 'parcial': true,
+    });
+    expect(v.parcial, isTrue);
+    expect(v.anoBase, 2019);
+    final g = Gastos.fromJson({
+      'anos': {
+        '2025': {'por_categoria': [{'nome': 'TELEFONIA', 'valor': 10}], 'por_categoria_mes': [{'nome': 'TELEFONIA', 'meses': List.filled(12, 1)}]},
+      },
+    });
+    expect(g.categoriasPorMes[2025]!['TELEFONIA']!.length, 12);
+    expect(g.categoriasPorAno[2025]!.single.valor, 10);
   });
 
   testWidgets('lista e filtra políticos', (tester) async {
@@ -94,7 +156,7 @@ void main() {
         jsonDecode(File('assets/amostra/v1/politicos/$id.json').readAsStringSync()) as Map<String, dynamic>;
     final a = Perfil.fromJson(ler('camara-9001'));
     final b = Perfil.fromJson(ler('camara-9002'));
-    expect(a.anosDisponiveis, [2025, 2024, 2023]);
+    expect(a.anosDisponiveis, [2026, 2025, 2024, 2023]);
     expect(a.votacoes.length, 14); // compactos
     expect(a.votacoes.where((v) => v.temDetalhe).length, lessThan(14));
     final de2024 = a.noAno(2024);

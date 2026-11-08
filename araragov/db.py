@@ -145,6 +145,25 @@ class Assessor(Base):
     remuneracao_ref: Mapped[Optional[str]] = mapped_column(String(7))  # "2026-09"
 
 
+class AssessorAnterior(Base):
+    """Quem já trabalhou no gabinete. As fontes só listam a equipe de hoje, então
+    o AraraGov guarda a lista de cada coleta (historico.py) e, quando alguém some
+    da lista, registra a saída na data da coleta em que deixou de aparecer."""
+
+    __tablename__ = "assessor_anterior"
+    __table_args__ = (Index("ix_assessor_anterior_politico", "casa", "codigo_politico"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    casa: Mapped[str] = mapped_column(String(10))
+    codigo_politico: Mapped[int] = mapped_column(Integer)
+    nome: Mapped[str] = mapped_column(String(200))
+    cargo: Mapped[Optional[str]] = mapped_column(String(200))
+    funcao: Mapped[Optional[str]] = mapped_column(String(200))
+    desde: Mapped[Optional[date]] = mapped_column(Date)
+    # Nulo: estava na equipe na coleta anterior (ainda não se sabe se saiu).
+    ate: Mapped[Optional[date]] = mapped_column(Date)
+
+
 class Emenda(Base):
     """Emenda parlamentar ao orçamento federal (Portal da Transparência/CGU).
     Valores acumulados desde o ano da emenda; `codigo_politico` fica nulo
