@@ -175,3 +175,21 @@ def test_parte_com_prazo_esgotado_grava_o_que_leu(tmp_path):
 
     resumo = json.loads((pasta / "2025-0.json").read_text())
     assert resumo["contratos_completos"] is False and resumo["diretas_completas"] is False
+
+
+def test_cada_ano_tem_a_sua_fatia_do_prazo(tmp_path, monkeypatch):
+    prazos = []
+
+    def contratos(client, inicio, fim, parte=0, partes=1, prazo=None):
+        prazos.append((inicio.year, prazo))
+        return [], True
+
+    monkeypatch.setattr(pncp, "contratos", contratos)
+    monkeypatch.setattr(pncp, "compras_diretas", lambda *a, **k: ({}, True))
+    pncp.baixar_parte(None, tmp_path, [2025, 2026], 0, 1, hoje=date(2026, 11, 8), minutos=100)
+    import time
+
+    agora = time.monotonic()
+    (a1, p1), (a2, p2) = prazos
+    assert (a1, a2) == (2025, 2026)
+    assert 45 * 60 < p1 - agora <= 50 * 60 and 95 * 60 < p2 - agora <= 100 * 60

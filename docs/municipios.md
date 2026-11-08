@@ -305,7 +305,7 @@ fora de SP, no mesmo formato da fase 4:
   de fora (responsável: a prefeitura; Lei 14.133, art. 94 e 174).
 
 Um ano inteiro de contratos do país não cabe no tempo de um job do GitHub. Na
-coleta semanal, seis jobs (`araragov pncp --parte i/6`) dividem as semanas
+coleta semanal, oito jobs (`araragov pncp --parte i/8`) dividem as semanas
 do ano entre si e guardam só as linhas municipais; um último job
 (`araragov pncp --juntar`) soma as partes e escreve os `.md`. Se alguma parte
 falhar, os arquivos dizem que a lista pode estar incompleta, e

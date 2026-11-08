@@ -165,17 +165,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        parte: [0, 1, 2, 3, 4, 5]
+        parte: [0, 1, 2, 3, 4, 5, 6, 7]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - run: pip install -e .
-      - name: PNCP parte ${{ matrix.parte }} de 6
+      - name: PNCP parte ${{ matrix.parte }} de 8
         timeout-minutes: 290
         env:
-          PARTE: ${{ matrix.parte }}/6
+          PARTE: ${{ matrix.parte }}/8
         run: scripts/coleta/pncp-parte.sh
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
