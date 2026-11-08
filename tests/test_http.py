@@ -48,7 +48,7 @@ class SessaoGeobloqueada:
         self.chamadas = []
         self.sem_proxy = sem_proxy
 
-    def get(self, url, proxies=None, **kwargs):
+    def request(self, metodo, url, proxies=None, **kwargs):
         self.chamadas.append((url, bool(proxies)))
         if proxies:
             return _Resp(200)
