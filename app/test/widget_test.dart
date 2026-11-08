@@ -79,7 +79,10 @@ void main() {
     expect(find.textContaining('se declara: Ideologia de exemplo'), findsOneWidget);
     expect(find.text('Com quem vota junto'), findsOneWidget);
     expect(find.text('Votações que merecem atenção'), findsOneWidget);
-    expect(find.textContaining('Votou com o lado da'), findsWidgets);
+    // o rótulo é simétrico: aparece para os dois lados, e para quem não votou Sim/Não
+    expect(find.text('Votou como a esquerda'), findsWidgets);
+    expect(find.text('Votou como a direita'), findsWidgets);
+    expect(find.text('Esquerda e direita votaram diferente'), findsWidgets);
     expect(find.text('Custo mensal com salários'), findsOneWidget);
     expect(find.text('Ocupa imóvel funcional em Brasília'), findsOneWidget);
     expect(find.text('Emendas parlamentares'), findsOneWidget);

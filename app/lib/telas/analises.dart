@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../dados/modelos.dart';
 import '../formatar.dart';
+import '../tema.dart';
 import '../widgets/adw.dart';
 
 const _rotuloFaixa = {
@@ -15,7 +16,8 @@ const _rotuloFaixa = {
 
 String rotuloFaixa(String? f) => _rotuloFaixa[f] ?? '—';
 
-/// Barra horizontal esquerda x direita, com cores neutras.
+/// Barra esquerda x direita: vermelho para a esquerda e azul para a direita,
+/// o mesmo tratamento para os dois lados.
 class BarraEspectro extends StatelessWidget {
   final double pctEsquerda;
   final double? marcador; // média do partido, em % à esquerda
@@ -34,8 +36,8 @@ class BarraEspectro extends StatelessWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(9),
               child: Row(children: [
-                Expanded(flex: (pctEsquerda * 10).round().clamp(1, 1000), child: Container(color: cor.primary)),
-                Expanded(flex: ((100 - pctEsquerda) * 10).round().clamp(1, 1000), child: Container(color: cor.outlineVariant)),
+                Expanded(flex: (pctEsquerda * 10).round().clamp(1, 1000), child: Container(color: Adw.corEsquerda)),
+                Expanded(flex: ((100 - pctEsquerda) * 10).round().clamp(1, 1000), child: Container(color: Adw.corDireita)),
               ]),
             ),
             if (marcador != null)

@@ -9,6 +9,13 @@ class Adw {
   static const amarelo = Color(0xFFE5A50A);
   static const azul = Color(0xFF3584E4);
   static const roxo = Color(0xFF9141AC);
+  static const marrom = Color(0xFF986A44);
+
+  // Cores dos lados nas análises de posição. Usadas só para esquerda e
+  // direita, sempre juntas e com o mesmo peso, para não sugerir julgamento.
+  static const corEsquerda = vermelho;
+  static const corDireita = azul;
+  static Color corLado(String lado) => lado == 'esquerda' ? corEsquerda : corDireita;
 
   static const raio = 12.0; // cantos de cards e listas
   static const larguraMax = 720.0; // AdwClamp
