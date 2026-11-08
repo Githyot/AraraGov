@@ -22,3 +22,24 @@ def database_url() -> str:
 
 USER_AGENT = "AraraGov/0.1 (+https://github.com/Githyot/AraraGov)"
 HTTP_TIMEOUT = float(os.environ.get("ARARAGOV_HTTP_TIMEOUT", "120"))
+
+
+# Saída com IP brasileiro para fontes públicas que recusam conexões de fora do país
+# (alguns portais estaduais, tribunais de contas e a Receita não respondem aos
+# servidores do GitHub, que ficam nos EUA). Formato: http://usuario:senha@host:porta
+# ou socks5h://usuario:senha@host:porta. Vazio = sem saída brasileira.
+# Ver docs/ip-brasileiro.md. Só é usada quando a conexão direta falha ou o servidor
+# responde 403/451; nunca para driblar limite de pedidos (429).
+PROXY_BR = os.environ.get("ARARAGOV_PROXY_BR", "").strip()
+
+# Servidores que já se sabe que só respondem a IPs do Brasil: com PROXY_BR definido,
+# vão direto por ele, sem gastar tempo com a tentativa direta. Mais hosts podem ser
+# acrescentados por ARARAGOV_PROXY_HOSTS (separados por vírgula).
+HOSTS_SO_BRASIL = frozenset(
+    h.strip().lower()
+    for h in (
+        "arquivos.receitafederal.gov.br,dadosabertos.tce.pr.gov.br,"
+        + os.environ.get("ARARAGOV_PROXY_HOSTS", "")
+    ).split(",")
+    if h.strip()
+)
