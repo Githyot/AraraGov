@@ -11,10 +11,13 @@ class _Dinheiro extends StatefulWidget {
 }
 
 class _DinheiroState extends State<_Dinheiro> {
-  late final Future<List<Map<int, DocumentoMd>>> _dados =
-      Future.wait([_porAno(widget.api, widget.pasta, ''), _porAno(widget.api, widget.pasta, '-pagamentos')]);
-  int? _ano;
-  bool _hoje = false;
+  late final Future<List<Map<int, DocumentoMd>>> _dados = Future.wait([
+    _porAno(widget.api, widget.pasta, ''),
+    _porAno(widget.api, widget.pasta, '-pagamentos'),
+    _porAno(widget.api, widget.pasta, '-mensal'),
+  ]);
+  int? _ano, _mes;
+  bool _hoje = false, _porMes = false;
 
   @override
   Widget build(BuildContext context) => FutureBuilder<List<Map<int, DocumentoMd>>>(
@@ -23,40 +26,185 @@ class _DinheiroState extends State<_Dinheiro> {
           if (!snap.hasData) return const Center(child: CircularProgressIndicator());
           final financas = snap.data![0];
           final pagamentos = snap.data![1];
-          if (financas.isEmpty) {
+          final mensais = snap.data![2];
+          if (financas.isEmpty && mensais.isEmpty) {
             return const _Pagina([_SemDados(motivo: 'As contas deste município ainda não foram coletadas do Siconfi.')]);
           }
           final contas = {for (final e in financas.entries) e.key: ContasAno.de(e.key, e.value)};
-          final anos = financas.keys.toList();
-          final ano = _ano ?? anos.first;
-          final c = contas[ano]!;
-          final doc = financas[ano]!;
+          final anos = {...financas.keys, ...mensais.keys}.toList()..sort((a, b) => b.compareTo(a));
+          final ano = anos.contains(_ano) ? _ano! : anos.first;
+          final doc = financas[ano];
+          final anual = contas[ano];
+          final mensal = mensais[ano];
+          final meses = mensal == null ? const <int>[] : mesesPublicados(mensal);
+          final porMes = meses.isNotEmpty && (_porMes || anual == null && meses.length == 1);
+          final mes = meses.contains(_mes) ? _mes! : (meses.isEmpty ? 0 : meses.last);
           final pag = pagamentos[ano];
-          final fator = c.fatorIpca;
+          final fator = anual?.fatorIpca;
+
+          // O que mostrar: um mês, o ano declarado ou, sem a declaração anual
+          // (ano corrente), a soma dos meses já publicados.
+          final ContasAno c;
+          final String rotulo;
+          ContasAno? anterior;
+          String? rotuloAnterior;
+          final mensalAnterior = mensais[ano - 1];
+          ContasAno dosMeses(int a, DocumentoMd d, Set<int> ms) => contasDosMeses(a, d, ms,
+              fatorIpca: contas[a]?.fatorIpca, ipcaAte: contas[a]?.ipcaAte, populacao: contas[a]?.populacao ?? anual?.populacao);
+          if (porMes) {
+            c = dosMeses(ano, mensal!, {mes});
+            rotulo = '${nomesMeses[mes - 1]} de $ano';
+            if (mensalAnterior != null && mesesPublicados(mensalAnterior).contains(mes)) {
+              anterior = dosMeses(ano - 1, mensalAnterior, {mes});
+              rotuloAnterior = 'a ${nomesMeses[mes - 1]} de ${ano - 1}';
+            }
+          } else if (anual != null) {
+            c = anual;
+            rotulo = '$ano';
+            anterior = contas[ano - 1];
+            rotuloAnterior = 'a ${ano - 1}';
+          } else {
+            c = dosMeses(ano, mensal!, meses.toSet());
+            rotulo = meses.length == 12 ? '$ano' : '$ano, até ${nomesMeses[meses.last - 1]}';
+            if (mensalAnterior != null && meses.every(mesesPublicados(mensalAnterior).contains)) {
+              anterior = dosMeses(ano - 1, mensalAnterior, meses.toSet());
+              rotuloAnterior = meses.length == 12 ? 'a ${ano - 1}' : 'ao mesmo período de ${ano - 1}';
+            }
+          }
           final m = _Moeda(_hoje && fator != null ? fator : 1);
           final temContas = c.arrecadado != null || c.gasto != null;
           return _Pagina([
             _Controles(
               anos: anos,
               ano: ano,
-              ipcaAte: fator == null ? null : c.ipcaAte,
+              ipcaAte: fator == null ? null : anual!.ipcaAte,
               hoje: _hoje,
+              meses: meses,
+              porMes: porMes,
+              mes: mes,
+              temAnual: anual != null,
               aoMudarAno: (a) => setState(() => _ano = a),
               aoMudarHoje: (h) => setState(() => _hoje = h),
+              aoMudarPorMes: (v) => setState(() => _porMes = v),
+              aoMudarMes: (v) => setState(() => _mes = v),
             ),
-            if (temContas) _Resumo(c, contas[ano - 1], m),
-            if (contas.values.where((x) => x.arrecadado != null || x.gasto != null).length > 1)
+            if (temContas) _Resumo(c, anterior, m, rotulo: rotulo, rotuloAnterior: rotuloAnterior, mensal: porMes || anual == null),
+            if (mensal != null && meses.length > 1 && (porMes || anual == null))
+              _Meses(ano, mensal, meses, m, destaque: porMes ? mes : null, aoTocar: (v) => setState(() {
+                _porMes = true;
+                _mes = v;
+              })),
+            if (!porMes && anual != null && contas.values.where((x) => x.arrecadado != null || x.gasto != null).length > 1)
               _Evolucao(contas.values.toList()..sort((a, b) => a.ano.compareTo(b.ano)), destaque: ano),
             if (c.grupos.isNotEmpty) _Receitas(c, m),
-            if (c.areas.isNotEmpty) _Gastos(c, doc, pag, m),
-            _SemDados(linhas: doc.tabela('sem-dados')),
-            if (pag == null) _SemDados(motivo: 'Quem recebeu cada pagamento: ${_semTce(widget.uf)}'),
-            _Fonte('Siconfi (Tesouro Nacional), declaração de contas anuais'
-                '${pag == null ? '' : '; pagamentos pelo ${_tribunais[widget.uf]}'}'
-                '${fator == null ? '' : '; IPCA (IBGE, pelo Banco Central)'}'),
+            if (c.areas.isNotEmpty) _Gastos(c, porMes ? null : doc, porMes ? null : pag, m),
+            if (doc != null) _SemDados(linhas: doc.tabela('sem-dados')),
+            if (pag == null && !porMes) _SemDados(motivo: 'Quem recebeu cada pagamento: ${_semTce(widget.uf)}'),
+            _Fonte([
+              if (doc != null) 'Siconfi (Tesouro Nacional), declaração de contas anuais',
+              if (mensal != null) 'Siconfi, matriz de saldos contábeis mensal',
+              if (pag != null) 'pagamentos pelo ${_tribunais[widget.uf]}',
+              if (fator != null) 'IPCA (IBGE, pelo Banco Central)',
+            ].join('; ')),
           ]);
         },
       );
+}
+
+/// Arrecadado e gasto de cada mês do ano; tocar numa barra abre o mês.
+class _Meses extends StatelessWidget {
+  final int ano;
+  final DocumentoMd mensal;
+  final List<int> meses;
+  final _Moeda m;
+  final int? destaque;
+  final ValueChanged<int> aoTocar;
+  const _Meses(this.ano, this.mensal, this.meses, this.m, {this.destaque, required this.aoTocar});
+
+  @override
+  Widget build(BuildContext context) {
+    final tema = Theme.of(context);
+    final contas = {for (final mes in meses) mes: contasDosMeses(ano, mensal, {mes})};
+    double v(double? x) => (x ?? 0) * m.fator;
+    final maximo = contas.values.expand((c) => [v(c.arrecadado), v(c.gasto)]).fold<double>(1, (a, b) => a > b ? a : b);
+    final corArrecadado = tema.colorScheme.primary;
+    const corGasto = Adw.azul;
+    return Grupo(
+      titulo: 'Mês a mês em $ano',
+      descricao: 'Toque num mês para ver os valores dele.',
+      filhos: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 16, 16, 8),
+          child: SizedBox(
+            height: 180,
+            child: BarChart(BarChartData(
+              minY: 0,
+              maxY: maximo * 1.15,
+              gridData: const FlGridData(show: false),
+              borderData: FlBorderData(show: false),
+              barTouchData: BarTouchData(
+                touchCallback: (evento, resposta) {
+                  final g = resposta?.spot?.touchedBarGroupIndex;
+                  if (evento is FlTapUpEvent && g != null) aoTocar(meses[g]);
+                },
+                touchTooltipData: BarTouchTooltipData(
+                  getTooltipItem: (g, _, rod, i) => BarTooltipItem(
+                    '${i == 0 ? 'Arrecadado' : 'Gasto'}\n${reais(rod.toY)}',
+                    const TextStyle(color: Colors.white),
+                  ),
+                ),
+              ),
+              titlesData: FlTitlesData(
+                topTitles: const AxisTitles(),
+                rightTitles: const AxisTitles(),
+                leftTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 64,
+                    getTitlesWidget: (y, meta) => y == meta.max || y == 0
+                        ? const SizedBox()
+                        : Text(reaisCurto(y), style: tema.textTheme.bodySmall?.copyWith(color: tema.hintColor)),
+                  ),
+                ),
+                bottomTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    getTitlesWidget: (x, _) {
+                      final mes = meses[x.toInt()];
+                      return Text(nomesMeses[mes - 1].substring(0, 3),
+                          style: tema.textTheme.bodySmall?.copyWith(fontWeight: mes == destaque ? FontWeight.bold : null));
+                    },
+                  ),
+                ),
+              ),
+              barGroups: [
+                for (var i = 0; i < meses.length; i++)
+                  BarChartGroupData(x: i, barsSpace: 2, barRods: [
+                    for (final (valor, cor) in [
+                      (v(contas[meses[i]]!.arrecadado), corArrecadado),
+                      (v(contas[meses[i]]!.gasto), corGasto),
+                    ])
+                      BarChartRodData(
+                        toY: valor,
+                        width: 8,
+                        color: destaque == null || meses[i] == destaque ? cor : cor.withValues(alpha: 0.45),
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
+                      ),
+                  ]),
+              ],
+            )),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+          child: Wrap(spacing: 16, runSpacing: 4, children: [
+            _Legenda(corArrecadado, 'Arrecadado'),
+            const _Legenda(corGasto, 'Gasto (pago)'),
+          ]),
+        ),
+      ],
+    );
+  }
 }
 
 /// Formata valores do ano, corrigidos ou não pela inflação.
@@ -77,48 +225,80 @@ String _milhar(int n) => n.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!
 
 String _comSinal(double v) => '${v < 0 ? '−' : '+'}${reaisCurto(v.abs())}';
 
-/// Ano e a escolha entre valores da época ou de hoje.
+/// Ano, ano inteiro ou mês a mês, e valores da época ou de hoje.
 class _Controles extends StatelessWidget {
-  final List<int> anos;
-  final int ano;
+  final List<int> anos, meses;
+  final int ano, mes;
   final String? ipcaAte;
-  final bool hoje;
-  final ValueChanged<int> aoMudarAno;
-  final ValueChanged<bool> aoMudarHoje;
+  final bool hoje, porMes, temAnual;
+  final ValueChanged<int> aoMudarAno, aoMudarMes;
+  final ValueChanged<bool> aoMudarHoje, aoMudarPorMes;
   const _Controles({
     required this.anos,
     required this.ano,
     required this.ipcaAte,
     required this.hoje,
+    required this.meses,
+    required this.porMes,
+    required this.mes,
+    required this.temAnual,
     required this.aoMudarAno,
     required this.aoMudarHoje,
+    required this.aoMudarPorMes,
+    required this.aoMudarMes,
   });
 
   @override
   Widget build(BuildContext context) {
     final tema = Theme.of(context);
+    final dica = tema.textTheme.bodySmall?.copyWith(color: tema.hintColor);
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         if (anos.length > 1) _Anos(anos: anos, atual: ano, aoMudar: aoMudarAno),
-        if (ipcaAte != null) ...[
-          SegmentedButton<bool>(
-            showSelectedIcon: false,
-            segments: [
-              ButtonSegment(value: false, label: Text('Valores de $ano')),
-              const ButtonSegment(value: true, label: Text('Valores de hoje')),
-            ],
-            selected: {hoje},
-            onSelectionChanged: (s) => aoMudarHoje(s.first),
-          ),
+        Wrap(spacing: 12, runSpacing: 8, children: [
+          if (meses.isNotEmpty)
+            SegmentedButton<bool>(
+              showSelectedIcon: false,
+              segments: [
+                ButtonSegment(value: false, label: Text(temAnual || meses.length == 12 ? 'Ano inteiro' : 'Ano até agora')),
+                const ButtonSegment(value: true, label: Text('Por mês')),
+              ],
+              selected: {porMes},
+              onSelectionChanged: (s) => aoMudarPorMes(s.first),
+            ),
+          if (ipcaAte != null)
+            SegmentedButton<bool>(
+              showSelectedIcon: false,
+              segments: [
+                ButtonSegment(value: false, label: Text('Valores de $ano')),
+                const ButtonSegment(value: true, label: Text('Valores de hoje')),
+              ],
+              selected: {hoje},
+              onSelectionChanged: (s) => aoMudarHoje(s.first),
+            ),
+        ]),
+        if (porMes) ...[
+          const SizedBox(height: 10),
+          Wrap(spacing: 6, runSpacing: 4, children: [
+            for (final m in meses)
+              ChoiceChip(
+                label: Text(nomesMeses[m - 1].substring(0, 3)),
+                selected: m == mes,
+                onSelected: (_) => aoMudarMes(m),
+              ),
+          ]),
+        ],
+        if (ipcaAte != null || meses.isNotEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(4, 6, 4, 0),
             child: Text(
-              hoje ? 'Corrigidos pela inflação (IPCA) até ${mesAno(ipcaAte)}.' : 'Em reais de $ano, sem correção pela inflação.',
-              style: tema.textTheme.bodySmall?.copyWith(color: tema.hintColor),
+              ipcaAte != null && hoje
+                  ? 'Corrigidos pela inflação (IPCA) até ${mesAno(ipcaAte)}.'
+                  : 'Em reais de $ano, sem correção pela inflação.',
+              style: dica,
             ),
           ),
-        ],
       ]),
     );
   }
@@ -129,7 +309,12 @@ class _Resumo extends StatelessWidget {
   final ContasAno c;
   final ContasAno? anterior;
   final _Moeda m;
-  const _Resumo(this.c, this.anterior, this.m);
+  final String rotulo;
+  final String? rotuloAnterior;
+
+  /// Valores de um mês ou da soma dos meses (sem a declaração anual).
+  final bool mensal;
+  const _Resumo(this.c, this.anterior, this.m, {required this.rotulo, this.rotuloAnterior, this.mensal = false});
 
   @override
   Widget build(BuildContext context) {
@@ -142,7 +327,7 @@ class _Resumo extends StatelessWidget {
       final v = ant == null ? null : variacao(c, ant, valor);
       if (v == null) return null;
       return Linha(
-        titulo: '$titulo em relação a ${ant!.ano}',
+        titulo: '$titulo em relação ${rotuloAnterior ?? 'a ${ant!.ano}'}',
         subtitulo: v.real ? 'Já descontada a inflação do período (IPCA)' : 'Sem descontar a inflação',
         valor: porcentagem(v.fracao * 100, sinal: true),
       );
@@ -150,7 +335,7 @@ class _Resumo extends StatelessWidget {
 
     final variacoes = [comparar('Arrecadação', (x) => x.arrecadado), comparar('Gastos', (x) => x.gasto)].whereType<Widget>();
     return Grupo(
-      titulo: 'Resumo de ${c.ano}',
+      titulo: 'Resumo de $rotulo',
       filhos: [
         _Totais(c, m),
         if (gastoHab != null)
@@ -168,7 +353,7 @@ class _Resumo extends StatelessWidget {
             subtitulo: 'Parte da arrecadação que veio da União e do estado',
             valor: porcentagem(repasses * 100),
           ),
-        if (naoPago != null && naoPago > 0)
+        if (!mensal && naoPago != null && naoPago > 0)
           Linha(
             titulo: 'Contratado e não pago no ano',
             subtitulo: 'Empenhado em ${c.ano} e deixado para pagar depois (restos a pagar)',
@@ -518,7 +703,7 @@ class _Composicao extends StatelessWidget {
 /// Para onde vai o dinheiro: áreas (funções), com subáreas e quem recebeu.
 class _Gastos extends StatelessWidget {
   final ContasAno c;
-  final DocumentoMd doc;
+  final DocumentoMd? doc;
   final DocumentoMd? pag;
   final _Moeda m;
   const _Gastos(this.c, this.doc, this.pag, this.m);
@@ -528,7 +713,7 @@ class _Gastos extends StatelessWidget {
 
   Widget _area(BuildContext context, AreaGasto a, double total, {bool recuo = false}) {
     final barra = _Barra(nome: a.nome, valor: m.longo(a.pago), fracao: total > 0 ? a.pago / total : null);
-    final subareas = doc.tabela('areas').where((s) => s['funcao'] == a.funcao && s['subfuncao'] != null).toList()
+    final subareas = (doc?.tabela('areas') ?? const <Map<String, String?>>[]).where((s) => s['funcao'] == a.funcao && s['subfuncao'] != null).toList()
       ..sort((x, y) => _n(y['pago']).compareTo(_n(x['pago'])));
     if (subareas.isEmpty) return _LinhaBarra(barra, recuo: recuo, seta: true);
     final abrir = _Abrir(barra, [for (final s in subareas) _Subarea(subarea: s, pagamentos: pag, m: m)]);
@@ -543,8 +728,8 @@ class _Gastos extends StatelessWidget {
     final somaResto = resto.fold<double>(0, (s, a) => s + a.pago);
     return Grupo(
       titulo: 'Para onde vai o dinheiro',
-      descricao: 'Valor pago no ano, por área. A barra mostra a parte de cada área no total gasto. '
-          'Toque para ver as subáreas${pag == null ? '' : ' e quem recebeu'}.',
+      descricao: 'Valor pago ${doc == null ? 'no período' : 'no ano'}, por área. A barra mostra a parte de cada área no total gasto. '
+          '${doc == null ? '' : 'Toque para ver as subáreas${pag == null ? '' : ' e quem recebeu'}.'}',
       filhos: [
         for (final a in principais) _area(context, a, total),
         if (resto.isNotEmpty)

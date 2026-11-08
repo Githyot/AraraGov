@@ -518,6 +518,47 @@ class _Fornecedores extends StatelessWidget {
       );
 }
 
+String _plural(String? n, String um, String varios) => '${n ?? '0'} ${n == '1' ? um : varios}';
+
+/// Um autor com os tipos de emenda (individual, bancada…) somados.
+class _Autor {
+  final String autor;
+  final List<String> tipos = [];
+  int emendas = 0;
+  double valor = 0;
+  _Autor(this.autor);
+}
+
+List<_Autor> _juntarAutores(Iterable<Map<String, String?>> linhas) {
+  final por = <String, _Autor>{};
+  for (final l in linhas) {
+    final nome = l['autor'] ?? 'Autor não informado';
+    final a = por.putIfAbsent(nome, () => _Autor(nome));
+    final tipo = l['tipo'];
+    if (tipo != null && !a.tipos.contains(tipo)) a.tipos.add(tipo);
+    a.emendas += int.tryParse(l['emendas'] ?? '') ?? 1;
+    a.valor += _n(l['valor']);
+  }
+  return por.values.toList()..sort((a, b) => b.valor.compareTo(a.valor));
+}
+
+/// Autores de um ano: tabela `autores-ano` ou, em arquivos antigos, as linhas
+/// de `recebido` (que trazem só as maiores linhas).
+List<_Autor> _autoresDoAno(DocumentoMd doc, String? ano) {
+  final porAno = doc.tabela('autores-ano');
+  if (porAno.isNotEmpty) return _juntarAutores(porAno.where((l) => l['ano'] == ano));
+  final linhas = doc.tabela('recebido').where((l) => l['ano'] == ano).toList();
+  final emendas = <String, Set<String?>>{};
+  for (final l in linhas) {
+    emendas.putIfAbsent(l['autor'] ?? 'Autor não informado', () => {}).add(l['emenda']);
+  }
+  final autores = _juntarAutores([for (final l in linhas) {...l, 'emendas': '0'}]);
+  for (final a in autores) {
+    a.emendas = emendas[a.autor]?.length ?? 0;
+  }
+  return autores;
+}
+
 class _Emendas extends StatelessWidget {
   final Api api;
   final String pasta;
@@ -534,20 +575,40 @@ class _Emendas extends StatelessWidget {
           return _Pagina([
             Grupo(
               titulo: 'Emendas recebidas por ano',
+              descricao: 'Toque no ano para ver quem mandou.',
               filhos: [
                 for (final r in doc.tabela('resumo'))
-                  Linha(
-                    titulo: '${r['ano']}',
-                    subtitulo: '${r['emendas']} emendas de ${r['autores']} autores · governo municipal ${_reais(r['para_prefeitura'])} · outros ${_reais(r['para_outros'])}',
-                    valor: _reais(r['valor']),
+                  ExpansionTile(
+                    shape: const Border(),
+                    collapsedShape: const Border(),
+                    title: Text('${r['ano']}'),
+                    subtitle: Text([
+                      '${_plural(r['emendas'], 'emenda', 'emendas')} de ${_plural(r['autores'], 'autor', 'autores')}',
+                      'governo municipal ${_reais(r['para_prefeitura'])}',
+                      if (_n(r['para_outros']) > 0) 'outros ${_reais(r['para_outros'])}',
+                    ].join(' · ')),
+                    trailing: Text(_reais(r['valor']), style: Theme.of(context).textTheme.bodyLarge),
+                    children: [
+                      for (final a in _autoresDoAno(doc, r['ano']))
+                        Linha(
+                          titulo: a.autor,
+                          subtitulo: '${a.tipos.join(', ')} · ${_plural('${a.emendas}', 'emenda', 'emendas')}',
+                          valor: _reais('${a.valor}'),
+                        ),
+                    ],
                   ),
               ],
             ),
             Grupo(
               titulo: 'Quem mandou',
+              descricao: 'Todos os anos coletados.',
               filhos: [
-                for (final a in doc.tabela('autores').take(30))
-                  Linha(titulo: a['autor'] ?? 'Autor não informado', subtitulo: '${a['tipo'] ?? '—'} · ${a['emendas']} emendas', valor: _reais(a['valor'])),
+                for (final a in _juntarAutores(doc.tabela('autores')).take(30))
+                  Linha(
+                    titulo: a.autor,
+                    subtitulo: '${a.tipos.join(', ')} · ${_plural('${a.emendas}', 'emenda', 'emendas')}',
+                    valor: _reais('${a.valor}'),
+                  ),
               ],
             ),
             Grupo(

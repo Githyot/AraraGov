@@ -167,3 +167,45 @@ class ContasAno {
   if (fa != null && fb != null) return (fracao: (a * fa) / (b * fb) - 1, real: true);
   return (fracao: a / b - 1, real: false);
 }
+
+const nomesMeses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+
+/// Meses publicados no `{ano}-mensal.md` (tabela `meses`), em ordem.
+List<int> mesesPublicados(DocumentoMd mensal) =>
+    {for (final r in mensal.tabela('meses')) int.tryParse(r['mes'] ?? '') ?? 0}.where((m) => m >= 1 && m <= 12).toList()
+      ..sort();
+
+/// Contas de um ou mais meses, somadas, a partir do `{ano}-mensal.md`
+/// (Siconfi, Matriz de Saldos Contábeis). Sem os destaques nem subáreas,
+/// que só a declaração anual traz.
+ContasAno contasDosMeses(int ano, DocumentoMd mensal, Set<int> meses, {double? fatorIpca, String? ipcaAte, int? populacao}) {
+  bool doMes(Map<String, String?> r) => meses.contains(int.tryParse(r['mes'] ?? ''));
+  final linhas = mensal.tabela('meses').where(doMes).toList();
+  double? soma(String coluna) {
+    final v = [for (final r in linhas) numeroMd(r[coluna])].whereType<double>();
+    return v.isEmpty ? null : v.fold<double>(0, (s, x) => s + x);
+  }
+
+  final grupos = [
+    for (final (nome, coluna) in [(nomeImpostos, 'impostos'), (nomeRepasses, 'repasses'), (nomeOutras, 'outras')])
+      if ((soma(coluna) ?? 0) != 0) GrupoReceita(nome, soma(coluna)!, const []),
+  ];
+  final porFuncao = <String, AreaGasto>{};
+  for (final r in mensal.tabela('areas-mes').where(doMes)) {
+    final f = r['funcao'] ?? '';
+    final a = porFuncao[f];
+    final pago = _n(r['pago']);
+    porFuncao[f] = AreaGasto(f, r['area'] ?? a?.nome ?? '—', (a?.pago ?? 0) + pago, 0);
+  }
+  return ContasAno(
+    ano: ano,
+    fatorIpca: fatorIpca,
+    ipcaAte: ipcaAte,
+    populacao: populacao ?? int.tryParse(mensal.meta['populacao'] ?? ''),
+    arrecadado: soma('arrecadado'),
+    grupos: grupos,
+    gasto: soma('gasto'),
+    empenhado: soma('empenhado'),
+    areas: porFuncao.values.toList()..sort((a, b) => b.pago.compareTo(a.pago)),
+  );
+}
