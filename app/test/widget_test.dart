@@ -109,7 +109,17 @@ void main() {
     expect(find.text('Carla Inventada'), findsNothing);
     expect(find.text('Bruno Fictício'), findsOneWidget);
 
-    await tester.tap(find.text('Todos'));
+    // Federal mistura duas casas: dá para ver só senadores ou só deputados.
+    await tester.tap(find.text('Senadores'));
+    await tester.pumpAndSettle();
+    expect(find.text('Bruno Fictício'), findsOneWidget);
+    expect(find.text('Ana Exemplo'), findsNothing);
+    await tester.tap(find.text('Deputados'));
+    await tester.pumpAndSettle();
+    expect(find.text('Ana Exemplo'), findsOneWidget);
+    expect(find.text('Bruno Fictício'), findsNothing);
+
+    await tester.tap(find.text('Todos').first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Doa o salário'));
     await tester.pumpAndSettle();
