@@ -63,7 +63,33 @@ tipo: municipio-fornecedores
 | socios | federal | Receita Federal | Sócios ainda não verificados. |  |  | 2026-11-05 |
 ''';
 
+const _financas = '''---
+formato: araragov-md/1
+tipo: municipio-ano
+ano: 2024
+populacao: 1000
+---
+
+<!-- tabela: destaques -->
+| destaque | codigo | conta | liquida |
+|---|---|---|---|
+| IPTU | 1.1.1.2.50.0.0 | x | 100 |
+
+<!-- tabela: receitas -->
+| codigo | nivel | conta | bruta | deducoes | liquida |
+|---|---|---|---|---|---|
+| 1.0.0.0.00.0.0 | 1 | Receitas Correntes | 1000 | 0 | 1000 |
+| 1.1.0.0.00.0.0 | 2 | Impostos | 300 | 0 | 300 |
+| 1.7.0.0.00.0.0 | 2 | Transferências Correntes | 700 | 0 | 700 |
+
+<!-- tabela: areas -->
+| funcao | subfuncao | area | empenhado | liquidado | pago |
+|---|---|---|---|---|---|
+| 10 |  | Saúde | 800 | 800 | 800 |
+''';
+
 const _arquivos = {
+  'municipios/sp/3500105/2024.md': _financas,
   'municipios/indice.md': _indice,
   'municipios/sp/3500105/resumo.md': _resumo,
   'municipios/sp/3500105/2024-contratos.md': _contratos,
@@ -99,6 +125,12 @@ void main() {
     expect(find.textContaining('ainda não foram coletados'), findsOneWidget);
     await tester.pageBack();
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Dinheiro'));
+    await tester.pumpAndSettle();
+    expect(find.text('Total arrecadado'), findsOneWidget);
+    expect(find.text('R\$ 1.000,00'), findsOneWidget);
+    expect(find.text('Total gasto (pago)'), findsOneWidget);
+    expect(find.text('70,0%'), findsWidgets); // repasses
 
     await tester.tap(find.text('Obras'));
     await tester.pumpAndSettle();
