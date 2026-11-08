@@ -109,6 +109,41 @@ void main() {
         'Declarou doar 30% do salário em 2020');
   });
 
+  test('filtro de ano recalcula posição e alinhamento', () {
+    Map<String, dynamic> ler() =>
+        jsonDecode(File('assets/amostra/v1/politicos/camara-9001.json').readAsStringSync()) as Map<String, dynamic>;
+    // Dados sem cálculo por ano: posição sai dos lados dos votos; alinhamento some.
+    final antigo = Perfil.fromJson(ler()).noAno(2025);
+    expect(antigo.temAnalisesPorAno, isFalse);
+    expect(antigo.posicao, isNull); // menos de 10 votos com lado na amostra
+    expect(antigo.alinhamento, isNull);
+    final muitos = ler()
+      ..['votacoes'] = []
+      ..['votos'] = [
+        for (var i = 0; i < 12; i++) ['v$i', '2025-03-10', 'sim', i < 9 ? 'esquerda' : 'direita', 0]
+      ];
+    expect(Perfil.fromJson(muitos).noAno(2025).posicao!.pctEsquerda, 75);
+
+    final j = ler()
+      ..['analises_anos'] = {
+        '2025': {
+          'posicao': {'pct_esquerda': 30, 'pct_direita': 70, 'faixa': 'centro-direita', 'votacoes_consideradas': 12},
+          'alinhamento': {
+            'mais_alinhados': [
+              {'partido': 'PAM', 'pct': 80, 'votacoes': 12}
+            ]
+          },
+        }
+      };
+    final p = Perfil.fromJson(j);
+    expect(p.posicao!.pctEsquerda, 52);
+    expect(p.noAno(2025).posicao!.pctEsquerda, 30);
+    expect(p.noAno(2025).alinhamento!.maisAlinhados.single.partido, 'PAM');
+    expect(p.noAno(2024).posicao, isNull);
+    expect(p.noAno(2024).alinhamento, isNull);
+    expect(p.noAno(null).posicao!.pctEsquerda, 52);
+  });
+
   test('salário estadual vindo da imprensa é marcado como referência', () {
     final s = Salario.fromJson({
       'atual': 21914.76,

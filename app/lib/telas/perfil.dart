@@ -99,6 +99,13 @@ class _PerfilTelaState extends State<PerfilTela> {
                         onDeleted: () => setState(() => _ano = null),
                       ),
                     ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Votos, posição, alinhamento, cota, verba e emendas são só de $_ano. '
+                      'Tabela de salário e equipe do gabinete são as atuais.',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).hintColor),
+                    ),
                   ],
                   const SizedBox(height: 24),
                   SecaoPosicao(p),
