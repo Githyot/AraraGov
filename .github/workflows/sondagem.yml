@@ -12,6 +12,36 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
+      - name: Siconfi MSC mensal (Roncador/PR, mar/2025)
+        run: |
+          set +e
+          A="AraraGov (dados publicos; github.com/Githyot/AraraGov)"
+          S="https://apidatalake.tesouro.gov.br/ords/siconfi/tt"
+          for q in \
+            "msc_orcamentaria?id_ente=4122404&an_referencia=2025&me_referencia=3&co_tipo_matriz=MSCC&classe_conta=6&id_tv=period_change" \
+            "msc_orcamentaria?id_ente=4122404&an_referencia=2025&me_referencia=3&co_tipo_matriz=MSCE&classe_conta=6&id_tv=period_change" \
+            "msc_orcamentaria?id_ente=4122404&an_referencia=2026&me_referencia=9&co_tipo_matriz=MSCC&classe_conta=6&id_tv=period_change" ; do
+            echo "== $q"
+            curl -sS -m 180 -A "$A" "$S/$q" -o /tmp/m.json -w "[%{http_code} %{size_download}B %{time_total}s]\n"
+            python3 - <<'PY'
+          import json, collections
+          d = json.load(open("/tmp/m.json"))
+          it = d.get("items", [])
+          print("itens:", len(it), "hasMore:", d.get("hasMore"), "count:", d.get("count"))
+          if it:
+              print("chaves:", sorted(it[0].keys()))
+              for e in it[:3]: print(e)
+              c = collections.Counter((str(e.get("conta_contabil"))[:7], e.get("natureza_conta")) for e in it)
+              for k, v in sorted(c.items())[:40]: print(k, v)
+              tot = collections.defaultdict(float)
+              for e in it:
+                  cc = str(e.get("conta_contabil") or "")
+                  tot[(cc[:7], e.get("natureza_conta"))] += float(e.get("valor") or 0)
+              for k, v in sorted(tot.items()): print("TOTAL", k, round(v, 2))
+              for e in [e for e in it if str(e.get("conta_contabil", "")).startswith("6212")][:4]: print("REC", e)
+              for e in [e for e in it if str(e.get("conta_contabil", "")).startswith("622130")][:4]: print("DSP", e)
+          PY
+          done
       - name: Cabeçalhos dos arquivos brutos (ETag, Last-Modified)
         run: |
           set +e
