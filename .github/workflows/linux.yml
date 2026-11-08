@@ -1,7 +1,8 @@
 name: Linux (RPM)
 
 # Gera o .rpm para Fedora e afins. Compila no Ubuntu 22.04 para o pacote rodar
-# em sistemas mais antigos (glibc 2.35). Uma etiqueta v* anexa o pacote à Release
+# em sistemas mais antigos (glibc 2.35). Uma etiqueta v* (ou o disparo manual com
+# "publicar" marcado, na main) anexa o pacote à Release
 # como pré-lançamento. O pacote com dados de exemplo (políticos fictícios) serve
 # só para testar as telas: fica nos artefatos e nunca vai para a Release.
 
@@ -11,6 +12,11 @@ on:
   pull_request:
     paths: ["packaging/**", "app/linux/**", ".github/workflows/linux.yml"]
   workflow_dispatch:
+    inputs:
+      publicar:
+        description: "Publicar a Release v<versão do pubspec> com o RPM (cria a etiqueta)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -21,6 +27,8 @@ env:
 jobs:
   rpm:
     runs-on: ubuntu-22.04
+    outputs:
+      versao: ${{ steps.versao.outputs.versao }}
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -36,12 +44,14 @@ jobs:
           tar -xzf "$RUNNER_TEMP"/nfpm/nfpm_*_Linux_x86_64.tar.gz -C "$RUNNER_TEMP/nfpm" nfpm
           echo "$RUNNER_TEMP/nfpm" >> "$GITHUB_PATH"
       - name: Versão
+        id: versao
         run: |
           versao="$(sed -n 's/^version: \([^+]*\).*/\1/p' app/pubspec.yaml)"
           if [[ "$GITHUB_REF" == refs/tags/v* && "$GITHUB_REF_NAME" != "v$versao" ]]; then
             echo "::error::A etiqueta $GITHUB_REF_NAME não bate com a versão $versao do pubspec"; exit 1
           fi
           echo "ARARAGOV_VERSAO=$versao" >> "$GITHUB_ENV"
+          echo "versao=$versao" >> "$GITHUB_OUTPUT"
       - name: Pacote com os dados reais
         env:
           ARARAGOV_PACOTE: araragov
@@ -50,7 +60,7 @@ jobs:
           mkdir -p dist
           nfpm package -f packaging/linux/nfpm.yaml -p rpm -t dist/AraraGov-linux-x86_64.rpm
       - name: Pacote com dados de exemplo
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        if: ${{ !startsWith(github.ref, 'refs/tags/') && !inputs.publicar }}
         env:
           ARARAGOV_PACOTE: araragov
         run: |
@@ -63,7 +73,7 @@ jobs:
           path: dist/AraraGov-linux-x86_64.rpm
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        if: ${{ !startsWith(github.ref, 'refs/tags/') && !inputs.publicar }}
         with:
           name: araragov-rpm-exemplo
           path: exemplo/AraraGov-EXEMPLO-linux-x86_64.rpm
@@ -71,7 +81,7 @@ jobs:
 
   release:
     needs: rpm
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publicar && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -81,4 +91,10 @@ jobs:
           name: araragov-rpm
       - env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" AraraGov-linux-x86_64.rpm -R "$GITHUB_REPOSITORY" --prerelease --title "AraraGov $GITHUB_REF_NAME" --generate-notes
+          VERSAO: ${{ needs.rpm.outputs.versao }}
+        run: |
+          # Numa etiqueta v*, usa a etiqueta; no disparo manual, cria v<versão> no commit da main.
+          etiqueta="$GITHUB_REF_NAME"
+          [[ "$GITHUB_REF" == refs/tags/v* ]] || etiqueta="v$VERSAO"
+          gh release create "$etiqueta" AraraGov-linux-x86_64.rpm -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --prerelease --title "AraraGov $etiqueta" --generate-notes
