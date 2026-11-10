@@ -217,6 +217,28 @@ void main() {
     expect(p.noAno(null).posicao!.pctEsquerda, 52);
   });
 
+  test('filtro de mês mostra só os votos e gastos daquele mês', () {
+    final j = jsonDecode(File('assets/amostra/v1/politicos/camara-9001.json').readAsStringSync()) as Map<String, dynamic>;
+    j['votacoes'] = [];
+    j['votos'] = [
+      for (var i = 0; i < 12; i++) ['v$i', '2025-03-${10 + i}', 'sim', 'esquerda', 0],
+      ['w0', '2025-04-02', 'nao', 'esquerda', 0],
+    ];
+    final p = Perfil.fromJson(j);
+    final categorias = p.gastos.categoriasPorMes[2025]!;
+    final emMarco = categorias.values.fold<double>(0, (a, v) => a + v[2]);
+    expect(p.mesesDisponiveis(2025), containsAll([3, 4]));
+    final marco = p.noMes(2025, 3);
+    expect(marco.mes, 3);
+    expect(marco.votacoes.length, 12);
+    expect(marco.posicao!.pctEsquerda, 100);
+    expect(marco.alinhamento, isNull);
+    expect(marco.emendas, isNull);
+    expect(marco.gastos.total, closeTo(emMarco, 0.01));
+    expect(marco.gastos.porCategoria.every((c) => c.valor > 0), isTrue);
+    expect(p.noMes(2025, 4).votacoes.single.voto, 'nao');
+  });
+
   test('salário estadual vindo da imprensa é marcado como referência', () {
     final s = Salario.fromJson({
       'atual': 21914.76,

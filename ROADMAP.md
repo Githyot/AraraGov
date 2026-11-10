@@ -70,7 +70,7 @@ _Última atualização: 10 de novembro de 2026 (versão 0.2.0 do app para Linux 
 - ✅ Busca por nome, partido, estado e casa; perfil completo com gráficos
 - ✅ Telas de posição política, alinhamento e votações de atenção
 - ✅ Filtro Federal/Estadual e perfis estaduais
-- ✅ Filtro por período (ano) no perfil
+- ✅ Filtro por período (ano e mês) no perfil
 - ✅ Comparar dois políticos lado a lado, com % de votos iguais
 - ✅ Doação do salário: quem declara doar, com a fonte, e filtro na busca
 - ⏸️ Gerar os aplicativos (lojas e instaladores): só quando HP pedir

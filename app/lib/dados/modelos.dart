@@ -420,9 +420,12 @@ class Perfil {
 
   /// Ano do filtro de período, ou null para todo o período.
   final int? ano;
+
+  /// Mês (1 a 12) do filtro de período, quando o filtro é de um mês só.
+  final int? mes;
   final Map<String, dynamic> _json;
 
-  Perfil.fromJson(Map<String, dynamic> j, {this.ano})
+  Perfil.fromJson(Map<String, dynamic> j, {this.ano, this.mes})
       : _json = j,
         resumo = PoliticoResumo.fromJson(j),
         nomeCivil = j['nome_civil'],
@@ -544,6 +547,97 @@ class Perfil {
     final emAno = (e?['anos'] as Map?)?[chave] as Map?;
     j['emendas'] = emAno == null ? null : (Map<String, dynamic>.from(emAno)..['por_ano'] = []);
     return Perfil.fromJson(j, ano: ano);
+  }
+
+  /// Meses de [ano] com algum voto ou gasto, para o filtro por mês.
+  List<int> mesesDisponiveis(int ano) {
+    final p = noAno(ano);
+    final meses = <int>{
+      for (final v in p.votacoes)
+        if (v.data != null && v.data!.length >= 7) int.parse(v.data!.substring(5, 7)),
+      for (final valores in (p.gastos.categoriasPorMes[ano] ?? const <String, List<double>>{}).values)
+        for (var i = 0; i < valores.length; i++)
+          if (valores[i] > 0) i + 1,
+      for (final m in p.verbaGabinete?.anos[ano]?.porMes ?? const <({int mes, double valor})>[])
+        if (m.valor > 0) m.mes,
+    };
+    return meses.toList()..sort();
+  }
+
+  /// O mesmo perfil, só com o que aconteceu no [mes] de [ano]. Posição pelos
+  /// votos do mês; o alinhamento com os partidos fica de fora, porque um mês
+  /// tem poucas votações. Emendas e benefícios não vêm por mês nas fontes.
+  Perfil noMes(int ano, int mes) {
+    final j = Map<String, dynamic>.from(noAno(ano)._json);
+    final chave = '$ano-${mes.toString().padLeft(2, '0')}';
+    j['votacoes'] = [
+      for (final v in (j['votacoes'] as List? ?? []))
+        if ((v['data'] as String? ?? '').startsWith(chave)) v
+    ];
+    if (j['votos'] != null) {
+      j['votos'] = [
+        for (final c in (j['votos'] as List))
+          if (((c as List)[1] as String? ?? '').startsWith(chave)) c
+      ];
+    }
+    final votos = _lerVotos(j);
+    final presenca = <String, int>{};
+    for (final v in votos) {
+      presenca[v.voto] = (presenca[v.voto] ?? 0) + 1;
+    }
+    j['presenca'] = presenca;
+    j['posicao'] = _posicaoLocal(votos);
+    j['alinhamento'] = null;
+    final comAtencao = votos.where((v) => v.atencao != null).toList();
+    j['atencao'] = comAtencao.isEmpty
+        ? null
+        : {
+            'votacoes': comAtencao.length,
+            'votou_sim': comAtencao.where((v) => v.voto == 'sim').length,
+            'votou_nao': comAtencao.where((v) => v.voto == 'nao').length,
+          };
+    final g = Map<String, dynamic>.from(j['gastos'] as Map? ?? {});
+    final doAno = ((g['anos'] as Map?)?['$ano'] as Map?) ?? {};
+    final categorias = [
+      for (final c in (doAno['por_categoria_mes'] as List? ?? []))
+        if ((c['meses'] as List).length >= mes && _n((c['meses'] as List)[mes - 1]) > 0)
+          {'nome': c['nome'], 'valor': _n((c['meses'] as List)[mes - 1])}
+    ]..sort((a, b) => (b['valor'] as double).compareTo(a['valor'] as double));
+    final totalMes = categorias.fold<double>(0, (a, c) => a + (c['valor'] as double));
+    j['gastos'] = {
+      'total': totalMes,
+      'por_ano': [
+        {'ano': ano, 'valor': totalMes}
+      ],
+      'por_categoria': categorias,
+      'maiores_fornecedores': [],
+      'anos': {},
+      'vs_inflacao': [],
+      'documentos_recentes': [
+        for (final d in (g['documentos_recentes'] as List? ?? []))
+          if ((d['data'] as String? ?? '').startsWith(chave)) d
+      ],
+    };
+    for (final campo in ['verba_gabinete', 'salario_pago']) {
+      final doAnoCampo = ((j[campo] as Map?)?['anos'] as Map?)?['$ano'] as Map?;
+      final doMes = [
+        for (final m in (doAnoCampo?['por_mes'] as List? ?? []))
+          if (m['mes'] == mes) m
+      ];
+      j[campo] = doMes.isEmpty
+          ? null
+          : {
+              'total': doMes.first['valor'],
+              'por_ano': [
+                {'ano': ano, 'valor': doMes.first['valor']}
+              ],
+              'anos': {
+                '$ano': {'total': doMes.first['valor'], 'por_mes': doMes}
+              },
+            };
+    }
+    j['emendas'] = null;
+    return Perfil.fromJson(j, ano: ano, mes: mes);
   }
 
   int get totalVotacoes => presenca.values.fold(0, (a, b) => a + b);
