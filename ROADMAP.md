@@ -5,7 +5,7 @@ o que falta. Este arquivo é atualizado a cada entrega.
 
 Legenda: ✅ pronto (no `main`) · 🔄 em revisão (PR aberto) · ⬜ falta fazer · ➖ não disponível na fonte · ⏸️ só quando pedido
 
-_Última atualização: 6 de novembro de 2026_
+_Última atualização: 10 de novembro de 2026 (versão 0.2.0 do app para Linux publicada)_
 
 ## Visão geral
 
@@ -18,9 +18,9 @@ _Última atualização: 6 de novembro de 2026_
 | Benefícios e custo dos gabinetes | ✅ Senado |
 | Emendas parlamentares | ✅ |
 | Período, comparação e doação do salário | ✅ |
-| Processos e ocorrências (TSE, CGU, TCU, decisões de tribunais) | 🔄 |
+| Processos e ocorrências (TSE, CGU, TCU, decisões de tribunais) | ✅ |
 | Base federal completa | ✅ |
-| 5. Municípios | 🔄 fases 0 a 8: plano, prefeitos e vereadores, finanças, custos de referência, piloto de SP, fornecedores, emendas e telas do app |
+| 5. Municípios | ✅ fases 0 a 7: plano, prefeitos e vereadores, finanças, custos de referência, piloto de SP, fornecedores, emendas e telas do app · fase 8 em andamento |
 
 ## 1. Base federal ✅
 
@@ -45,7 +45,7 @@ _Última atualização: 6 de novembro de 2026_
 - ✅ Legislatura anterior (2019-2022): deputados e senadores que saíram, votos e gastos desde 2019
 - ✅ API mais leve: votos compactos nos perfis e detalhes das votações por ano, para caber no limite de 1 GB do GitHub Pages
 - ✅ Emendas parlamentares: quanto cada um indicou, quanto foi pago, para onde e quem recebeu
-- 🔄 Processos e ocorrências: candidatura indeferida ou cassada (TSE), sanções (CGU), inabilitação (TCU) e certidões criminais, sempre com situação atual e fonte oficial
+- ✅ Processos e ocorrências: candidatura indeferida ou cassada (TSE), sanções (CGU), inabilitação (TCU) e certidões criminais, sempre com situação atual e fonte oficial
 - ⬜ Lista curada de decisões de tribunais (prisão, condenação, absolvição), só com link oficial
 
 ## 2. Análises ✅
@@ -70,7 +70,7 @@ _Última atualização: 6 de novembro de 2026_
 - ✅ Busca por nome, partido, estado e casa; perfil completo com gráficos
 - ✅ Telas de posição política, alinhamento e votações de atenção
 - ✅ Filtro Federal/Estadual e perfis estaduais
-- ✅ Filtro por período (ano) no perfil
+- ✅ Filtro por período (ano e mês) no perfil
 - ✅ Comparar dois políticos lado a lado, com % de votos iguais
 - ✅ Doação do salário: quem declara doar, com a fonte, e filtro na busca
 - ⏸️ Gerar os aplicativos (lojas e instaladores): só quando HP pedir
@@ -90,7 +90,8 @@ _Última atualização: 6 de novembro de 2026_
   - governador e vice de SP pela lei estadual
   - governadores dos outros 26 estados pelo levantamento do Valor Econômico (out/2026), marcado no app como valor da imprensa
 - ✅ Seção sem dado mostra "Sem dados" e o órgão responsável por publicar, com a esfera (federal, estadual ou municipal); vale para todo o app
-- ⬜ Salário dos deputados de AC, AL, AM, AP, DF, PI, RO, RR e SE (seguem como teto)
+- ✅ Salário dos deputados distritais (DF), pela reportagem sobre a lei de 2024
+- ⬜ Salário dos deputados de AC, AL, AM, AP, PI, RO, RR e SE (seguem como teto; leis não achadas na internet)
 - ⬜ Trocar os valores da imprensa pelo texto da lei, estado por estado
 - ⬜ Outras assembleias, uma a uma, só com dados já publicados (sem pedidos ao governo):
   - ➖ PR: gastos só em telas e numa API que o robots.txt da Alep fecha; a API aberta só tem proposições
@@ -111,17 +112,18 @@ gastos por área, obras comparadas com o custo de referência e fornecedores,
 sem acusar ninguém.
 
 - ✅ Necessidades levantadas com HP
-- 🔄 Fase 0: plano, formato `.md` que o app lê e metodologia de custo de referência em 3 níveis
-- 🔄 Fase 1: prefeitos, vices e vereadores 2016/2020/2024 (TSE), um arquivo por município
-- 🔄 Fase 2: arrecadação (IPTU, ISS, FPM…) e gastos por área e subárea, Brasil inteiro (Siconfi), com IPCA e aviso de quem não entregou
-- 🔄 Fase 3: custo de referência em 3 níveis, com índice de custo por estado (SINAPI/IBGE) e períodos atípicos
+- ✅ Fase 0: plano, formato `.md` que o app lê e metodologia de custo de referência em 3 níveis
+- ✅ Fase 1: prefeitos, vices e vereadores 2016/2020/2024 (TSE), um arquivo por município
+- ✅ Fase 2: arrecadação (IPTU, ISS, FPM…) e gastos por área e subárea, Brasil inteiro (Siconfi), com IPCA e aviso de quem não entregou
+- ✅ Fase 3: custo de referência em 3 níveis, com índice de custo por estado (SINAPI/IBGE) e períodos atípicos
 - ⬜ Preço de cada serviço do SINAPI (o site da Caixa recusa downloads do GitHub) e preços de artigos com fonte
-- 🔄 Fase 4: estado piloto (SP, pelo TCE-SP, porque o TCE-PR não responde ao GitHub): pagamentos por empresa e área, obras e contratos com comparação de custo
-- 🔄 Fase 5: fornecedores com empresas punidas (CEIS/CNEP) e serviço a campanhas no município (TSE); sócios da Receita ainda faltam (servidor não responde ao GitHub)
-- 🔄 Fase 6: emendas federais recebidas em cada município, por autor e favorecido (prefeitura, entidade ou empresa)
-- 🔄 Fase 7: telas do app: busca de municípios e abas Quem governa, Dinheiro, Obras, Fornecedores e Emendas
+- ✅ Fase 4: estado piloto (SP, pelo TCE-SP, porque o TCE-PR não responde ao GitHub): pagamentos por empresa e área, obras e contratos com comparação de custo
+- ✅ Fase 5: fornecedores com empresas punidas (CEIS/CNEP) e serviço a campanhas no município (TSE); sócios da Receita ainda faltam (servidor não responde ao GitHub)
+- ✅ Fase 6: emendas federais recebidas em cada município, por autor e favorecido (prefeitura, entidade ou empresa)
+- ✅ Fase 7: telas do app: busca de municípios e abas Quem governa, Dinheiro, Obras, Fornecedores e Emendas
 - ✅ Aba Dinheiro: resumo do ano (arrecadado, gasto, diferença, por habitante, repasses, não pago, comparação com o ano anterior descontada a inflação), gráfico de evolução, receitas por origem e gastos por área com a parte de cada um no total, e valores de hoje pelo IPCA
-- 🔄 Fase 8: contratos de todos os municípios pelo PNCP; depois outros TCEs e portais Fiorilli, Betha, IPM
+- ✅ Fase 8: contratos de todos os municípios pelo PNCP; TCE-CE, TCE-PB, TCE-PE e TCE-RJ; portais Fiorilli e Agili/IPM
+- ⬜ Fase 8: portais Betha e outros TCEs
 
 ## Pendências de configuração (HP)
 

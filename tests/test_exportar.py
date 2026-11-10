@@ -174,3 +174,12 @@ def test_senador_sem_partido_usa_o_do_ultimo_voto_e_nome_em_maiusculas(tmp_path)
     resumo = {p["id"]: p for p in json.loads((tmp_path / "v1/politicos.json").read_text())}
     assert resumo["senado-5918"]["partido"] == "PDT"
     assert resumo["camara-1"]["nome"] == "André Abdon"
+
+
+def test_salario_dos_distritais_vem_da_lista_curada():
+    from araragov.exportar import _salario, subsidios_estaduais
+
+    s = _salario("Deputado distrital", [], uf="DF", estaduais=subsidios_estaduais())
+    assert str(s["atual"]) == "34774.64"
+    assert "teto" not in s
+    assert all(h.get("referencia") for h in s["historico"])  # reportagem, não o texto da lei

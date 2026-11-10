@@ -26,6 +26,9 @@ class PerfilTela extends StatefulWidget {
 class _PerfilTelaState extends State<PerfilTela> {
   late Future<Perfil> _perfil = widget.api.perfil(widget.id);
   int? _ano;
+  int? _mes;
+
+  Perfil _filtrado(Perfil base) => _ano != null && _mes != null ? base.noMes(_ano!, _mes!) : base.noAno(_ano);
 
   @override
   void didUpdateWidget(PerfilTela antigo) {
@@ -33,6 +36,7 @@ class _PerfilTelaState extends State<PerfilTela> {
     if (antigo.id != widget.id) {
       _perfil = widget.api.perfil(widget.id);
       _ano = null;
+      _mes = null;
     }
   }
 
@@ -54,7 +58,10 @@ class _PerfilTelaState extends State<PerfilTela> {
                     tooltip: 'Período',
                     icon: const Icon(Icons.calendar_month_outlined),
                     initialValue: _ano ?? 0,
-                    onSelected: (v) => setState(() => _ano = v == 0 ? null : v),
+                    onSelected: (v) => setState(() {
+                      _ano = v == 0 ? null : v;
+                      _mes = null;
+                    }),
                     itemBuilder: (_) => [
                       const PopupMenuItem(value: 0, child: Text('Todo o período')),
                       for (final a in anos) PopupMenuItem(value: a, child: Text('$a')),
@@ -63,7 +70,7 @@ class _PerfilTelaState extends State<PerfilTela> {
                 IconButton(
                   tooltip: 'Comparar com outro político',
                   icon: const Icon(Icons.compare_arrows),
-                  onPressed: () => abrirComparacao(context, widget.api, snap.data!.noAno(_ano)),
+                  onPressed: () => abrirComparacao(context, widget.api, _filtrado(snap.data!)),
                 ),
               ]);
             },
@@ -85,7 +92,8 @@ class _PerfilTelaState extends State<PerfilTela> {
             );
           }
           if (!snap.hasData) return const Center(child: CircularProgressIndicator());
-          final p = snap.data!.noAno(_ano);
+          final p = _filtrado(snap.data!);
+          final meses = _ano == null ? const <int>[] : snap.data!.mesesDisponiveis(_ano!);
           return ListView(
             padding: const EdgeInsets.symmetric(horizontal: Adw.espaco, vertical: 24),
             children: [
@@ -94,16 +102,36 @@ class _PerfilTelaState extends State<PerfilTela> {
                   _Cabecalho(p),
                   if (_ano != null) ...[
                     const SizedBox(height: 12),
-                    Center(
-                      child: InputChip(
-                        label: Text('Mostrando só $_ano'),
-                        onDeleted: () => setState(() => _ano = null),
+                    Wrap(alignment: WrapAlignment.center, spacing: 8, runSpacing: 8, children: [
+                      InputChip(
+                        label: Text(_mes == null ? 'Mostrando só $_ano' : 'Mostrando só ${_nomeMes(_mes!).toLowerCase()} de $_ano'),
+                        onDeleted: () => setState(() {
+                          _ano = null;
+                          _mes = null;
+                        }),
                       ),
-                    ),
+                      if (meses.length > 1)
+                        PopupMenuButton<int>(
+                          tooltip: 'Mês',
+                          initialValue: _mes ?? 0,
+                          onSelected: (v) => setState(() => _mes = v == 0 ? null : v),
+                          itemBuilder: (_) => [
+                            const PopupMenuItem(value: 0, child: Text('O ano todo')),
+                            for (final m in meses) PopupMenuItem(value: m, child: Text(_nomeMes(m))),
+                          ],
+                          child: Chip(
+                            avatar: const Icon(Icons.date_range_outlined, size: 18),
+                            label: Text(_mes == null ? 'Escolher mês' : 'Mudar mês'),
+                          ),
+                        ),
+                    ]),
                     const SizedBox(height: 4),
                     Text(
-                      'Votos, posição, alinhamento, cota, verba e emendas são só de $_ano. '
-                      'Tabela de salário e equipe do gabinete são as atuais.',
+                      _mes == null
+                          ? 'Votos, posição, alinhamento, cota, verba e emendas são só de $_ano. '
+                              'Tabela de salário e equipe do gabinete são as atuais.'
+                          : 'Votos, posição, cota e verba são só deste mês. Alinhamento e emendas '
+                              'não são mostrados por mês; tabela de salário e equipe são as atuais.',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).hintColor),
                     ),
